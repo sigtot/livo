@@ -1,17 +1,18 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include "FeatureExtractor.h"
 
 using namespace std;
-
-void imageCallback(const sensor_msgs::Image::ConstPtr& img) {
-    ROS_INFO("Recvd img\n");
-}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "orb_test");
     ros::NodeHandle nh;
 
-    auto sub = nh.subscribe("/camera/image_mono", 1000, imageCallback);
+    auto pub = nh.advertise<sensor_msgs::Image>("/orb_image", 1000);
+    FeatureExtractor featureExtractor(pub);
+    auto sub = nh.subscribe("/camera/image_mono", 1000, &FeatureExtractor::imageCallback, &featureExtractor);
+
+    ROS_INFO("Starting up");
 
     ros::spin();
     return 0;
