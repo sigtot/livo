@@ -9,6 +9,8 @@ project(orb_test)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
         roscpp
+        cv_bridge
+        OpenCV
         )
 
 ## System dependencies are found with CMake's conventions
@@ -116,6 +118,7 @@ catkin_package(
 include_directories(
 # include
 ${catkin_INCLUDE_DIRS}
+${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -145,7 +148,8 @@ add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtract
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
-   ${catkin_LIBRARIES}
+    ${catkin_LIBRARIES}
+    ${OpenCV_LIBS}
 )
 
 #############

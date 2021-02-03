@@ -10,7 +10,7 @@ private:
 public:
     FeatureExtractor(const ros::Publisher &pub);
 
-    void imageCallback(const sensor_msgs::Image::ConstPtr& img);
+    void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 };
 
 
