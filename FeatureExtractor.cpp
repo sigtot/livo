@@ -18,27 +18,31 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
 
     orb->detectAndCompute(cvPtr->image, Mat(), keyPoints, descriptors);
 
-    cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
-    drawKeypoints(cvPtr->image, keyPoints, outImg.image);
-
     if (!frames.empty()) {
-        auto prevKeyPoints = frames.back().getKeyPoints();
-        cout << "type" << descriptors.type() << endl;
-        auto prevDescriptors = frames.back().getDescriptors();
-        int i = 0;
-        for (const auto &kp : prevKeyPoints) {
-            cout << "(" << kp.pt.x << "," << kp.pt.y << ") " << endl;
-            cout << prevDescriptors.row(i) << endl;
-            cout << descriptors.row(i) << endl;
-            i++;
+        auto prevFrame = frames.back();
+        auto prevKeyPoints = prevFrame.getKeyPoints();
+        auto prevDescriptors = prevFrame.getDescriptors();
+
+        vector<DMatch> matches;
+        matcher->match(prevDescriptors, descriptors, matches);
+
+        cout << matches.size() << endl;
+        for (auto match : matches) {
+            cout << match.distance << ", ";
         }
+        cout << endl;
+
+        cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
+        drawMatches(prevFrame.image, prevKeyPoints, cvPtr->image, keyPoints, matches, outImg.image);
+
+        pub.publish(outImg.toImageMsg());
     }
 
     Frame newFrame;
+    newFrame.image = cvPtr->image;
     int i = 0;
     for (auto &kp : keyPoints) {
         Landmark landmark; // ONLY DO THIS ON NEW LANDMARK INITIALIZATION, NOT EVERY TIME
-        cout << i << " " << descriptors.row(i).clone() << endl;
         KeyPointObservation observation{
                 .keyPoint = kp,
                 .descriptor = descriptors.row(i).clone(),
@@ -49,6 +53,4 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         i++;
     }
     frames.push_back(newFrame);
-
-    pub.publish(outImg.toImageMsg());
 }

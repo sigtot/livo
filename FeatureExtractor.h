@@ -41,6 +41,7 @@ struct Frame {
         return descriptors;
     }
 
+    Mat image;
     vector<KeyPointObservation> keyPointObservations;
     int seq{};
 };
