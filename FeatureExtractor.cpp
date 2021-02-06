@@ -9,12 +9,16 @@ const int MAX_FEATURES = 500;
 // The current grid implementation slows down the code a lot, so I've disabled it by setting GRID_SIZE=1
 const int GRID_SIZE = 1;
 
+const double RESIZE_FACTOR = 0.5;
+
 void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     auto cvPtr = cv_bridge::toCvCopy(msg,
                                      sensor_msgs::image_encodings::TYPE_8UC1); // Makes copy. We can also share to increase performance
+    Mat imgResized;
+    resize(cvPtr->image, imgResized, Size(), RESIZE_FACTOR, RESIZE_FACTOR, INTER_LINEAR);
 
-    int imgHeight = msg->height;
-    int imgWidth = msg->width;
+    int imgHeight = imgResized.rows;
+    int imgWidth = imgResized.cols;
 
     int gridBlockHeightPx = imgHeight / GRID_SIZE;
     int gridBlockWidthPx = imgWidth / GRID_SIZE;
@@ -32,10 +36,10 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             Mat newDescriptors;
 
             Mat mask;
-            mask = Mat::zeros(cvPtr->image.rows, cvPtr->image.cols, CV_8U);
+            mask = Mat::zeros(imgResized.rows, imgResized.cols, CV_8U);
             mask(Rect(i * gridBlockWidthPx, j * gridBlockHeightPx, gridBlockWidthPx, gridBlockHeightPx)) = 1;
 
-            orb->detectAndCompute(cvPtr->image, mask, newKeyPoints, newDescriptors);
+            orb->detectAndCompute(imgResized, mask, newKeyPoints, newDescriptors);
             keyPoints.insert(keyPoints.end(), newKeyPoints.begin(), newKeyPoints.end());
             descriptors.push_back(newDescriptors);
         }
@@ -55,14 +59,15 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         }
         cout << endl;
 
+        // TODO write a real header
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
-        drawMatches(prevFrame.image, prevKeyPoints, cvPtr->image, keyPoints, matches, outImg.image);
+        drawMatches(prevFrame.image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image);
 
         pub.publish(outImg.toImageMsg());
     }
 
     Frame newFrame;
-    newFrame.image = cvPtr->image;
+    newFrame.image = imgResized;
     int i = 0;
     for (auto &kp : keyPoints) {
         Landmark landmark; // ONLY DO THIS ON NEW LANDMARK INITIALIZATION, NOT EVERY TIME
