@@ -45,6 +45,20 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         }
     }
 
+    // Register observations in new frame
+    shared_ptr<Frame> newFrame = make_shared<Frame>();
+    newFrame->image = imgResized;
+    int i = 0;
+    for (const auto& kp : keyPoints) {
+        shared_ptr<KeyPointObservation> observation = make_shared<KeyPointObservation>();
+        observation->keyPoint = kp;
+        observation->descriptor = descriptors.row(i).clone(); // clone maybe unnecessary
+        observation->frame = weak_ptr<Frame>(newFrame);
+        newFrame->keyPointObservations.push_back(move(observation));
+        i++;
+    }
+
+    // Perform matching and create new landmarks
     if (!frames.empty()) {
         auto prevFrame = frames.back();
 
@@ -54,11 +68,26 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         vector<DMatch> matches;
         matcher->match(prevDescriptors, descriptors, matches);
 
-        cout << matches.size() << endl;
         for (auto match : matches) {
-            cout << match.distance << ", ";
+            // TODO if(match.distance < xxx)
+            auto existingLandmark = prevFrame->keyPointObservations[match.queryIdx]->landmark.lock();
+            if (existingLandmark) {
+                int existingMatchCount = existingLandmark->keyPointObservations.size();
+                cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount << " existing matches)" << endl;
+                newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
+                existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
+            } else {
+                shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
+                newLandmark->id = landmarkCount++;
+                newLandmark->keyPointObservations.push_back(prevFrame->keyPointObservations[match.queryIdx]);
+                newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
+                prevFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+                newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+
+                cout << "Initialized new landmark " << newLandmark->id << endl;
+                landmarks.push_back(move(newLandmark));
+            }
         }
-        cout << endl;
 
         // TODO write a real header
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
@@ -67,25 +96,6 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         pub.publish(outImg.toImageMsg());
     }
 
-    shared_ptr<Frame> newFrame = make_shared<Frame>();
-    newFrame->image = imgResized;
-    int i = 0;
-    for (const auto& kp : keyPoints) {
-        shared_ptr<KeyPointObservation> observation = make_shared<KeyPointObservation>();
-        observation->keyPoint = kp;
-        observation->descriptor = descriptors.row(i).clone(); // clone maybe unnecessary
-        observation->frame = weak_ptr<Frame>(newFrame);
-
-        shared_ptr<Landmark> landmark = make_shared<Landmark>();
-        landmark->id = i;
-
-        observation->landmark = weak_ptr<Landmark>(landmark);
-        landmark->keyPointObservations.push_back(observation); // Makes copy of the shared_ptr: shared ownership
-        landmarks.push_back(move(landmark));
-
-        newFrame->keyPointObservations.push_back(move(observation)); // Move the initial shared_ptr
-
-        i++;
-    }
+    // Persist new frame
     frames.push_back(move(newFrame));
 }

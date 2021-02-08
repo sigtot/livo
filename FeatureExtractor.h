@@ -52,6 +52,8 @@ private:
     ros::Publisher pub;
     vector<shared_ptr<Frame>> frames;
     vector<shared_ptr<Landmark>> landmarks;
+    int landmarkCount = 0;
+    int frameCount = 0;
 public:
     explicit FeatureExtractor(const ros::Publisher &pub);
 
