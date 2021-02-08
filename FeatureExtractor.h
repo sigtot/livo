@@ -17,39 +17,41 @@ struct Frame;
 struct KeyPointObservation {
     KeyPoint keyPoint;
     Mat descriptor;
-    Landmark *landmark;
-    Frame *frame;
+    weak_ptr<Landmark> landmark;
+    weak_ptr<Frame> frame;
 };
 
 struct Landmark {
-    vector<KeyPointObservation*> keyPointObservations;
+    vector<shared_ptr<KeyPointObservation>> keyPointObservations;
+    int id;
 };
 
 struct Frame {
     vector<KeyPoint> getKeyPoints() const {
         vector<KeyPoint> keyPoints; // TODO reserve space up front to avoid resizes
         transform(keyPointObservations.begin(), keyPointObservations.end(), back_inserter(keyPoints),
-                  [](const KeyPointObservation& o) -> KeyPoint { return o.keyPoint; });
+                  [](const shared_ptr<KeyPointObservation>& o) -> KeyPoint { return o->keyPoint; });
         return keyPoints;
     }
 
     Mat getDescriptors() const {
         Mat descriptors;
         for (const auto& obs : keyPointObservations) {
-            descriptors.push_back(obs.descriptor);
+            descriptors.push_back(obs->descriptor);
         }
         return descriptors;
     }
 
     Mat image;
-    vector<KeyPointObservation> keyPointObservations;
-    int seq{};
+    vector<shared_ptr<KeyPointObservation>> keyPointObservations;
+    int id;
 };
 
 class FeatureExtractor {
 private:
     ros::Publisher pub;
-    vector<Frame> frames;
+    vector<shared_ptr<Frame>> frames;
+    vector<shared_ptr<Landmark>> landmarks;
 public:
     explicit FeatureExtractor(const ros::Publisher &pub);
 
