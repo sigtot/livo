@@ -48,6 +48,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     // Register observations in new frame
     shared_ptr<Frame> newFrame = make_shared<Frame>();
     newFrame->image = imgResized;
+    newFrame->id = frameCount++;
     int i = 0;
     for (const auto& kp : keyPoints) {
         shared_ptr<KeyPointObservation> observation = make_shared<KeyPointObservation>();
