@@ -1,6 +1,7 @@
 #include "FeatureExtractor.h"
 
 #include <cv_bridge/cv_bridge.h>
+#include <opencv2/calib3d.hpp>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher &pub) : pub(pub) {}
 
@@ -49,14 +50,12 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     shared_ptr<Frame> newFrame = make_shared<Frame>();
     newFrame->image = imgResized;
     newFrame->id = frameCount++;
-    int i = 0;
-    for (const auto& kp : keyPoints) {
+    for (int i = 0; i < keyPoints.size(); ++i) {
         shared_ptr<KeyPointObservation> observation = make_shared<KeyPointObservation>();
-        observation->keyPoint = kp;
+        observation->keyPoint = keyPoints[i];
         observation->descriptor = descriptors.row(i).clone(); // clone maybe unnecessary
         observation->frame = weak_ptr<Frame>(newFrame);
         newFrame->keyPointObservations.push_back(move(observation));
-        i++;
     }
 
     // Perform matching and create new landmarks
@@ -69,30 +68,47 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         vector<DMatch> matches;
         matcher->match(prevDescriptors, descriptors, matches);
 
+        vector<Point> srcPoints;
+        vector<Point> dstPoints;
         for (auto match : matches) {
-            // TODO if(match.distance < xxx)
-            auto existingLandmark = prevFrame->keyPointObservations[match.queryIdx]->landmark.lock();
-            if (existingLandmark) {
-                int existingMatchCount = existingLandmark->keyPointObservations.size();
-                cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount << " existing matches)" << endl;
-                newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
-                existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
-            } else {
-                shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
-                newLandmark->id = landmarkCount++;
-                newLandmark->keyPointObservations.push_back(prevFrame->keyPointObservations[match.queryIdx]);
-                newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
-                prevFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
-                newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+            srcPoints.push_back(prevKeyPoints[match.queryIdx].pt);
+            dstPoints.push_back(keyPoints[match.trainIdx].pt);
+        }
 
-                cout << "Initialized new landmark " << newLandmark->id << endl;
-                landmarks.push_back(move(newLandmark));
+        // Use findHomography with RANSAC to create a outlier mask
+        vector<char> outlierMask;
+        findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
+
+        for (int i = 0; i < matches.size(); ++i) {
+            auto match = matches[i];
+            char isInlier = outlierMask[i];
+            if (isInlier) {
+                auto existingLandmark = prevFrame->keyPointObservations[match.queryIdx]->landmark.lock();
+                if (existingLandmark) {
+                    int existingMatchCount = existingLandmark->keyPointObservations.size();
+                    cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount
+                         << " existing matches)" << endl;
+                    newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
+                    existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
+                } else {
+                    shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
+                    newLandmark->id = landmarkCount++;
+                    newLandmark->keyPointObservations.push_back(prevFrame->keyPointObservations[match.queryIdx]);
+                    newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
+                    prevFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+                    newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+
+                    cout << "Initialized new landmark " << newLandmark->id << endl;
+                    landmarks.push_back(move(newLandmark));
+                }
+            } else {
+                cout << "Discarding outlier match " << i << endl;
             }
         }
 
         // TODO write a real header
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
-        drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image);
+        drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1), Scalar::all(-1), outlierMask);
 
         pub.publish(outImg.toImageMsg());
     }
