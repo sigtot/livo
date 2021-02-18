@@ -3,7 +3,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/calib3d.hpp>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher &pub) : pub(pub) {}
+FeatureExtractor::FeatureExtractor(const ros::Publisher &pub, int lag) : pub(pub), lag(lag) {}
 
 const int MAX_FEATURES = 500;
 
@@ -61,23 +61,9 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     // Perform matching and create new landmarks
     if (!frames.empty()) {
         auto prevFrame = frames.back();
-
-        auto prevKeyPoints = prevFrame->getKeyPoints();
-        auto prevDescriptors = prevFrame->getDescriptors();
-
         vector<DMatch> matches;
-        matcher->match(prevDescriptors, descriptors, matches);
-
-        vector<Point> srcPoints;
-        vector<Point> dstPoints;
-        for (auto match : matches) {
-            srcPoints.push_back(prevKeyPoints[match.queryIdx].pt);
-            dstPoints.push_back(keyPoints[match.trainIdx].pt);
-        }
-
-        // Use findHomography with RANSAC to create a outlier mask
         vector<char> outlierMask;
-        findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
+        getMatches(frames.back(), descriptors, keyPoints, matches, outlierMask);
 
         for (int i = 0; i < matches.size(); ++i) {
             auto match = matches[i];
@@ -106,13 +92,34 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             }
         }
 
+        auto prevKeyPoints = prevFrame->getKeyPoints();
         // TODO write a real header
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
-        drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1), Scalar::all(-1), outlierMask);
+        drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1),
+                    Scalar::all(-1), outlierMask);
 
         pub.publish(outImg.toImageMsg());
     }
 
     // Persist new frame
     frames.push_back(move(newFrame));
+}
+
+void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,
+                                  vector<DMatch> &matches, vector<char> &outlierMask) {
+    Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
+    auto prevKeyPoints = frame->getKeyPoints();
+    auto prevDescriptors = frame->getDescriptors();
+
+    matcher->match(prevDescriptors, descriptors, matches);
+
+    vector<Point> srcPoints;
+    vector<Point> dstPoints;
+    for (auto match : matches) {
+        srcPoints.push_back(prevKeyPoints[match.queryIdx].pt);
+        dstPoints.push_back(keyPoints[match.trainIdx].pt);
+    }
+
+    // Use findHomography with RANSAC to create a outlier mask
+    findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
 }
