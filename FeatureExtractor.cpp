@@ -62,7 +62,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     if (!frames.empty()) {
         auto prevFrame = frames.back();
         vector<DMatch> matches;
-        vector<char> outlierMask;
+        vector<uchar> outlierMask;
         getMatches(frames.back(), descriptors, keyPoints, matches, outlierMask);
 
         for (int i = 0; i < matches.size(); ++i) {
@@ -94,9 +94,10 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
 
         auto prevKeyPoints = prevFrame->getKeyPoints();
         // TODO write a real header
+        vector<char> outlierMaskChar(outlierMask.begin(), outlierMask.end());
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
         drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1),
-                    Scalar::all(-1), outlierMask);
+                    Scalar::all(-1), outlierMaskChar);
 
         pub.publish(outImg.toImageMsg());
     }
@@ -106,7 +107,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
 }
 
 void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,
-                                  vector<DMatch> &matches, vector<char> &outlierMask) {
+                                  vector<DMatch> &matches, vector<uchar> &outlierMask) {
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
     auto prevKeyPoints = frame->getKeyPoints();
     auto prevDescriptors = frame->getDescriptors();
@@ -121,5 +122,6 @@ void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &des
     }
 
     // Use findHomography with RANSAC to create a outlier mask
-    findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
+    //findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
+    findFundamentalMat(srcPoints, dstPoints, CV_FM_RANSAC, 3., 0.99, outlierMask);
 }

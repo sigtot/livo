@@ -61,7 +61,7 @@ public:
     void imageCallback(const sensor_msgs::Image::ConstPtr &msg);
 
     static void getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,
-                           vector<DMatch> &matches, vector<char> &outlierMask);
+                           vector<DMatch> &matches, vector<uchar> &outlierMask);
 };
 
 
