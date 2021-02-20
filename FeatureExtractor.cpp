@@ -69,20 +69,20 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             auto match = matches[i];
             char isInlier = outlierMask[i];
             if (isInlier) {
-                auto existingLandmark = prevFrame->keyPointObservations[match.queryIdx]->landmark.lock();
+                auto existingLandmark = prevFrame->keyPointObservations[match.trainIdx]->landmark.lock();
                 if (existingLandmark) {
                     int existingMatchCount = existingLandmark->keyPointObservations.size();
                     cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount
                          << " existing matches)" << endl;
-                    newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
-                    existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
+                    newFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
+                    existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.queryIdx]);
                 } else {
                     shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
                     newLandmark->id = landmarkCount++;
-                    newLandmark->keyPointObservations.push_back(prevFrame->keyPointObservations[match.queryIdx]);
-                    newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.trainIdx]);
-                    prevFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
-                    newFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+                    newLandmark->keyPointObservations.push_back(prevFrame->keyPointObservations[match.trainIdx]);
+                    newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[match.queryIdx]);
+                    prevFrame->keyPointObservations[match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+                    newFrame->keyPointObservations[match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
 
                     cout << "Initialized new landmark " << newLandmark->id << endl;
                     landmarks.push_back(move(newLandmark));
@@ -96,7 +96,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         // TODO write a real header
         vector<char> outlierMaskChar(outlierMask.begin(), outlierMask.end());
         cv_bridge::CvImage outImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
-        drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1),
+        drawMatches(prevFrame->image, keyPoints, imgResized, prevKeyPoints, matches, outImg.image, Scalar::all(-1),
                     Scalar::all(-1), outlierMaskChar);
 
         matchesPub.publish(outImg.toImageMsg());
@@ -125,13 +125,13 @@ void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &des
     auto prevKeyPoints = frame->getKeyPoints();
     auto prevDescriptors = frame->getDescriptors();
 
-    matcher->match(prevDescriptors, descriptors, matches);
+    matcher->match(descriptors, prevDescriptors, matches);
 
     vector<Point> srcPoints;
     vector<Point> dstPoints;
     for (auto match : matches) {
-        srcPoints.push_back(prevKeyPoints[match.queryIdx].pt);
-        dstPoints.push_back(keyPoints[match.trainIdx].pt);
+        srcPoints.push_back(keyPoints[match.queryIdx].pt);
+        dstPoints.push_back(prevKeyPoints[match.trainIdx].pt);
     }
 
     // Homography is much better than fundamental matrix for whatever reason.
