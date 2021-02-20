@@ -108,7 +108,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             if (landMark->keyPointObservations.size() > 10 && landMark->keyPointObservations.back()->frame.lock()->id == frameCount - 1) {
                 int obsCount = static_cast<int>(landMark->keyPointObservations.size());
                 for (int k = obsCount - 1; k > max(obsCount - lag, 0); --k) {
-                    circle(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt, 0, Scalar(0, 255, 0), 3);
+                    line(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt, landMark->keyPointObservations[k-1]->keyPoint.pt, Scalar(0, 255, 0), 3);
                 }
             }
         }
