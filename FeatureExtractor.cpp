@@ -3,7 +3,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/calib3d.hpp>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher &pub, int lag) : pub(pub), lag(lag) {}
+FeatureExtractor::FeatureExtractor(const ros::Publisher &matchesPub, const ros::Publisher &tracksPub, int lag) : matchesPub(matchesPub), tracksPub(tracksPub), lag(lag) {}
 
 const int MAX_FEATURES = 500;
 
@@ -99,7 +99,20 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         drawMatches(prevFrame->image, prevKeyPoints, imgResized, keyPoints, matches, outImg.image, Scalar::all(-1),
                     Scalar::all(-1), outlierMaskChar);
 
-        pub.publish(outImg.toImageMsg());
+        matchesPub.publish(outImg.toImageMsg());
+
+        // Publish image of landmark tracks
+        cv_bridge::CvImage tracksOutImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
+        cvtColor(imgResized, tracksOutImg.image, CV_GRAY2RGB);
+        for (const auto& landMark : landmarks) {
+            if (landMark->keyPointObservations.size() > 10 && landMark->keyPointObservations.back()->frame.lock()->id == frameCount - 1) {
+                int obsCount = static_cast<int>(landMark->keyPointObservations.size());
+                for (int k = obsCount - 1; k > max(obsCount - lag, 0); --k) {
+                    circle(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt, 0, Scalar(0, 255, 0), 3);
+                }
+            }
+        }
+        tracksPub.publish(tracksOutImg.toImageMsg());
     }
 
     // Persist new frame

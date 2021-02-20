@@ -49,14 +49,15 @@ struct Frame {
 
 class FeatureExtractor {
 private:
-    ros::Publisher pub;
+    ros::Publisher matchesPub;
+    ros::Publisher tracksPub;
     vector<shared_ptr<Frame>> frames;
     vector<shared_ptr<Landmark>> landmarks;
     int landmarkCount = 0;
     int frameCount = 0;
     int lag;
 public:
-    explicit FeatureExtractor(const ros::Publisher &pub, int lag);
+    explicit FeatureExtractor(const ros::Publisher &matchesPub, const ros::Publisher &tracksPub, int lag);
 
     void imageCallback(const sensor_msgs::Image::ConstPtr &msg);
 
