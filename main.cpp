@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     auto matchesPub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
     auto tracksPub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
     FeatureExtractor featureExtractor(matchesPub, tracksPub, 20);
-    auto sub = nh.subscribe("/camera/image_mono", 1000, &FeatureExtractor::imageCallback, &featureExtractor);
+    auto sub = nh.subscribe("/camera/infra1/image_rect_raw", 1000, &FeatureExtractor::imageCallback, &featureExtractor);
 
     ROS_INFO("Starting up");
 
