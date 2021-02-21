@@ -8,9 +8,6 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher &matchesPub, const ros::
 
 const int MAX_FEATURES = 500;
 
-// The current grid implementation slows down the code a lot, so I've disabled it by setting GRID_SIZE=1
-const int GRID_SIZE = 1;
-
 const double RESIZE_FACTOR = 0.5;
 
 const int matchHorizon = 5;
@@ -21,33 +18,22 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     Mat imgResized;
     resize(cvPtr->image, imgResized, Size(), RESIZE_FACTOR, RESIZE_FACTOR, INTER_LINEAR);
 
-    int imgHeight = imgResized.rows;
-    int imgWidth = imgResized.cols;
-
-    int gridBlockHeightPx = imgHeight / GRID_SIZE;
-    int gridBlockWidthPx = imgWidth / GRID_SIZE;
-
-
     Ptr<Feature2D> orb = ORB::create(MAX_FEATURES);
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
 
     vector<KeyPoint> keyPoints;
     Mat descriptors;
 
-    for (int i = 0; i < GRID_SIZE; ++i) {
-        for (int j = 0; j < GRID_SIZE; j++) {
-            vector<KeyPoint> newKeyPoints;
-            Mat newDescriptors;
+    vector<cv::Point2f> corners;
+    goodFeaturesToTrack(imgResized, corners, 3000, 0.01, 7);
 
-            Mat mask;
-            mask = Mat::zeros(imgResized.rows, imgResized.cols, CV_8U);
-            mask(Rect(i * gridBlockWidthPx, j * gridBlockHeightPx, gridBlockWidthPx, gridBlockHeightPx)) = 1;
-
-            orb->detectAndCompute(imgResized, mask, newKeyPoints, newDescriptors);
-            keyPoints.insert(keyPoints.end(), newKeyPoints.begin(), newKeyPoints.end());
-            descriptors.push_back(newDescriptors);
-        }
+    for (auto &corner : corners) {
+        keyPoints.emplace_back(corner, 1);
     }
+
+    orb->compute(imgResized, keyPoints, descriptors);
+    keyPoints.insert(keyPoints.end(), keyPoints.begin(), keyPoints.end());
+    descriptors.push_back(descriptors);
 
     // Register observations in new frame
     shared_ptr<Frame> newFrame = make_shared<Frame>();
