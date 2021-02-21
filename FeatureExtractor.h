@@ -14,6 +14,17 @@ struct KeyPointObservation;
 struct Landmark;
 struct Frame;
 
+struct MatchResult {
+    vector<DMatch> matches;
+    vector<uchar> inliers;
+    shared_ptr<Frame> frame;
+};
+
+struct MatchInFrame {
+    DMatch match;
+    shared_ptr<Frame> frame;
+};
+
 struct KeyPointObservation {
     KeyPoint keyPoint;
     Mat descriptor;
