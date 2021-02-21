@@ -109,7 +109,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
         cvtColor(imgResized, tracksOutImg.image, CV_GRAY2RGB);
         for (const auto &landMark : landmarks) {
             if (landMark->keyPointObservations.size() > 3 &&
-                landMark->keyPointObservations.back()->frame.lock()->id == frameCount - 1) {
+                landMark->keyPointObservations.back()->frame.lock()->id > frameCount - 5) {
                 int obsCount = static_cast<int>(landMark->keyPointObservations.size());
                 for (int k = obsCount - 1; k > max(obsCount - lag, 0); --k) {
                     line(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt,
