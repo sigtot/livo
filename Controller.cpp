@@ -1,0 +1,14 @@
+#include "Controller.h"
+
+using namespace std;
+
+Controller::Controller(FeatureExtractor &frontend, Smoother &backend) : frontend(frontend), backend(backend) {}
+
+void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
+    static int callbackCount = 0;
+    shared_ptr<Frame> newFrame = frontend.imageCallback(msg);
+    if (callbackCount == 1) {
+
+    }
+    callbackCount++;
+}

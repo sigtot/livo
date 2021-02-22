@@ -12,7 +12,7 @@ const double RESIZE_FACTOR = 0.5;
 
 const int matchHorizon = 5;
 
-void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
+shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     auto cvPtr = cv_bridge::toCvCopy(msg,
                                      sensor_msgs::image_encodings::TYPE_8UC1); // Makes copy. We can also share to increase performance
     Mat imgResized;
@@ -39,6 +39,7 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     shared_ptr<Frame> newFrame = make_shared<Frame>();
     newFrame->image = imgResized;
     newFrame->id = frameCount++;
+    newFrame->timeStamp = msg->header.stamp.toSec();
     for (int i = 0; i < keyPoints.size(); ++i) {
         shared_ptr<KeyPointObservation> observation = make_shared<KeyPointObservation>();
         observation->keyPoint = keyPoints[i];
@@ -82,9 +83,11 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             auto existingLandmark = matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark.lock();
             if (existingLandmark) {
                 // Add observation for existing landmark
-                int existingMatchCount = existingLandmark->keyPointObservations.size();
-                cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount
-                     << " existing matches)" << endl;
+                if (debug) {
+                    int existingMatchCount = existingLandmark->keyPointObservations.size();
+                    cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount
+                         << " existing matches)" << endl;
+                }
                 newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
                 existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
 
@@ -97,12 +100,15 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
                 matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
                 newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
 
-                cout << "Initialized new landmark " << newLandmark->id << endl;
+                if (debug)
+                    cout << "Initialized new landmark " << newLandmark->id << endl;
+
                 landmarks.push_back(move(newLandmark));
             }
         }
 
-        cout << unmatchedIndices.size() << " observations were not matched" << endl;
+        if (debug)
+            cout << unmatchedIndices.size() << " observations were not matched" << endl;
 
         // Publish image of landmark tracks
         cv_bridge::CvImage tracksOutImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
@@ -121,7 +127,9 @@ void FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     }
 
     // Persist new frame
-    frames.push_back(move(newFrame));
+    frames.push_back(newFrame);
+
+    return newFrame;
 }
 
 void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,

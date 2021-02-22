@@ -56,6 +56,7 @@ struct Frame {
     Mat image;
     vector<shared_ptr<KeyPointObservation>> keyPointObservations;
     int id;
+    double timeStamp;
 };
 
 class FeatureExtractor {
@@ -67,13 +68,16 @@ private:
     int landmarkCount = 0;
     int frameCount = 0;
     int lag;
-public:
-    explicit FeatureExtractor(const ros::Publisher &matchesPub, const ros::Publisher &tracksPub, int lag);
-
-    void imageCallback(const sensor_msgs::Image::ConstPtr &msg);
+    const bool debug = false;
 
     static void getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,
                            vector<DMatch> &matches, vector<uchar> &outlierMask);
+
+public:
+    explicit FeatureExtractor(const ros::Publisher &matchesPub, const ros::Publisher &tracksPub, int lag);
+
+    shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr &msg);
+
 };
 
 
