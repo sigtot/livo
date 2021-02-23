@@ -152,3 +152,11 @@ void FeatureExtractor::getMatches(const shared_ptr<Frame> &frame, const Mat &des
     findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
     //findFundamentalMat(srcPoints, dstPoints, CV_FM_RANSAC, 3., 0.99, outlierMask);
 }
+
+pair<shared_ptr<Frame>, shared_ptr<Frame>> FeatureExtractor::getFirstTwoFrames() {
+    if (frameCount >= 2) {
+        return pair<shared_ptr<Frame>, shared_ptr<Frame>>(frames[0], frames[1]);
+    } else {
+        throw NotEnoughFramesException();
+    }
+}

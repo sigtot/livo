@@ -37,6 +37,12 @@ struct Landmark {
     int id;
 };
 
+struct NotEnoughFramesException : public std::exception {
+    const char *what() const noexcept override {
+        return "Cannot return first two frames when frame count is less than 2";
+    }
+};
+
 struct Frame {
     vector<KeyPoint> getKeyPoints() const {
         vector<KeyPoint> keyPoints; // TODO reserve space up front to avoid resizes
@@ -78,6 +84,7 @@ public:
 
     shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr &msg);
 
+    pair<shared_ptr<Frame>, shared_ptr<Frame>> getFirstTwoFrames();
 };
 
 

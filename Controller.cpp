@@ -8,7 +8,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     static int callbackCount = 0;
     shared_ptr<Frame> newFrame = frontend.imageCallback(msg);
     if (callbackCount == 1) {
+        auto twoFirstFrames = frontend.getFirstTwoFrames();
+        backend.initializeFirstTwoPoses(twoFirstFrames.first, twoFirstFrames.second);
+    }
 
+    if (callbackCount > 1) {
+        backend.update(newFrame);
     }
     callbackCount++;
 }

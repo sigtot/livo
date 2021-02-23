@@ -10,8 +10,9 @@ project(orb_test)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         cv_bridge
-        OpenCV
         )
+
+find_package(OpenCV REQUIRED)
 
 find_package(GTSAM REQUIRED)
 
@@ -152,6 +153,7 @@ add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtract
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
     gtsam
+    gtsam_unstable
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
 )
