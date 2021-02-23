@@ -116,8 +116,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
             landmarks.push_back(move(newLandmark));
         }
 
-        if (debug)
-            cout << unmatchedIndices.size() << " observations were not matched" << endl;
+        // cout << unmatchedIndices.size() << " observations were not matched" << endl;
 
         // Publish image of landmark tracks
         cv_bridge::CvImage tracksOutImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);

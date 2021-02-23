@@ -39,6 +39,11 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
         smartFactor->add(point, frame->id);
     }
     newTimestamps[frame->id] = frame->timeStamp;
+
+    auto lastPoseDelta = fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 2)
+            .between(fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 1));
+
+    auto motionPredictedPose = lastPoseDelta.compose(fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 1));
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
