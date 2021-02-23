@@ -74,7 +74,7 @@ private:
     int landmarkCount = 0;
     int frameCount = 0;
     int lag;
-    const bool debug = false;
+    const bool debug = true;
 
     static void getMatches(const shared_ptr<Frame> &frame, const Mat &descriptors, vector<KeyPoint> keyPoints,
                            vector<DMatch> &matches, vector<uchar> &outlierMask);

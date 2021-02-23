@@ -66,7 +66,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
             bool haveBestMatch = false;
             for (auto &matchResult : matchResults) {
                 if (matchResult.inliers[i] &&
-                    matchResult.matches[i].queryIdx > 0 && matchResult.matches[i].trainIdx > 0 && // can be -1, idk why
+                    matchResult.matches[i].queryIdx >= 0 && matchResult.matches[i].trainIdx >= 0 && // can be -1, idk why
                     (!haveBestMatch || matchResult.matches[i].distance < bestMatch.match.distance)) {
                     bestMatch = MatchInFrame {.match = matchResult.matches[i], .frame = matchResult.frame};
                     haveBestMatch = true;
@@ -79,32 +79,41 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
             }
         }
 
-        for (auto &matchInFrame : bestMatches) {
-            auto existingLandmark = matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark.lock();
-            if (existingLandmark) {
-                // Add observation for existing landmark
-                if (debug) {
-                    int existingMatchCount = existingLandmark->keyPointObservations.size();
-                    cout << "Matched to existing landmark " << existingLandmark->id << "(" << existingMatchCount
-                         << " existing matches)" << endl;
-                }
-                newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
-                existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
-
-            } else {
-                // Init new landmark
-                shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
-                newLandmark->id = landmarkCount++;
-                newLandmark->keyPointObservations.push_back(matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]);
-                newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
-                matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
-                newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
-
-                if (debug)
-                    cout << "Initialized new landmark " << newLandmark->id << endl;
-
-                landmarks.push_back(move(newLandmark));
+        // You cannot observe the same landmark more than once in a frame
+        map<int, MatchInFrame> bestExistingLandmarkMatches;
+        map<int, MatchInFrame> bestNoLandmarkMatches;
+        for (auto &match : bestMatches) {
+            auto landmark = match.frame->keyPointObservations[match.match.trainIdx]->landmark.lock();
+            if (landmark && !bestExistingLandmarkMatches.count(landmark->id)) {
+                bestExistingLandmarkMatches[landmark->id] = match;
+            } else if (!bestNoLandmarkMatches.count(match.match.trainIdx)) {
+                bestNoLandmarkMatches[match.match.trainIdx] = match;
             }
+            // For now we discard unlucky matches. TODO: choose the best match in case of dupes
+        }
+
+        for (auto &matchInFrameIt : bestExistingLandmarkMatches) {
+            auto matchInFrame = matchInFrameIt.second;
+            auto existingLandmark = matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark.lock();
+            // Add observation for existing landmark
+            // cout << "Add obs to existing landmark: " << "new frame " << newFrame->id << ", old frame" << matchInFrame.frame->id << " landmark id " << existingLandmark->id << endl;
+            newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(existingLandmark);
+            existingLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
+        }
+
+        for (auto &matchInFrameIt : bestNoLandmarkMatches) {
+            auto matchInFrame = matchInFrameIt.second;
+            // Init new landmark
+            shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
+            newLandmark->id = landmarkCount++;
+            newLandmark->keyPointObservations.push_back(matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]);
+            newLandmark->keyPointObservations.push_back(newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
+            matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+            newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark = weak_ptr<Landmark>(newLandmark);
+
+            // cout << "Add new landmark: " << "new frame" << newFrame->id << ", old frame" << matchInFrame.frame->id << " landmark id" << newLandmark->id << endl;
+
+            landmarks.push_back(move(newLandmark));
         }
 
         if (debug)
