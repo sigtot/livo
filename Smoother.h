@@ -16,6 +16,8 @@ class Smoother {
 private:
     IncrementalFixedLagSmoother fixedLagSmoother;
     map<int, SmartFactor::shared_ptr> smartFactors;
+
+    SmartFactor::shared_ptr getNewOrExistingFactor(int landmarkId);
 public:
     explicit Smoother();
     void update(const shared_ptr<Frame>& frame);

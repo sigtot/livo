@@ -13,9 +13,6 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
     Values newValues;
     TimestampMap newTimestamps;
 
-    auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
-    Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
-
     /* TODO Useful for debugging, but remove after refactoring dupe removal code in FeatureExtractor
     for (int i = 0; i < frame->keyPointObservations.size(); ++i) {
         for (int j = 0; j < frame->keyPointObservations.size(); ++j) {
@@ -37,17 +34,9 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
             continue;
         }
 
-        auto existingFactorIt = smartFactors.find(landmark->id);
-        if (existingFactorIt != smartFactors.end()) {
-            auto existingFactor = existingFactorIt->second;
-            Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
-            existingFactor->add(point, frame->id);
-        } else {
-            SmartFactor::shared_ptr smartFactor(new SmartFactor(measurementNoise, K));
-            Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
-            smartFactor->add(point, frame->id);
-            smartFactors[landmark->id] = smartFactor;
-        }
+        auto smartFactor = getNewOrExistingFactor(landmark->id);
+        Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
+        smartFactor->add(point, frame->id);
     }
 }
 
@@ -72,4 +61,18 @@ void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, cons
 
     fixedLagSmoother.update(graph, values, newTimestamps);
     cout << "initialized first two poses" << endl;
+}
+
+SmartFactor::shared_ptr Smoother::getNewOrExistingFactor(int landmarkId) {
+    auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
+    Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
+
+    auto existingFactorIt = smartFactors.find(landmarkId);
+    if (existingFactorIt != smartFactors.end()) {
+        return existingFactorIt->second;
+    } else {
+        SmartFactor::shared_ptr smartFactor(new SmartFactor(measurementNoise, K));
+        smartFactors[landmarkId] = smartFactor;
+        return smartFactor;
+    }
 }
