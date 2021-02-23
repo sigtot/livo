@@ -17,7 +17,7 @@ private:
     IncrementalFixedLagSmoother fixedLagSmoother;
     map<int, SmartFactor::shared_ptr> smartFactors;
 
-    SmartFactor::shared_ptr getNewOrExistingFactor(int landmarkId);
+    SmartFactor::shared_ptr getNewOrExistingFactor(int landmarkId, NonlinearFactorGraph &graph);
 public:
     explicit Smoother();
     void update(const shared_ptr<Frame>& frame);

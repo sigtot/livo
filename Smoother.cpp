@@ -34,10 +34,11 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
             continue;
         }
 
-        auto smartFactor = getNewOrExistingFactor(landmark->id);
+        auto smartFactor = getNewOrExistingFactor(landmark->id, newFactors);
         Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
         smartFactor->add(point, frame->id);
     }
+    newTimestamps[frame->id] = frame->timeStamp;
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
@@ -63,7 +64,7 @@ void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, cons
     cout << "initialized first two poses" << endl;
 }
 
-SmartFactor::shared_ptr Smoother::getNewOrExistingFactor(int landmarkId) {
+SmartFactor::shared_ptr Smoother::getNewOrExistingFactor(int landmarkId, NonlinearFactorGraph &graph) {
     auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
     Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
 
@@ -73,6 +74,7 @@ SmartFactor::shared_ptr Smoother::getNewOrExistingFactor(int landmarkId) {
     } else {
         SmartFactor::shared_ptr smartFactor(new SmartFactor(measurementNoise, K));
         smartFactors[landmarkId] = smartFactor;
+        graph.add(smartFactor);
         return smartFactor;
     }
 }
