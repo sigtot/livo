@@ -13,7 +13,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
     }
 
     if (callbackCount > 1) {
-        backend.update(newFrame);
+        // TODO: Fails with IndeterminateLinearSystemException near variable 2. Figure out why.
+        //backend.update(newFrame);
     }
     callbackCount++;
 }
