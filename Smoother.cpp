@@ -8,10 +8,47 @@
 
 Smoother::Smoother() : fixedLagSmoother(7.0, ISAM2Params()) {}
 
-void Smoother::update(shared_ptr<Frame> frame) {
+void Smoother::update(const shared_ptr<Frame>& frame) {
     NonlinearFactorGraph newFactors;
     Values newValues;
     TimestampMap newTimestamps;
+
+    auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
+    Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
+
+    /* TODO Useful for debugging, but remove after refactoring dupe removal code in FeatureExtractor
+    for (int i = 0; i < frame->keyPointObservations.size(); ++i) {
+        for (int j = 0; j < frame->keyPointObservations.size(); ++j) {
+            if (i == j) {
+                continue;
+            }
+            auto landmark1 = frame->keyPointObservations[i]->landmark.lock();
+            auto landmark2 = frame->keyPointObservations[j]->landmark.lock();
+            if (landmark1 && landmark2 && landmark1->id == landmark2->id) {
+                cout << "Oh no, duplicate landmark observation in frame " << frame->id << ": landmarks " << landmark1->id << " " << landmark2->id << endl;
+            }
+        }
+    }
+    */
+
+    for (const auto& observation : frame->keyPointObservations) {
+        auto landmark = observation->landmark.lock();
+        if (!landmark) {
+            continue;
+        }
+
+        auto existingFactorIt = smartFactors.find(landmark->id);
+        if (existingFactorIt != smartFactors.end()) {
+            auto existingFactor = existingFactorIt->second;
+            Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
+            existingFactor->add(point, frame->id);
+        } else {
+            SmartFactor::shared_ptr smartFactor(new SmartFactor(measurementNoise, K));
+            Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
+            smartFactor->add(point, frame->id);
+            smartFactors[landmark->id] = smartFactor;
+        }
+    }
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
