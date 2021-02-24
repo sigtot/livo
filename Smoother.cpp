@@ -5,6 +5,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Point3.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 
 Smoother::Smoother() : fixedLagSmoother(7.0, ISAM2Params()) {}
 
@@ -35,7 +36,7 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
         }
 
         auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
-        Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
+        Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0, 388.42480338, 274.84471313));
 
         auto existingFactorIt = smartFactors.find(landmark->id);
         SmartFactor::shared_ptr smartFactor;
@@ -69,6 +70,72 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
     newValues.insert(frame->id, motionPredictedPose);
 
     fixedLagSmoother.update(newFactors, newValues, newTimestamps);
+}
+
+void Smoother::updateBatch(const shared_ptr<Frame> &frame) {
+    NonlinearFactorGraph graph;
+
+    auto noise = noiseModel::Diagonal::Sigmas(
+            (Vector(6) << Vector3::Constant(0.1), Vector3::Constant(0.3)).finished());
+
+    // Implicitly defines the first pose as the origin
+    graph.addPrior(0, Pose3(Rot3(), Point3()), noise);
+
+    // Implicitly defines the scale in the scene by specifying the distance between the first two poses
+    graph.addPrior(1, Pose3(Rot3(), Point3(0.1, 0, 0)), noise);
+
+    for (const auto& observation : frame->keyPointObservations) {
+        auto landmark = observation->landmark.lock();
+        if (!landmark) {
+            continue;
+        }
+
+        auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
+        Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0, 388.42480338, 274.84471313));
+
+        auto existingFactorIt = smartFactors.find(landmark->id);
+        SmartFactor::shared_ptr smartFactor;
+        if (existingFactorIt != smartFactors.end()) {
+            smartFactor = existingFactorIt->second;
+            Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
+            smartFactor->add(point, frame->id);
+        } else {
+            smartFactor = SmartFactor::shared_ptr(new SmartFactor(measurementNoise, K));
+            smartFactors[landmark->id] = smartFactor;
+            for (const auto &landmarkObservation : landmark->keyPointObservations) {
+                Point2 point(landmarkObservation->keyPoint.pt.x, landmarkObservation->keyPoint.pt.y);
+                auto landmarkObservationFrame = landmarkObservation->frame.lock();
+                if (landmarkObservationFrame) {
+                    smartFactor->add(point, landmarkObservationFrame->id);
+                } else {
+                    cout << "Failed to lock landmarkObservation->frame! This can possibly lead to a indeterminate system." << endl;
+                }
+            }
+        }
+
+    }
+
+    for (auto &smartFactor : smartFactors) {
+        graph.add(smartFactor.second);
+    }
+
+    if (frame->id == 2) {
+        estimate.insert(0, Pose3(Rot3(), Point3()));
+        estimate.insert(1, Pose3(Rot3(), Point3(0.1, 0, 0)));
+        estimate.insert(2, Pose3(Rot3(), Point3(0.2, 0, 0)));
+    } else {
+        auto lastPoseDelta = estimate.at<Pose3>(frame->id - 2)
+                .between(estimate.at<Pose3>(frame->id - 1));
+
+        auto motionPredictedPose = lastPoseDelta.compose(estimate.at<Pose3>(frame->id - 1));
+
+        estimate.insert(frame->id, motionPredictedPose);
+    }
+
+    LevenbergMarquardtOptimizer optimizer(graph, estimate);
+    Values result = optimizer.optimize();
+    estimate = result;
+    result.at(frame->id).print();
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
