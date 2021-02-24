@@ -23,7 +23,7 @@ public:
     explicit Smoother();
     void update(const shared_ptr<Frame>& frame);
     void initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame);
-    void updateBatch(const shared_ptr<Frame> &frame);
+    Pose3 updateBatch(const shared_ptr<Frame> &frame);
 };
 
 

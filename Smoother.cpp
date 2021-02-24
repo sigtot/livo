@@ -72,7 +72,7 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
     fixedLagSmoother.update(newFactors, newValues, newTimestamps);
 }
 
-void Smoother::updateBatch(const shared_ptr<Frame> &frame) {
+Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
     NonlinearFactorGraph graph;
 
     auto noise = noiseModel::Diagonal::Sigmas(
@@ -82,7 +82,7 @@ void Smoother::updateBatch(const shared_ptr<Frame> &frame) {
     graph.addPrior(0, Pose3(Rot3(), Point3()), noise);
 
     // Implicitly defines the scale in the scene by specifying the distance between the first two poses
-    graph.addPrior(1, Pose3(Rot3(), Point3(0.1, 0, 0)), noise);
+    graph.addPrior(1, Pose3(Rot3(), Point3(0, 0.1, 0)), noise);
 
     for (const auto& observation : frame->keyPointObservations) {
         auto landmark = observation->landmark.lock();
@@ -121,8 +121,8 @@ void Smoother::updateBatch(const shared_ptr<Frame> &frame) {
 
     if (frame->id == 2) {
         estimate.insert(0, Pose3(Rot3(), Point3()));
-        estimate.insert(1, Pose3(Rot3(), Point3(0.1, 0, 0)));
-        estimate.insert(2, Pose3(Rot3(), Point3(0.2, 0, 0)));
+        estimate.insert(1, Pose3(Rot3(), Point3(0, 0.1, 0)));
+        estimate.insert(2, Pose3(Rot3(), Point3(0, 0.2, 0)));
     } else {
         auto lastPoseDelta = estimate.at<Pose3>(frame->id - 2)
                 .between(estimate.at<Pose3>(frame->id - 1));
@@ -135,7 +135,7 @@ void Smoother::updateBatch(const shared_ptr<Frame> &frame) {
     LevenbergMarquardtOptimizer optimizer(graph, estimate);
     Values result = optimizer.optimize();
     estimate = result;
-    result.at(frame->id).print();
+    return result.at<Pose3>(frame->id);
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
