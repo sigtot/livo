@@ -122,10 +122,10 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
         cv_bridge::CvImage tracksOutImg(msg->header, sensor_msgs::image_encodings::TYPE_8UC3);
         cvtColor(imgResized, tracksOutImg.image, CV_GRAY2RGB);
         for (const auto &landMark : landmarks) {
-            if (landMark->keyPointObservations.size() > 3 &&
+            if (landMark->keyPointObservations.size() > 2 &&
                 landMark->keyPointObservations.back()->frame.lock()->id > frameCount - 5) {
                 int obsCount = static_cast<int>(landMark->keyPointObservations.size());
-                for (int k = obsCount - 1; k > max(obsCount - lag, 0); --k) {
+                for (int k = 1; k < obsCount; ++k) {
                     line(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt,
                          landMark->keyPointObservations[k - 1]->keyPoint.pt, Scalar(0, 255, 0), 2);
                 }
