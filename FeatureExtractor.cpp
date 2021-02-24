@@ -6,7 +6,7 @@
 FeatureExtractor::FeatureExtractor(const ros::Publisher &matchesPub, const ros::Publisher &tracksPub, int lag)
         : matchesPub(matchesPub), tracksPub(tracksPub), lag(lag) {}
 
-const int MAX_FEATURES = 500;
+const int MAX_FEATURES = 200;
 
 const double RESIZE_FACTOR = 0.5;
 
@@ -25,7 +25,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
     Mat descriptors;
 
     vector<cv::Point2f> corners;
-    goodFeaturesToTrack(imgResized, corners, 3000, 0.01, 7);
+    goodFeaturesToTrack(imgResized, corners, MAX_FEATURES, 0.01, 7);
 
     for (auto &corner : corners) {
         keyPoints.emplace_back(corner, 1);

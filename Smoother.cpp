@@ -45,16 +45,18 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
             Point2 point(observation->keyPoint.pt.x, observation->keyPoint.pt.y);
             smartFactor->add(point, frame->id);
         } else {
-            smartFactor = SmartFactor::shared_ptr(new SmartFactor(measurementNoise, K));
-            smartFactors[landmark->id] = smartFactor;
-            newFactors.add(smartFactor);
-            for (const auto &landmarkObservation : landmark->keyPointObservations) {
-                Point2 point(landmarkObservation->keyPoint.pt.x, landmarkObservation->keyPoint.pt.y);
-                auto landmarkObservationFrame = landmarkObservation->frame.lock();
-                if (landmarkObservationFrame) {
-                    smartFactor->add(point, landmarkObservationFrame->id);
-                } else {
-                    cout << "Failed to lock landmarkObservation->frame! This can possibly lead to a indeterminate system." << endl;
+            if (landmark->keyPointObservations.size() > 2) {
+                smartFactor = SmartFactor::shared_ptr(new SmartFactor(measurementNoise, K));
+                smartFactors[landmark->id] = smartFactor;
+                newFactors.add(smartFactor);
+                for (const auto &landmarkObservation : landmark->keyPointObservations) {
+                    Point2 point(landmarkObservation->keyPoint.pt.x, landmarkObservation->keyPoint.pt.y);
+                    auto landmarkObservationFrame = landmarkObservation->frame.lock();
+                    if (landmarkObservationFrame) {
+                        smartFactor->add(point, landmarkObservationFrame->id);
+                    } else {
+                        cout << "Failed to lock landmarkObservation->frame! This can possibly lead to a indeterminate system." << endl;
+                    }
                 }
             }
         }
