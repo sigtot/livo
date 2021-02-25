@@ -124,10 +124,11 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
         for (const auto &landMark : landmarks) {
             if (landMark->keyPointObservations.size() > 2 &&
                 landMark->keyPointObservations.back()->frame.lock()->id > frameCount - 5) {
+                circle(tracksOutImg.image, landMark->keyPointObservations.back()->keyPoint.pt, 5, Scalar(0, 0, 255), 1);
                 int obsCount = static_cast<int>(landMark->keyPointObservations.size());
                 for (int k = 1; k < obsCount; ++k) {
                     line(tracksOutImg.image, landMark->keyPointObservations[k]->keyPoint.pt,
-                         landMark->keyPointObservations[k - 1]->keyPoint.pt, Scalar(0, 255, 0), 2);
+                         landMark->keyPointObservations[k - 1]->keyPoint.pt, Scalar(0, 255, 0), 1);
                 }
             }
         }
