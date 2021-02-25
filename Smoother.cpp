@@ -75,8 +75,7 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
 }
 
 Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
-    NonlinearFactorGraph graph;
-
+    graph.resize(0);
     auto noise = noiseModel::Diagonal::Sigmas(
             (Vector(6) << Vector3::Constant(0.1), Vector3::Constant(0.3)).finished());
 
@@ -141,7 +140,6 @@ Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
 }
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
-    NonlinearFactorGraph graph;
     Values values;
     TimestampMap newTimestamps;
     auto noise = noiseModel::Diagonal::Sigmas(
@@ -163,17 +161,13 @@ void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, cons
     cout << "initialized first two poses" << endl;
 }
 
-SmartFactor::shared_ptr Smoother::getNewOrExistingFactor(int landmarkId, NonlinearFactorGraph &graph) {
-    auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
-    Cal3_S2::shared_ptr K(new Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)); // TODO fix
-
-    auto existingFactorIt = smartFactors.find(landmarkId);
-    if (existingFactorIt != smartFactors.end()) {
-        return existingFactorIt->second;
-    } else {
-        SmartFactor::shared_ptr smartFactor(new SmartFactor(measurementNoise, K));
-        smartFactors[landmarkId] = smartFactor;
-        graph.add(smartFactor);
-        return smartFactor;
+vector<Point3> Smoother::getLandmarkEstimates() {
+    vector<Point3> points;
+    for (const auto &smartFactor : smartFactors) {
+        auto point = smartFactor.second->point();
+        if (point) {
+            points.push_back(*point);
+        }
     }
+    return points;
 }

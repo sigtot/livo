@@ -16,14 +16,15 @@ class Smoother {
 private:
     IncrementalFixedLagSmoother fixedLagSmoother;
     map<int, SmartFactor::shared_ptr> smartFactors;
+    NonlinearFactorGraph graph;
 
-    SmartFactor::shared_ptr getNewOrExistingFactor(int landmarkId, NonlinearFactorGraph &graph);
     Values estimate;
 public:
     explicit Smoother();
     void update(const shared_ptr<Frame>& frame);
     void initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame);
     Pose3 updateBatch(const shared_ptr<Frame> &frame);
+    vector<Point3> getLandmarkEstimates();
 };
 
 

@@ -9,6 +9,7 @@ project(orb_test)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
         roscpp
+        visualization_msgs
         cv_bridge
         )
 
