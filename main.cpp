@@ -18,6 +18,9 @@ int main(int argc, char **argv) {
     FeatureExtractor featureExtractor(matchesPub, tracksPub, 20);
     Smoother smoother;
     Controller controller(featureExtractor, smoother, posePub, landmarksPub);
+    // san raf
+    // auto sub = nh.subscribe("/camera/image_mono", 1000, &Controller::imageCallback, &controller);
+    // newer college
     auto sub = nh.subscribe("/camera/infra1/image_rect_raw", 1000, &Controller::imageCallback, &controller);
 
     ROS_INFO("Starting up");
