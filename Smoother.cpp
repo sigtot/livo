@@ -7,12 +7,19 @@
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 
-Smoother::Smoother() : fixedLagSmoother(7.0, ISAM2Params()) {}
+
+ISAM2Params getIsam2Params() {
+    ISAM2Params isam2Params;
+    isam2Params.relinearizeThreshold = 0.1;
+    isam2Params.factorization = ISAM2Params::QR;
+    return isam2Params;
+}
+
+Smoother::Smoother() : fixedLagSmoother(7.0, ISAM2Params()), isam2(getIsam2Params()) {}
 
 void Smoother::update(const shared_ptr<Frame>& frame) {
-    NonlinearFactorGraph newFactors;
+    graph.resize(0);
     Values newValues;
-    TimestampMap newTimestamps;
 
     /* TODO Useful for debugging, but remove after refactoring dupe removal code in FeatureExtractor
     for (int i = 0; i < frame->keyPointObservations.size(); ++i) {
@@ -48,7 +55,7 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
             if (landmark->keyPointObservations.size() > 2) {
                 smartFactor = SmartFactor::shared_ptr(new SmartFactor(measurementNoise, K));
                 smartFactors[landmark->id] = smartFactor;
-                newFactors.add(smartFactor);
+                graph.add(smartFactor);
                 for (const auto &landmarkObservation : landmark->keyPointObservations) {
                     Point2 point(landmarkObservation->keyPoint.pt.x, landmarkObservation->keyPoint.pt.y);
                     auto landmarkObservationFrame = landmarkObservation->frame.lock();
@@ -62,16 +69,15 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
         }
 
     }
-    newTimestamps[frame->id] = frame->timeStamp;
 
-    auto lastPoseDelta = fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 2)
-            .between(fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 1));
+    auto lastPoseDelta = isam2.calculateEstimate<Pose3>(frame->id - 2)
+            .between(isam2.calculateEstimate<Pose3>(frame->id - 1));
 
-    auto motionPredictedPose = lastPoseDelta.compose(fixedLagSmoother.calculateEstimate<Pose3>(frame->id - 1));
+    auto motionPredictedPose = lastPoseDelta.compose(isam2.calculateEstimate<Pose3>(frame->id - 1));
 
     newValues.insert(frame->id, motionPredictedPose);
 
-    fixedLagSmoother.update(newFactors, newValues, newTimestamps);
+    isam2.update(graph, newValues);
 }
 
 Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
@@ -141,23 +147,19 @@ Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
 
 void Smoother::initializeFirstTwoPoses(const shared_ptr<Frame>& firstFrame, const shared_ptr<Frame>& secondFrame) {
     Values values;
-    TimestampMap newTimestamps;
     auto noise = noiseModel::Diagonal::Sigmas(
             (Vector(6) << Vector3::Constant(0.1), Vector3::Constant(0.3)).finished());
 
     // Implicitly defines the first pose as the origin
-    graph.addPrior(0, Pose3(Rot3(), Point3()), noise);
+    graph.addPrior(0, Pose3(Rot3(), Point3::Zero()), noise);
 
     // Implicitly defines the scale in the scene by specifying the distance between the first two poses
     graph.addPrior(1, Pose3(Rot3(), Point3(0.1, 0, 0)), noise);
 
-    values.insert(0, Pose3(Rot3(), Point3()));
+    values.insert(0, Pose3(Rot3(), Point3::Zero()));
     values.insert(1, Pose3(Rot3(), Point3(0.1, 0, 0)));
 
-    newTimestamps[firstFrame->id] = firstFrame->timeStamp;
-    newTimestamps[secondFrame->id] = secondFrame->timeStamp;
-
-    fixedLagSmoother.update(graph, values, newTimestamps);
+    isam2.update(graph, values);
     cout << "initialized first two poses" << endl;
 }
 

@@ -26,8 +26,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
 
     if (callbackCount > 1) {
         // TODO: Fails with IndeterminateLinearSystemException near variable 2. Figure out why.
-        //backend.update(newFrame);
+        backend.update(newFrame);
 
+        /*
         // This doesn't fail tho
         auto newestPose = backend.updateBatch(newFrame);
         nav_msgs::Odometry outMsg;
@@ -71,6 +72,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             markerArray.markers.push_back(marker);
         }
         landmarkPublisher.publish(markerArray);
+         */
     }
     callbackCount++;
 }

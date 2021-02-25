@@ -4,6 +4,7 @@
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/nonlinear/ISAM2.h>
 
 #include "FeatureExtractor.h"
 
@@ -14,6 +15,7 @@ typedef SmartProjectionPoseFactor<Cal3_S2> SmartFactor;
 
 class Smoother {
 private:
+    ISAM2 isam2;
     IncrementalFixedLagSmoother fixedLagSmoother;
     map<int, SmartFactor::shared_ptr> smartFactors;
     NonlinearFactorGraph graph;
