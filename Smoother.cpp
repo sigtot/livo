@@ -36,7 +36,7 @@ void Smoother::update(const shared_ptr<Frame>& frame) {
         }
 
         auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
-        Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0, 388.42480338, 274.84471313));
+        Cal3_S2::shared_ptr K(new Cal3_S2(215.69369557, 215.12480881, 0.0, 213.7203901, 119.26347434));
 
         auto existingFactorIt = smartFactors.find(landmark->id);
         SmartFactor::shared_ptr smartFactor;
@@ -92,7 +92,7 @@ Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
         }
 
         auto measurementNoise = noiseModel::Isotropic::Sigma(2, 1.0); // one pixel in u and v
-        Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0, 388.42480338, 274.84471313));
+        Cal3_S2::shared_ptr K(new Cal3_S2(215.69369557, 215.12480881, 0.0, 213.7203901, 119.26347434));
 
         auto existingFactorIt = smartFactors.find(landmark->id);
         SmartFactor::shared_ptr smartFactor;
