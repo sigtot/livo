@@ -58,6 +58,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr &msg) {
             marker.color.b = 0.0f;
             marker.color.a = 1.0f;
 
+            marker.action = visualization_msgs::Marker::MODIFY;
+
             marker.type = visualization_msgs::Marker::CUBE;
 
             marker.id = i;

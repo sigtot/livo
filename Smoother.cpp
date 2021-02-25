@@ -80,10 +80,10 @@ Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
             (Vector(6) << Vector3::Constant(0.1), Vector3::Constant(0.3)).finished());
 
     // Implicitly defines the first pose as the origin
-    graph.addPrior(0, Pose3(Rot3(), Point3()), noise);
+    graph.addPrior(0, Pose3(Rot3(), Point3::Zero()), noise);
 
     // Implicitly defines the scale in the scene by specifying the distance between the first two poses
-    graph.addPrior(1, Pose3(Rot3(), Point3(0, 0.1, 0)), noise);
+    graph.addPrior(1, Pose3(Rot3(), Point3(0.1, 0, 0)), noise);
 
     for (const auto& observation : frame->keyPointObservations) {
         auto landmark = observation->landmark.lock();
@@ -121,9 +121,9 @@ Pose3 Smoother::updateBatch(const shared_ptr<Frame> &frame) {
     }
 
     if (frame->id == 2) {
-        estimate.insert(0, Pose3(Rot3(), Point3()));
-        estimate.insert(1, Pose3(Rot3(), Point3(0, 0.1, 0)));
-        estimate.insert(2, Pose3(Rot3(), Point3(0, 0.2, 0)));
+        estimate.insert(0, Pose3(Rot3(), Point3::Zero()));
+        estimate.insert(1, Pose3(Rot3(), Point3(0.1, 0, 0)));
+        estimate.insert(2, Pose3(Rot3(), Point3(0.2, 0, 0)));
     } else {
         auto lastPoseDelta = estimate.at<Pose3>(frame->id - 2)
                 .between(estimate.at<Pose3>(frame->id - 1));
