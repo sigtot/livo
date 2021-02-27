@@ -45,13 +45,13 @@ struct NotEnoughFramesException : public std::exception {
 
 struct Frame {
   vector<KeyPoint> getKeyPoints() const {
-    vector<KeyPoint> keyPoints;  // TODO reserve space up front to avoid resizes
+    vector<KeyPoint> keypoints;  // TODO reserve space up front to avoid resizes
     transform(keyPointObservations.begin(), keyPointObservations.end(),
-              back_inserter(keyPoints),
+              back_inserter(keypoints),
               [](const shared_ptr<KeyPointObservation>& o) -> KeyPoint {
                 return o->keyPoint;
               });
-    return keyPoints;
+    return keypoints;
   }
 
   Mat getDescriptors() const {
@@ -80,12 +80,12 @@ class FeatureExtractor {
   const bool debug = true;
 
   static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors,
-                         const vector<KeyPoint>& keyPoints,
-                         vector<DMatch>& matches, vector<uchar>& outlierMask);
+                         const vector<KeyPoint>& keypoints,
+                         vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
  public:
-  explicit FeatureExtractor(const ros::Publisher& matchesPub,
-                            const ros::Publisher& tracksPub, int lag);
+  explicit FeatureExtractor(const ros::Publisher& matches_pub,
+                            const ros::Publisher& tracks_pub, int lag);
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 

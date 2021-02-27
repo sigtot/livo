@@ -3,15 +3,15 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/calib3d.hpp>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher& matchesPub,
-                                   const ros::Publisher& tracksPub, int lag)
-    : matches_pub_(matchesPub), tracks_pub_(tracksPub), lag(lag) {}
+FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
+                                   const ros::Publisher& tracks_pub, int lag)
+    : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag) {}
 
 const int MAX_FEATURES = 200;
 
 const double RESIZE_FACTOR = 0.5;
 
-const int matchHorizon = 5;
+const int MATCH_HORIZON = 5;
 
 shared_ptr<Frame> FeatureExtractor::imageCallback(
     const sensor_msgs::Image::ConstPtr& msg) {
@@ -19,149 +19,151 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       msg,
       sensor_msgs::image_encodings::
           TYPE_8UC1);  // Makes copy. We can also share to increase performance
-  Mat imgResized;
-  resize(cvPtr->image, imgResized, Size(), RESIZE_FACTOR, RESIZE_FACTOR,
+  Mat img_resized;
+  resize(cvPtr->image, img_resized, Size(), RESIZE_FACTOR, RESIZE_FACTOR,
          INTER_LINEAR);
 
   Ptr<Feature2D> orb = ORB::create(MAX_FEATURES);
   Ptr<DescriptorMatcher> matcher =
       DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
 
-  vector<KeyPoint> keyPoints;
+  vector<KeyPoint> keypoints;
   Mat descriptors;
 
   vector<cv::Point2f> corners;
-  goodFeaturesToTrack(imgResized, corners, MAX_FEATURES, 0.01, 7);
+  goodFeaturesToTrack(img_resized, corners, MAX_FEATURES, 0.01, 7);
 
   for (auto& corner : corners) {
-    keyPoints.emplace_back(corner, 1);
+    keypoints.emplace_back(corner, 1);
   }
 
-  orb->compute(imgResized, keyPoints, descriptors);
-  keyPoints.insert(keyPoints.end(), keyPoints.begin(), keyPoints.end());
+  orb->compute(img_resized, keypoints, descriptors);
+  keypoints.insert(keypoints.end(), keypoints.begin(), keypoints.end());
   descriptors.push_back(descriptors);
 
   // Register observations in new frame
-  shared_ptr<Frame> newFrame = make_shared<Frame>();
-  newFrame->image = imgResized;
-  newFrame->id = frame_count_++;
-  newFrame->timeStamp = msg->header.stamp.toSec();
-  for (int i = 0; i < keyPoints.size(); ++i) {
+  shared_ptr<Frame> new_frame = make_shared<Frame>();
+  new_frame->image = img_resized;
+  new_frame->id = frame_count_++;
+  new_frame->timeStamp = msg->header.stamp.toSec();
+  for (int i = 0; i < keypoints.size(); ++i) {
     shared_ptr<KeyPointObservation> observation =
         make_shared<KeyPointObservation>();
-    observation->keyPoint = keyPoints[i];
+    observation->keyPoint = keypoints[i];
     observation->descriptor =
         descriptors.row(i).clone();  // clone maybe unnecessary
-    observation->frame = weak_ptr<Frame>(newFrame);
-    newFrame->keyPointObservations.push_back(move(observation));
+    observation->frame = weak_ptr<Frame>(new_frame);
+    new_frame->keyPointObservations.push_back(move(observation));
   }
 
   // Perform matching and create new landmarks
   if (!frames.empty()) {
-    vector<MatchResult> matchResults;
-    int lastFrameIdx = static_cast<int>(frames.size()) - 1;
-    for (int k = lastFrameIdx; k > max(lastFrameIdx - matchHorizon, 0); --k) {
-      MatchResult matchResult;
-      getMatches(frames[k], descriptors, keyPoints, matchResult.matches,
-                 matchResult.inliers);
-      matchResult.frame = frames[k];
-      matchResults.push_back(matchResult);
+    vector<MatchResult> match_results;
+    int last_frame_idx = static_cast<int>(frames.size()) - 1;
+    for (int k = last_frame_idx; k > max(last_frame_idx - MATCH_HORIZON, 0);
+         --k) {
+      MatchResult match_result;
+      getMatches(frames[k], descriptors, keypoints, match_result.matches,
+                 match_result.inliers);
+      match_result.frame = frames[k];
+      match_results.push_back(match_result);
     }
 
-    vector<int> unmatchedIndices;
-    vector<MatchInFrame> bestMatches;
-    for (int i = 0; i < keyPoints.size(); ++i) {
-      MatchInFrame bestMatch;
-      bool haveBestMatch = false;
-      for (auto& matchResult : matchResults) {
-        if (matchResult.inliers[i] && matchResult.matches[i].queryIdx >= 0 &&
-            matchResult.matches[i].trainIdx >= 0 &&  // can be -1, idk why
-            (!haveBestMatch ||
-             matchResult.matches[i].distance < bestMatch.match.distance)) {
-          bestMatch = MatchInFrame{.match = matchResult.matches[i],
-                                   .frame = matchResult.frame};
-          haveBestMatch = true;
+    vector<int> unmatched_indices;
+    vector<MatchInFrame> best_matches;
+    for (int i = 0; i < keypoints.size(); ++i) {
+      MatchInFrame best_match;
+      bool have_best_match = false;
+      for (auto& match_result : match_results) {
+        if (match_result.inliers[i] && match_result.matches[i].queryIdx >= 0 &&
+            match_result.matches[i].trainIdx >= 0 &&  // can be -1, idk why
+            (!have_best_match ||
+             match_result.matches[i].distance < best_match.match.distance)) {
+          best_match = MatchInFrame{.match = match_result.matches[i],
+                                    .frame = match_result.frame};
+          have_best_match = true;
         }
       }
-      if (haveBestMatch) {
-        bestMatches.push_back(bestMatch);
+      if (have_best_match) {
+        best_matches.push_back(best_match);
       } else {
-        unmatchedIndices.push_back(i);
+        unmatched_indices.push_back(i);
       }
     }
 
     // You cannot observe the same landmark more than once in a frame
-    map<int, MatchInFrame> bestExistingLandmarkMatches;
-    map<int, MatchInFrame> bestNoLandmarkMatches;
-    for (auto& match : bestMatches) {
+    map<int, MatchInFrame> best_existing_landmark_matches;
+    map<int, MatchInFrame> best_no_landmark_matches;
+    for (auto& match : best_matches) {
       auto landmark = match.frame->keyPointObservations[match.match.trainIdx]
                           ->landmark.lock();
-      if (landmark && !bestExistingLandmarkMatches.count(landmark->id)) {
-        bestExistingLandmarkMatches[landmark->id] = match;
-      } else if (!bestNoLandmarkMatches.count(match.match.trainIdx)) {
-        bestNoLandmarkMatches[match.match.trainIdx] = match;
+      if (landmark && !best_existing_landmark_matches.count(landmark->id)) {
+        best_existing_landmark_matches[landmark->id] = match;
+      } else if (!best_no_landmark_matches.count(match.match.trainIdx)) {
+        best_no_landmark_matches[match.match.trainIdx] = match;
       }
-      // For now we discard unlucky matches. TODO: choose the best match in case
-      // of dupes
+      // For now we discard unlucky matches.
+      // TODO: choose the best match in case of dupes
     }
 
-    for (auto& matchInFrameIt : bestExistingLandmarkMatches) {
-      auto matchInFrame = matchInFrameIt.second;
-      auto existingLandmark =
-          matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]
+    for (auto& match_in_frame_it : best_existing_landmark_matches) {
+      auto match_in_frame = match_in_frame_it.second;
+      auto existing_landmark =
+          match_in_frame.frame
+              ->keyPointObservations[match_in_frame.match.trainIdx]
               ->landmark.lock();
       // Add observation for existing landmark
       // cout << "Add obs to existing landmark: " << "new frame " <<
       // newFrame->id << ", old frame" << matchInFrame.frame->id << " landmark
       // id " << existingLandmark->id << endl;
-      newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark =
-          weak_ptr<Landmark>(existingLandmark);
-      existingLandmark->keyPointObservations.push_back(
-          newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
+      new_frame->keyPointObservations[match_in_frame.match.queryIdx]->landmark =
+          weak_ptr<Landmark>(existing_landmark);
+      existing_landmark->keyPointObservations.push_back(
+          new_frame->keyPointObservations[match_in_frame.match.queryIdx]);
     }
 
-    for (auto& matchInFrameIt : bestNoLandmarkMatches) {
-      auto matchInFrame = matchInFrameIt.second;
+    for (auto& match_in_frame_it : best_no_landmark_matches) {
+      auto match_in_frame = match_in_frame_it.second;
       // Init new landmark
-      shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
-      newLandmark->id = landmark_count_++;
-      newLandmark->keyPointObservations.push_back(
-          matchInFrame.frame
-              ->keyPointObservations[matchInFrame.match.trainIdx]);
-      newLandmark->keyPointObservations.push_back(
-          newFrame->keyPointObservations[matchInFrame.match.queryIdx]);
-      matchInFrame.frame->keyPointObservations[matchInFrame.match.trainIdx]
-          ->landmark = weak_ptr<Landmark>(newLandmark);
-      newFrame->keyPointObservations[matchInFrame.match.queryIdx]->landmark =
-          weak_ptr<Landmark>(newLandmark);
+      shared_ptr<Landmark> new_landmark = make_shared<Landmark>(Landmark());
+      new_landmark->id = landmark_count_++;
+      new_landmark->keyPointObservations.push_back(
+          match_in_frame.frame
+              ->keyPointObservations[match_in_frame.match.trainIdx]);
+      new_landmark->keyPointObservations.push_back(
+          new_frame->keyPointObservations[match_in_frame.match.queryIdx]);
+      match_in_frame.frame->keyPointObservations[match_in_frame.match.trainIdx]
+          ->landmark = weak_ptr<Landmark>(new_landmark);
+      new_frame->keyPointObservations[match_in_frame.match.queryIdx]->landmark =
+          weak_ptr<Landmark>(new_landmark);
 
       // cout << "Add new landmark: " << "new frame" << newFrame->id << ", old
       // frame" << matchInFrame.frame->id << " landmark id" << newLandmark->id
       // << endl;
 
-      landmarks.push_back(move(newLandmark));
+      landmarks.push_back(move(new_landmark));
     }
 
     // cout << unmatchedIndices.size() << " observations were not matched" <<
     // endl;
 
     // Publish image of landmark tracks
-    cv_bridge::CvImage tracksOutImg(msg->header,
-                                    sensor_msgs::image_encodings::TYPE_8UC3);
-    cvtColor(imgResized, tracksOutImg.image, CV_GRAY2RGB);
-    for (const auto& landMark : landmarks) {
-      if (landMark->keyPointObservations.size() > 2 &&
-          landMark->keyPointObservations.back()->frame.lock()->id >
+    cv_bridge::CvImage tracks_out_img(msg->header,
+                                      sensor_msgs::image_encodings::TYPE_8UC3);
+    cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
+    for (const auto& landmark : landmarks) {
+      if (landmark->keyPointObservations.size() > 2 &&
+          landmark->keyPointObservations.back()->frame.lock()->id >
               frame_count_ - 5) {
-        int obsCount = static_cast<int>(landMark->keyPointObservations.size());
+        int obsCount = static_cast<int>(landmark->keyPointObservations.size());
         for (int k = 1; k < obsCount; ++k) {
-          line(tracksOutImg.image,
-               landMark->keyPointObservations[k]->keyPoint.pt,
-               landMark->keyPointObservations[k - 1]->keyPoint.pt,
+          line(tracks_out_img.image,
+               landmark->keyPointObservations[k]->keyPoint.pt,
+               landmark->keyPointObservations[k - 1]->keyPoint.pt,
                Scalar(0, 255, 0), 1);
         }
-        Point point = landMark->keyPointObservations.back()->keyPoint.pt;
-        circle(tracksOutImg.image, point, 5, Scalar(0, 0, 255), 1);
+        Point point = landmark->keyPointObservations.back()->keyPoint.pt;
+        circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
         /*
         putText(tracksOutImg.image,
                 to_string(landMark->id), //text
@@ -173,37 +175,37 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
         */
       }
     }
-    tracks_pub_.publish(tracksOutImg.toImageMsg());
+    tracks_pub_.publish(tracks_out_img.toImageMsg());
   }
 
   // Persist new frame
-  frames.push_back(newFrame);
+  frames.push_back(new_frame);
 
-  return newFrame;
+  return new_frame;
 }
 
 void FeatureExtractor::getMatches(const shared_ptr<Frame>& frame,
                                   const Mat& descriptors,
-                                  const vector<KeyPoint>& keyPoints,
+                                  const vector<KeyPoint>& keypoints,
                                   vector<DMatch>& matches,
-                                  vector<uchar>& outlierMask) {
+                                  vector<uchar>& outlier_mask) {
   Ptr<DescriptorMatcher> matcher =
       DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
-  auto prevKeyPoints = frame->getKeyPoints();
-  auto prevDescriptors = frame->getDescriptors();
+  auto prev_key_points = frame->getKeyPoints();
+  auto prev_descriptors = frame->getDescriptors();
 
-  matcher->match(descriptors, prevDescriptors, matches);
+  matcher->match(descriptors, prev_descriptors, matches);
 
-  vector<Point> srcPoints;
-  vector<Point> dstPoints;
+  vector<Point> src_points;
+  vector<Point> dst_points;
   for (auto match : matches) {
-    srcPoints.push_back(keyPoints[match.queryIdx].pt);
-    dstPoints.push_back(prevKeyPoints[match.trainIdx].pt);
+    src_points.push_back(keypoints[match.queryIdx].pt);
+    dst_points.push_back(prev_key_points[match.trainIdx].pt);
   }
 
   // Homography is much better than fundamental matrix for whatever reason.
   // Could be due to low parallax
-  findHomography(srcPoints, dstPoints, CV_RANSAC, 3, outlierMask);
+  findHomography(src_points, dst_points, CV_RANSAC, 3, outlier_mask);
   // findFundamentalMat(srcPoints, dstPoints, CV_FM_RANSAC, 3., 0.99,
   // outlierMask);
 }

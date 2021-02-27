@@ -11,7 +11,7 @@ Controller::Controller(FeatureExtractor& frontend,
       landmark_publisher_(landmarkPublisher) {}
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
-  shared_ptr<Frame> newFrame = frontend.imageCallback(msg);
+  shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
 
   // Eventually, we will put backend updates here
 }
