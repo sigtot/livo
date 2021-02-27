@@ -45,15 +45,15 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   shared_ptr<Frame> new_frame = make_shared<Frame>();
   new_frame->image = img_resized;
   new_frame->id = frame_count_++;
-  new_frame->timeStamp = msg->header.stamp.toSec();
+  new_frame->timestamp = msg->header.stamp.toSec();
   for (int i = 0; i < keypoints.size(); ++i) {
     shared_ptr<KeyPointObservation> observation =
         make_shared<KeyPointObservation>();
-    observation->keyPoint = keypoints[i];
+    observation->keypoint = keypoints[i];
     observation->descriptor =
         descriptors.row(i).clone();  // clone maybe unnecessary
     observation->frame = weak_ptr<Frame>(new_frame);
-    new_frame->keyPointObservations.push_back(move(observation));
+    new_frame->keypoint_observations.push_back(move(observation));
   }
 
   // Perform matching and create new landmarks
@@ -95,7 +95,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
     map<int, MatchInFrame> best_existing_landmark_matches;
     map<int, MatchInFrame> best_no_landmark_matches;
     for (auto& match : best_matches) {
-      auto landmark = match.frame->keyPointObservations[match.match.trainIdx]
+      auto landmark = match.frame->keypoint_observations[match.match.trainIdx]
                           ->landmark.lock();
       if (landmark && !best_existing_landmark_matches.count(landmark->id)) {
         best_existing_landmark_matches[landmark->id] = match;
@@ -110,16 +110,16 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       auto match_in_frame = match_in_frame_it.second;
       auto existing_landmark =
           match_in_frame.frame
-              ->keyPointObservations[match_in_frame.match.trainIdx]
+              ->keypoint_observations[match_in_frame.match.trainIdx]
               ->landmark.lock();
       // Add observation for existing landmark
       // cout << "Add obs to existing landmark: " << "new frame " <<
       // newFrame->id << ", old frame" << matchInFrame.frame->id << " landmark
       // id " << existingLandmark->id << endl;
-      new_frame->keyPointObservations[match_in_frame.match.queryIdx]->landmark =
-          weak_ptr<Landmark>(existing_landmark);
-      existing_landmark->keyPointObservations.push_back(
-          new_frame->keyPointObservations[match_in_frame.match.queryIdx]);
+      new_frame->keypoint_observations[match_in_frame.match.queryIdx]
+          ->landmark = weak_ptr<Landmark>(existing_landmark);
+      existing_landmark->keypoint_observations.push_back(
+          new_frame->keypoint_observations[match_in_frame.match.queryIdx]);
     }
 
     for (auto& match_in_frame_it : best_no_landmark_matches) {
@@ -127,15 +127,15 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       // Init new landmark
       shared_ptr<Landmark> new_landmark = make_shared<Landmark>(Landmark());
       new_landmark->id = landmark_count_++;
-      new_landmark->keyPointObservations.push_back(
+      new_landmark->keypoint_observations.push_back(
           match_in_frame.frame
-              ->keyPointObservations[match_in_frame.match.trainIdx]);
-      new_landmark->keyPointObservations.push_back(
-          new_frame->keyPointObservations[match_in_frame.match.queryIdx]);
-      match_in_frame.frame->keyPointObservations[match_in_frame.match.trainIdx]
+              ->keypoint_observations[match_in_frame.match.trainIdx]);
+      new_landmark->keypoint_observations.push_back(
+          new_frame->keypoint_observations[match_in_frame.match.queryIdx]);
+      match_in_frame.frame->keypoint_observations[match_in_frame.match.trainIdx]
           ->landmark = weak_ptr<Landmark>(new_landmark);
-      new_frame->keyPointObservations[match_in_frame.match.queryIdx]->landmark =
-          weak_ptr<Landmark>(new_landmark);
+      new_frame->keypoint_observations[match_in_frame.match.queryIdx]
+          ->landmark = weak_ptr<Landmark>(new_landmark);
 
       // cout << "Add new landmark: " << "new frame" << newFrame->id << ", old
       // frame" << matchInFrame.frame->id << " landmark id" << newLandmark->id
@@ -152,17 +152,17 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
                                       sensor_msgs::image_encodings::TYPE_8UC3);
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
     for (const auto& landmark : landmarks) {
-      if (landmark->keyPointObservations.size() > 2 &&
-          landmark->keyPointObservations.back()->frame.lock()->id >
+      if (landmark->keypoint_observations.size() > 2 &&
+          landmark->keypoint_observations.back()->frame.lock()->id >
               frame_count_ - 5) {
-        int obsCount = static_cast<int>(landmark->keyPointObservations.size());
+        int obsCount = static_cast<int>(landmark->keypoint_observations.size());
         for (int k = 1; k < obsCount; ++k) {
           line(tracks_out_img.image,
-               landmark->keyPointObservations[k]->keyPoint.pt,
-               landmark->keyPointObservations[k - 1]->keyPoint.pt,
+               landmark->keypoint_observations[k]->keypoint.pt,
+               landmark->keypoint_observations[k - 1]->keypoint.pt,
                Scalar(0, 255, 0), 1);
         }
-        Point point = landmark->keyPointObservations.back()->keyPoint.pt;
+        Point point = landmark->keypoint_observations.back()->keypoint.pt;
         circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
         /*
         putText(tracksOutImg.image,

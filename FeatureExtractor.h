@@ -26,14 +26,14 @@ struct MatchInFrame {
 };
 
 struct KeyPointObservation {
-  KeyPoint keyPoint;
+  KeyPoint keypoint;
   Mat descriptor;
   weak_ptr<Landmark> landmark;
   weak_ptr<Frame> frame;
 };
 
 struct Landmark {
-  vector<shared_ptr<KeyPointObservation>> keyPointObservations;
+  vector<shared_ptr<KeyPointObservation>> keypoint_observations;
   int id;
 };
 
@@ -46,26 +46,26 @@ struct NotEnoughFramesException : public std::exception {
 struct Frame {
   vector<KeyPoint> getKeyPoints() const {
     vector<KeyPoint> keypoints;  // TODO reserve space up front to avoid resizes
-    transform(keyPointObservations.begin(), keyPointObservations.end(),
+    transform(keypoint_observations.begin(), keypoint_observations.end(),
               back_inserter(keypoints),
               [](const shared_ptr<KeyPointObservation>& o) -> KeyPoint {
-                return o->keyPoint;
+                return o->keypoint;
               });
     return keypoints;
   }
 
   Mat getDescriptors() const {
     Mat descriptors;
-    for (const auto& obs : keyPointObservations) {
+    for (const auto& obs : keypoint_observations) {
       descriptors.push_back(obs->descriptor);
     }
     return descriptors;
   }
 
   Mat image;
-  vector<shared_ptr<KeyPointObservation>> keyPointObservations;
+  vector<shared_ptr<KeyPointObservation>> keypoint_observations;
   int id;
-  double timeStamp;
+  double timestamp;
 };
 
 class FeatureExtractor {
