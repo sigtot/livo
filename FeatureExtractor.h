@@ -70,12 +70,12 @@ struct Frame {
 
 class FeatureExtractor {
  private:
-  ros::Publisher matchesPub;
-  ros::Publisher tracksPub;
+  ros::Publisher matches_pub_;
+  ros::Publisher tracks_pub_;
   vector<shared_ptr<Frame>> frames;
   vector<shared_ptr<Landmark>> landmarks;
-  int landmarkCount = 0;
-  int frameCount = 0;
+  int landmark_count_ = 0;
+  int frame_count_ = 0;
   int lag;
   const bool debug = true;
 

@@ -7,8 +7,8 @@ Controller::Controller(FeatureExtractor& frontend,
                        ros::Publisher& posePublisher,
                        ros::Publisher& landmarkPublisher)
     : frontend(frontend),
-      posePublisher(posePublisher),
-      landmarkPublisher(landmarkPublisher) {}
+      pose_publisher_(posePublisher),
+      landmark_publisher_(landmarkPublisher) {}
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   shared_ptr<Frame> newFrame = frontend.imageCallback(msg);

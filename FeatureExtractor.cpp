@@ -5,7 +5,7 @@
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matchesPub,
                                    const ros::Publisher& tracksPub, int lag)
-    : matchesPub(matchesPub), tracksPub(tracksPub), lag(lag) {}
+    : matches_pub_(matchesPub), tracks_pub_(tracksPub), lag(lag) {}
 
 const int MAX_FEATURES = 200;
 
@@ -44,7 +44,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   // Register observations in new frame
   shared_ptr<Frame> newFrame = make_shared<Frame>();
   newFrame->image = imgResized;
-  newFrame->id = frameCount++;
+  newFrame->id = frame_count_++;
   newFrame->timeStamp = msg->header.stamp.toSec();
   for (int i = 0; i < keyPoints.size(); ++i) {
     shared_ptr<KeyPointObservation> observation =
@@ -124,7 +124,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       auto matchInFrame = matchInFrameIt.second;
       // Init new landmark
       shared_ptr<Landmark> newLandmark = make_shared<Landmark>(Landmark());
-      newLandmark->id = landmarkCount++;
+      newLandmark->id = landmark_count_++;
       newLandmark->keyPointObservations.push_back(
           matchInFrame.frame
               ->keyPointObservations[matchInFrame.match.trainIdx]);
@@ -152,7 +152,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
     for (const auto& landMark : landmarks) {
       if (landMark->keyPointObservations.size() > 2 &&
           landMark->keyPointObservations.back()->frame.lock()->id >
-              frameCount - 5) {
+              frame_count_ - 5) {
         int obsCount = static_cast<int>(landMark->keyPointObservations.size());
         for (int k = 1; k < obsCount; ++k) {
           line(tracksOutImg.image,
@@ -173,7 +173,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
         */
       }
     }
-    tracksPub.publish(tracksOutImg.toImageMsg());
+    tracks_pub_.publish(tracksOutImg.toImageMsg());
   }
 
   // Persist new frame
@@ -210,7 +210,7 @@ void FeatureExtractor::getMatches(const shared_ptr<Frame>& frame,
 
 pair<shared_ptr<Frame>, shared_ptr<Frame>>
 FeatureExtractor::getFirstTwoFrames() {
-  if (frameCount >= 2) {
+  if (frame_count_ >= 2) {
     return pair<shared_ptr<Frame>, shared_ptr<Frame>>(frames[0], frames[1]);
   } else {
     throw NotEnoughFramesException();

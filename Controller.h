@@ -7,8 +7,8 @@
 class Controller {
  private:
   FeatureExtractor& frontend;
-  ros::Publisher posePublisher;
-  ros::Publisher landmarkPublisher;
+  ros::Publisher pose_publisher_;
+  ros::Publisher landmark_publisher_;
 
  public:
   explicit Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher,
