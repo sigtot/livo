@@ -17,8 +17,7 @@ int main(int argc, char** argv) {
   auto landmarksPub =
       nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor featureExtractor(matchesPub, tracksPub, 20);
-  Smoother smoother;
-  Controller controller(featureExtractor, smoother, posePub, landmarksPub);
+  Controller controller(featureExtractor, posePub, landmarksPub);
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college

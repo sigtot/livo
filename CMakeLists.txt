@@ -15,8 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 
-find_package(GTSAM REQUIRED)
-
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -138,7 +136,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtractor.h Smoother.cpp Smoother.h Controller.cpp Controller.h conversions.h)
+add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtractor.h Controller.cpp Controller.h)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -152,8 +150,6 @@ add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtract
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
-    gtsam
-    gtsam_unstable
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
 )
