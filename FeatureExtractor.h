@@ -80,8 +80,8 @@ class FeatureExtractor {
   const bool debug = true;
 
   static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors,
-                         vector<KeyPoint> keyPoints, vector<DMatch>& matches,
-                         vector<uchar>& outlierMask);
+                         const vector<KeyPoint>& keyPoints,
+                         vector<DMatch>& matches, vector<uchar>& outlierMask);
 
  public:
   explicit FeatureExtractor(const ros::Publisher& matchesPub,

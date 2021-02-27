@@ -184,7 +184,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
 
 void FeatureExtractor::getMatches(const shared_ptr<Frame>& frame,
                                   const Mat& descriptors,
-                                  vector<KeyPoint> keyPoints,
+                                  const vector<KeyPoint>& keyPoints,
                                   vector<DMatch>& matches,
                                   vector<uchar>& outlierMask) {
   Ptr<DescriptorMatcher> matcher =
