@@ -3,11 +3,11 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/calib3d.hpp>
 
+#include "GlobalParams.h"
+
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
     : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag) {}
-
-const int MAX_FEATURES = 200;
 
 const double RESIZE_FACTOR = 0.5;
 
@@ -23,7 +23,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   resize(cvPtr->image, img_resized, Size(), RESIZE_FACTOR, RESIZE_FACTOR,
          INTER_LINEAR);
 
-  Ptr<Feature2D> orb = ORB::create(MAX_FEATURES);
+  Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeatures());
   Ptr<DescriptorMatcher> matcher =
       DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
 
@@ -31,7 +31,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   Mat descriptors;
 
   vector<cv::Point2f> corners;
-  goodFeaturesToTrack(img_resized, corners, MAX_FEATURES, 0.01, 7);
+  goodFeaturesToTrack(img_resized, corners, GlobalParams::MaxFeatures(), 0.01,
+                      7);
 
   for (auto& corner : corners) {
     keypoints.emplace_back(corner, 1);

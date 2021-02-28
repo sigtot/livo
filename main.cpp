@@ -4,12 +4,15 @@
 #include <visualization_msgs/MarkerArray.h>
 #include "Controller.h"
 #include "FeatureExtractor.h"
+#include "GlobalParams.h"
 
 using namespace std;
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "orb_test");
   ros::NodeHandle nh;
+
+  GlobalParams::loadParams(nh);
 
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
