@@ -6,7 +6,7 @@
 class GlobalParams {
  private:
   GlobalParams() = default;
-  static GlobalParams& getInstance();
+  static GlobalParams& GetInstance();
   template <class T>
   static void ReadVariable(const ros::NodeHandle& nh,
                            const std::string& variable_name, T& variable);

@@ -1,6 +1,6 @@
 #include "GlobalParams.h"
 
-GlobalParams& GlobalParams::getInstance() {
+GlobalParams& GlobalParams::GetInstance() {
   static GlobalParams instance;
   return instance;
 }
@@ -17,7 +17,9 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh,
 }
 
 void GlobalParams::LoadParams(const ros::NodeHandle& nh) {
-  ReadVariable(nh, "max_features", getInstance().max_features_);
+  // Add ReadVariable calls here
+  ReadVariable(nh, "max_features", GetInstance().max_features_);
 }
 
-int GlobalParams::MaxFeatures() { return getInstance().max_features_; }
+// Implement parameter accessors here
+int GlobalParams::MaxFeatures() { return GetInstance().max_features_; }
