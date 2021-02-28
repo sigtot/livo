@@ -4,6 +4,8 @@
 #include <opencv2/calib3d.hpp>
 
 #include "GlobalParams.h"
+#include "match_result.h"
+#include "match_in_frame.h"
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
