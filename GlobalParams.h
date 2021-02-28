@@ -6,16 +6,16 @@
 class GlobalParams {
  private:
   GlobalParams() = default;
-  static GlobalParams& getInstance() {
-    static GlobalParams instance;
-    return instance;
-  }
+  static GlobalParams& getInstance();
+  template <class T>
+  static void ReadVariable(const ros::NodeHandle& nh,
+                           const std::string& variable_name, T& variable);
 
   // Add parameters here
   int max_features_ = 200;
 
  public:
-  static void loadParams(const ros::NodeHandle& nh);
+  static void LoadParams(const ros::NodeHandle& nh);
   GlobalParams(GlobalParams const&) = delete;
   void operator=(GlobalParams const&) = delete;
 

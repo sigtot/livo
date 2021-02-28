@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "orb_test");
   ros::NodeHandle nh;
 
-  GlobalParams::loadParams(nh);
+  GlobalParams::LoadParams(nh);
 
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
