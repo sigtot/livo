@@ -221,3 +221,5 @@ void FeatureExtractor::GetLandmarkMatches(const Mat& descriptors,
                                           const vector<KeyPoint>& keypoints,
                                           vector<DMatch>& matches,
                                           vector<uchar>& outlier_mask) {}
+
+int FeatureExtractor::GetLandmarkCount() { return landmarks.size(); }

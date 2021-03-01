@@ -2,8 +2,6 @@
 #include "frame.h"
 #include <geometry_msgs/PoseStamped.h>
 
-using namespace std;
-
 Controller::Controller(FeatureExtractor& frontend,
                        ros::Publisher& posePublisher,
                        ros::Publisher& landmarkPublisher)
@@ -14,6 +12,7 @@ Controller::Controller(FeatureExtractor& frontend,
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
+  std::cout << "Landmark count: " << frontend.GetLandmarkCount() << std::endl;
 
   // Eventually, we will put backend updates here
 }

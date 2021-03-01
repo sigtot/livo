@@ -46,6 +46,8 @@ class FeatureExtractor {
   void PublishLandmarkTracksImage();
 
   pair<shared_ptr<Frame>, shared_ptr<Frame>> getFirstTwoFrames();
+
+  int GetLandmarkCount();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
