@@ -14,5 +14,6 @@ struct Landmark {
 
   cv::Mat GetNewestDescriptor();
   cv::KeyPoint GetNewestKeyPoint();
+  int GetLastObservationFrameId();
 };
 #endif
