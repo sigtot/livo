@@ -39,6 +39,8 @@ class FeatureExtractor {
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 
+  void PublishLandmarkTracksImage();
+
   pair<shared_ptr<Frame>, shared_ptr<Frame>> getFirstTwoFrames();
 };
 

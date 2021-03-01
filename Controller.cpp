@@ -13,6 +13,7 @@ Controller::Controller(FeatureExtractor& frontend,
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
+  frontend.PublishLandmarkTracksImage();
 
   // Eventually, we will put backend updates here
 }

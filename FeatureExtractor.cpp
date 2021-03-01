@@ -147,36 +147,6 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
 
     // cout << unmatchedIndices.size() << " observations were not matched" <<
     // endl;
-
-    // Publish image of landmark tracks
-    cv_bridge::CvImage tracks_out_img(msg->header,
-                                      sensor_msgs::image_encodings::TYPE_8UC3);
-    cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
-    for (const auto& landmark : landmarks) {
-      if (landmark->keypoint_observations.size() > 2 &&
-          landmark->keypoint_observations.back()->frame.lock()->id >
-              frame_count_ - 5) {
-        int obsCount = static_cast<int>(landmark->keypoint_observations.size());
-        for (int k = 1; k < obsCount; ++k) {
-          line(tracks_out_img.image,
-               landmark->keypoint_observations[k]->keypoint.pt,
-               landmark->keypoint_observations[k - 1]->keypoint.pt,
-               Scalar(0, 255, 0), 1);
-        }
-        Point point = landmark->keypoint_observations.back()->keypoint.pt;
-        circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
-        /*
-        putText(tracksOutImg.image,
-                to_string(landMark->id), //text
-                point + Point(5, 5),
-                FONT_HERSHEY_DUPLEX,
-                0.3,
-                CV_RGB(255, 0, 0), //font color
-                1);
-        */
-      }
-    }
-    tracks_pub_.publish(tracks_out_img.toImageMsg());
   }
 
   // Persist new frame
@@ -218,4 +188,37 @@ FeatureExtractor::getFirstTwoFrames() {
   } else {
     throw NotEnoughFramesException();
   }
+}
+
+void FeatureExtractor::PublishLandmarkTracksImage() {
+  cv_bridge::CvImage tracks_out_img;
+  tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
+  tracks_out_img.header.seq = frames.back()->id;
+  cvtColor(frames.back()->image, tracks_out_img.image, CV_GRAY2RGB);
+  for (const auto& landmark : landmarks) {
+    if (landmark->keypoint_observations.size() > 2 &&
+        landmark->keypoint_observations.back()->frame.lock()->id >
+            frame_count_ - 5) {
+      int obsCount = static_cast<int>(landmark->keypoint_observations.size());
+      for (int k = 1; k < obsCount; ++k) {
+        line(tracks_out_img.image,
+             landmark->keypoint_observations[k]->keypoint.pt,
+             landmark->keypoint_observations[k - 1]->keypoint.pt,
+             Scalar(0, 255, 0), 1);
+      }
+      Point point = landmark->keypoint_observations.back()->keypoint.pt;
+      circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
+      /*
+      putText(tracksOutImg.image,
+              to_string(landMark->id), //text
+              point + Point(5, 5),
+              FONT_HERSHEY_DUPLEX,
+              0.3,
+              CV_RGB(255, 0, 0), //font color
+              1);
+      */
+    }
+  }
+  tracks_pub_.publish(tracks_out_img.toImageMsg());
 }
