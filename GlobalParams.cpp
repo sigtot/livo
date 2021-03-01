@@ -9,10 +9,10 @@ template <class T>
 void GlobalParams::ReadVariable(const ros::NodeHandle& nh,
                                 const std::string& variable_name, T& variable) {
   if (!nh.getParam(variable_name, variable)) {
-    std::cout
-        << "Could not read param max_features from parameter server, so using "
-           "default value "
-        << variable << std::endl;
+    std::cout << "Could not read param " << variable_name
+              << " from parameter server, so using "
+                 "default value "
+              << variable << std::endl;
   }
 }
 
