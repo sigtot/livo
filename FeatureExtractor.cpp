@@ -83,12 +83,18 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
         } else {
           existing_landmark_matches[landmark->id] = match;
         }
-      } else if (!no_landmark_matches.count(match.match.trainIdx)) {
-        // Overwrite in case of dupe
-        no_landmark_matches[match.match.trainIdx] = match;
+      } else {
+        auto existing_no_landmark_match =
+            no_landmark_matches.find(match.match.trainIdx);
+        if (existing_no_landmark_match != no_landmark_matches.end()) {
+          if (match.match.distance >
+              existing_no_landmark_match->second.match.distance) {
+            no_landmark_matches[match.match.trainIdx] = match;
+          }
+        } else {
+          no_landmark_matches[match.match.trainIdx] = match;
+        }
       }
-      // For now we discard unlucky matches.
-      // TODO: choose the best match in case of dupes
     }
 
     for (auto& match_in_frame_it : existing_landmark_matches) {
