@@ -11,8 +11,6 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
     : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag) {}
 
-const double RESIZE_FACTOR = 1;
-
 shared_ptr<Frame> FeatureExtractor::imageCallback(
     const sensor_msgs::Image::ConstPtr& msg) {
   auto cvPtr = cv_bridge::toCvCopy(
@@ -20,8 +18,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       sensor_msgs::image_encodings::
           TYPE_8UC1);  // Makes copy. We can also share to increase performance
   Mat img_resized;
-  resize(cvPtr->image, img_resized, Size(), RESIZE_FACTOR, RESIZE_FACTOR,
-         INTER_LINEAR);
+  resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(),
+         GlobalParams::ResizeFactor(), INTER_LINEAR);
 
   Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeaturesPerCell());
 

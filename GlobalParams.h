@@ -13,6 +13,7 @@ class GlobalParams {
 
   // Add parameters here
   int max_features_per_cell_ = 10;
+  double resize_factor_ = 1.f;
 
  public:
   static void LoadParams(const ros::NodeHandle& nh);
@@ -21,6 +22,7 @@ class GlobalParams {
 
   // Add parameter accessors here
   static int MaxFeaturesPerCell();
+  static double ResizeFactor();
 };
 
 #endif
