@@ -3,13 +3,15 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <memory>
 
 struct Frame;
 struct Landmark;
 
 struct KeyPointObservation {
-  cv::KeyPoint keypoint;
-  cv::Mat descriptor;
+  KeyPointObservation(cv::KeyPoint keypoint, cv::Mat descriptor);
+  const cv::KeyPoint keypoint;
+  const cv::Mat descriptor;
   std::weak_ptr<Landmark> landmark;
   std::weak_ptr<Frame> frame;
 };

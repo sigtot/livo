@@ -49,10 +49,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   new_frame->timestamp = msg->header.stamp.toSec();
   for (int i = 0; i < keypoints.size(); ++i) {
     shared_ptr<KeyPointObservation> observation =
-        make_shared<KeyPointObservation>();
-    observation->keypoint = keypoints[i];
-    observation->descriptor =
-        descriptors.row(i).clone();  // clone maybe unnecessary
+        make_shared<KeyPointObservation>(keypoints[i], descriptors.row(i));
     observation->frame = weak_ptr<Frame>(new_frame);
     new_frame->keypoint_observations.push_back(move(observation));
   }
