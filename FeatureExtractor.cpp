@@ -72,9 +72,17 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
     for (auto& match : good_matches) {
       auto landmark = match.frame->keypoint_observations[match.match.trainIdx]
                           ->landmark.lock();
-      if (landmark && !existing_landmark_matches.count(landmark->id)) {
-        // Overwrite in case of dupe
-        existing_landmark_matches[landmark->id] = match;
+      if (landmark) {
+        auto existing_landmark_match =
+            existing_landmark_matches.find(landmark->id);
+        if (existing_landmark_match != existing_landmark_matches.end()) {
+          if (match.match.distance >
+              existing_landmark_match->second.match.distance) {
+            existing_landmark_matches[landmark->id] = match;
+          }
+        } else {
+          existing_landmark_matches[landmark->id] = match;
+        }
       } else if (!no_landmark_matches.count(match.match.trainIdx)) {
         // Overwrite in case of dupe
         no_landmark_matches[match.match.trainIdx] = match;
@@ -185,11 +193,9 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
       Point point = landmark->keypoint_observations.back()->keypoint.pt;
       circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
       putText(tracks_out_img.image,
-              to_string(landmark->id), //text
-              point + Point(5, 5),
-              FONT_HERSHEY_DUPLEX,
-              0.3,
-              CV_RGB(255, 0, 0), //font color
+              to_string(landmark->id),  // text
+              point + Point(5, 5), FONT_HERSHEY_DUPLEX, 0.3,
+              CV_RGB(255, 0, 0),  // font color
               1);
     }
   }
