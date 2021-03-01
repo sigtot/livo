@@ -50,7 +50,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   for (int i = 0; i < keypoints.size(); ++i) {
     shared_ptr<KeyPointObservation> observation =
         make_shared<KeyPointObservation>(keypoints[i], descriptors.row(i),
-                                         weak_ptr<Frame>(new_frame));
+                                         new_frame);
     new_frame->keypoint_observations.push_back(move(observation));
   }
 
@@ -195,8 +195,7 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
   cvtColor(frames.back()->image, tracks_out_img.image, CV_GRAY2RGB);
   for (const auto& landmark : landmarks) {
     if (landmark->keypoint_observations.size() > 2 &&
-        landmark->keypoint_observations.back()->frame.lock()->id >
-            frame_count_ - 5) {
+        landmark->keypoint_observations.back()->frame->id > frame_count_ - 5) {
       int obsCount = static_cast<int>(landmark->keypoint_observations.size());
       for (int k = 1; k < obsCount; ++k) {
         line(tracks_out_img.image,
