@@ -222,3 +222,8 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
   }
   tracks_pub_.publish(tracks_out_img.toImageMsg());
 }
+
+void FeatureExtractor::GetLandmarkMatches(const Mat& descriptors,
+                                          const vector<KeyPoint>& keypoints,
+                                          vector<DMatch>& matches,
+                                          vector<uchar>& outlier_mask) {}

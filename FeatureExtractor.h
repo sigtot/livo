@@ -33,6 +33,8 @@ class FeatureExtractor {
                          const vector<KeyPoint>& keypoints,
                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
+  void GetLandmarkMatches(const Mat& descriptors, const vector<KeyPoint>& keypoints, vector<DMatch>& matches, vector<uchar>& outlier_mask);
+
  public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub,
                             const ros::Publisher& tracks_pub, int lag);
