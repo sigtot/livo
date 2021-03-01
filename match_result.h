@@ -10,7 +10,6 @@
 struct MatchResult {
   std::vector<cv::DMatch> matches{};
   std::vector<uchar> inliers{};
-  std::shared_ptr<Frame> frame{};
 };
 
 #endif

@@ -54,55 +54,38 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
 
   // Perform matching and create new landmarks
   if (!frames.empty()) {
-    vector<MatchResult> match_results;
-    int last_frame_idx = static_cast<int>(frames.size()) - 1;
-    for (int k = last_frame_idx;
-         k > max(last_frame_idx - GlobalParams::MatchHorizon(), 0); --k) {
-      MatchResult match_result;
-      getMatches(frames[k], descriptors, keypoints, match_result.matches,
-                 match_result.inliers);
-      match_result.frame = frames[k];
-      match_results.push_back(match_result);
-    }
+    MatchResult match_result;
+    getMatches(frames.back(), descriptors, keypoints, match_result.matches,
+               match_result.inliers);
 
-    vector<int> unmatched_indices;
-    vector<MatchInFrame> best_matches;
+    vector<MatchInFrame> good_matches;
     for (int i = 0; i < keypoints.size(); ++i) {
-      MatchInFrame best_match;
-      bool have_best_match = false;
-      for (auto& match_result : match_results) {
-        if (match_result.inliers[i] && match_result.matches[i].queryIdx >= 0 &&
-            match_result.matches[i].trainIdx >= 0 &&  // can be -1, idk why
-            (!have_best_match ||
-             match_result.matches[i].distance < best_match.match.distance)) {
-          best_match = MatchInFrame{.match = match_result.matches[i],
-                                    .frame = match_result.frame};
-          have_best_match = true;
-        }
-      }
-      if (have_best_match) {
-        best_matches.push_back(best_match);
-      } else {
-        unmatched_indices.push_back(i);
+      if (match_result.inliers[i] && match_result.matches[i].queryIdx >= 0 &&
+          match_result.matches[i].trainIdx >= 0 &&  // can be -1, idk why
+          match_result.matches[i].distance < 20) {
+        good_matches.push_back(MatchInFrame{.match = match_result.matches[i],
+                                            .frame = frames.back()});
       }
     }
 
     // You cannot observe the same landmark more than once in a frame
-    map<int, MatchInFrame> best_existing_landmark_matches;
-    map<int, MatchInFrame> best_no_landmark_matches;
-    for (auto& match : best_matches) {
+    map<int, MatchInFrame> existing_landmark_matches;
+    map<int, MatchInFrame> no_landmark_matches;
+    for (auto& match : good_matches) {
       auto landmark = match.frame->keypoint_observations[match.match.trainIdx]
                           ->landmark.lock();
-      if (landmark && !best_existing_landmark_matches.count(landmark->id)) {
-        best_existing_landmark_matches[landmark->id] = match;
-      } else if (!best_no_landmark_matches.count(match.match.trainIdx)) {
-        best_no_landmark_matches[match.match.trainIdx] = match;
+      if (landmark && !existing_landmark_matches.count(landmark->id)) {
+        // Overwrite in case of dupe
+        existing_landmark_matches[landmark->id] = match;
+      } else if (!no_landmark_matches.count(match.match.trainIdx)) {
+        // Overwrite in case of dupe
+        no_landmark_matches[match.match.trainIdx] = match;
       }
       // For now we discard unlucky matches.
       // TODO: choose the best match in case of dupes
     }
 
-    for (auto& match_in_frame_it : best_existing_landmark_matches) {
+    for (auto& match_in_frame_it : existing_landmark_matches) {
       auto match_in_frame = match_in_frame_it.second;
       auto existing_landmark =
           match_in_frame.frame
@@ -118,7 +101,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
           new_frame->keypoint_observations[match_in_frame.match.queryIdx]);
     }
 
-    for (auto& match_in_frame_it : best_no_landmark_matches) {
+    for (auto& match_in_frame_it : no_landmark_matches) {
       auto match_in_frame = match_in_frame_it.second;
       // Init new landmark
       shared_ptr<Landmark> new_landmark = make_shared<Landmark>(Landmark());
