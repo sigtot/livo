@@ -1,4 +1,4 @@
-#include "GlobalParams.h"
+#include "global_params.h"
 
 GlobalParams& GlobalParams::GetInstance() {
   static GlobalParams instance;

@@ -2,9 +2,9 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/MarkerArray.h>
-#include "Controller.h"
-#include "FeatureExtractor.h"
-#include "GlobalParams.h"
+#include "controller.h"
+#include "feature_extractor.h"
+#include "global_params.h"
 
 using namespace std;
 

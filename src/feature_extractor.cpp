@@ -1,9 +1,9 @@
-#include "FeatureExtractor.h"
+#include "feature_extractor.h"
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/calib3d.hpp>
 
-#include "GlobalParams.h"
+#include "global_params.h"
 #include "match_result.h"
 #include "match_in_frame.h"
 

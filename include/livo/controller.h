@@ -2,7 +2,7 @@
 #define ORB_TEST_CONTROLLER_H
 
 #include <ros/ros.h>
-#include "FeatureExtractor.h"
+#include "feature_extractor.h"
 
 class Controller {
  private:
