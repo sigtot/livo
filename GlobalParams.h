@@ -12,7 +12,7 @@ class GlobalParams {
                            const std::string& variable_name, T& variable);
 
   // Add parameters here
-  int max_features_ = 200;
+  int max_features_ = 10;
 
  public:
   static void LoadParams(const ros::NodeHandle& nh);

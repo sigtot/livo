@@ -33,6 +33,13 @@ class FeatureExtractor {
                          const vector<KeyPoint>& keypoints,
                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
+  static void FindGoodFeaturesToTrackGridded(const cv::Mat& img,
+                                             vector<cv::Point2f>& corners,
+                                             int cell_count_x, int cell_count_y,
+                                             int max_features_per_cell,
+                                             double quality_level,
+                                             double min_distance);
+
   void GetLandmarkMatches(const Mat& descriptors,
                           const vector<KeyPoint>& keypoints,
                           vector<DMatch>& matches, vector<uchar>& outlier_mask);

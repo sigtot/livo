@@ -11,7 +11,7 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
     : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag) {}
 
-const double RESIZE_FACTOR = 0.5;
+const double RESIZE_FACTOR = 1;
 
 shared_ptr<Frame> FeatureExtractor::imageCallback(
     const sensor_msgs::Image::ConstPtr& msg) {
@@ -29,8 +29,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   Mat descriptors;
 
   vector<cv::Point2f> corners;
-  goodFeaturesToTrack(img_resized, corners, GlobalParams::MaxFeatures(), 0.01,
-                      7);
+  FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4,
+                                 GlobalParams::MaxFeatures(), 0.01, 7);
 
   for (auto& corner : corners) {
     keypoints.emplace_back(corner, 1);
@@ -206,3 +206,25 @@ void FeatureExtractor::GetLandmarkMatches(const Mat& descriptors,
                                           vector<uchar>& outlier_mask) {}
 
 int FeatureExtractor::GetLandmarkCount() { return landmarks.size(); }
+
+void FeatureExtractor::FindGoodFeaturesToTrackGridded(
+    const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
+    int cell_count_y, int max_features_per_cell, double quality_level,
+    double min_distance) {
+  int cell_w = img.cols / cell_count_x;
+  int cell_h = img.rows / cell_count_y;
+  for (int cell_x = 0; cell_x < cell_count_x; ++cell_x) {
+    for (int cell_y = 0; cell_y < cell_count_y; ++cell_y) {
+      cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
+      cv::Mat roi = img(mask);
+      vector<cv::Point2f> corners_in_roi;
+      goodFeaturesToTrack(roi, corners_in_roi, max_features_per_cell,
+                          quality_level, min_distance);
+      for (auto& corner : corners_in_roi) {
+        corner += cv::Point2f(cell_x * cell_w, cell_y * cell_h);
+      }
+      corners.insert(corners.begin(), corners_in_roi.begin(),
+                     corners_in_roi.end());
+    }
+  }
+}
