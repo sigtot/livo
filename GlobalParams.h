@@ -13,7 +13,6 @@ class GlobalParams {
 
   // Add parameters here
   int max_features_ = 200;
-  int match_horizon_ = 1;
 
  public:
   static void LoadParams(const ros::NodeHandle& nh);
@@ -22,7 +21,6 @@ class GlobalParams {
 
   // Add parameter accessors here
   static int MaxFeatures();
-  static int MatchHorizon();
 };
 
 #endif
