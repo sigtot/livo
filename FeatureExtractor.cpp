@@ -26,8 +26,6 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
          INTER_LINEAR);
 
   Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeatures());
-  Ptr<DescriptorMatcher> matcher =
-      DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
 
   vector<KeyPoint> keypoints;
   Mat descriptors;
