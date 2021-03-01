@@ -18,8 +18,11 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh,
 
 void GlobalParams::LoadParams(const ros::NodeHandle& nh) {
   // Add ReadVariable calls here
-  ReadVariable(nh, "max_features", GetInstance().max_features_);
+  ReadVariable(nh, "max_features_per_cell",
+               GetInstance().max_features_per_cell_);
 }
 
 // Implement parameter accessors here
-int GlobalParams::MaxFeatures() { return GetInstance().max_features_; }
+int GlobalParams::MaxFeaturesPerCell() {
+  return GetInstance().max_features_per_cell_;
+}

@@ -12,7 +12,7 @@ class GlobalParams {
                            const std::string& variable_name, T& variable);
 
   // Add parameters here
-  int max_features_ = 10;
+  int max_features_per_cell_ = 10;
 
  public:
   static void LoadParams(const ros::NodeHandle& nh);
@@ -20,7 +20,7 @@ class GlobalParams {
   void operator=(GlobalParams const&) = delete;
 
   // Add parameter accessors here
-  static int MaxFeatures();
+  static int MaxFeaturesPerCell();
 };
 
 #endif

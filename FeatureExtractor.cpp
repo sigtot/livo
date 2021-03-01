@@ -23,14 +23,14 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   resize(cvPtr->image, img_resized, Size(), RESIZE_FACTOR, RESIZE_FACTOR,
          INTER_LINEAR);
 
-  Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeatures());
+  Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeaturesPerCell());
 
   vector<KeyPoint> keypoints;
   Mat descriptors;
 
   vector<cv::Point2f> corners;
   FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4,
-                                 GlobalParams::MaxFeatures(), 0.01, 7);
+                                 GlobalParams::MaxFeaturesPerCell(), 0.01, 7);
 
   for (auto& corner : corners) {
     keypoints.emplace_back(corner, 1);
