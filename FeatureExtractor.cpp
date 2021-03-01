@@ -13,8 +13,6 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
 
 const double RESIZE_FACTOR = 0.5;
 
-const int MATCH_HORIZON = 5;
-
 shared_ptr<Frame> FeatureExtractor::imageCallback(
     const sensor_msgs::Image::ConstPtr& msg) {
   auto cvPtr = cv_bridge::toCvCopy(
@@ -58,8 +56,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   if (!frames.empty()) {
     vector<MatchResult> match_results;
     int last_frame_idx = static_cast<int>(frames.size()) - 1;
-    for (int k = last_frame_idx; k > max(last_frame_idx - MATCH_HORIZON, 0);
-         --k) {
+    for (int k = last_frame_idx;
+         k > max(last_frame_idx - GlobalParams::MatchHorizon(), 0); --k) {
       MatchResult match_result;
       getMatches(frames[k], descriptors, keypoints, match_result.matches,
                  match_result.inliers);
