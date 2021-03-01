@@ -198,11 +198,13 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
       }
       Point point = landmark->keypoint_observations.back()->keypoint.pt;
       circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
+      /*
       putText(tracks_out_img.image,
               to_string(landmark->id),  // text
               point + Point(5, 5), FONT_HERSHEY_DUPLEX, 0.3,
               CV_RGB(255, 0, 0),  // font color
               1);
+              */
     }
   }
   tracks_pub_.publish(tracks_out_img.toImageMsg());
