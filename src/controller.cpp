@@ -14,5 +14,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   frontend.PublishLandmarkTracksImage();
   std::cout << "Landmark count: " << frontend.GetLandmarkCount() << std::endl;
 
-  // Eventually, we will put backend updates here
+  if (frontend.GetFrameCount() > 100) {
+    Smoother::SmoothBatch(frontend.GetFrames());
+    exit(0);
+  }
 }

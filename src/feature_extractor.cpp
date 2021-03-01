@@ -217,6 +217,8 @@ void FeatureExtractor::GetLandmarkMatches(const Mat& descriptors,
 
 int FeatureExtractor::GetLandmarkCount() { return landmarks.size(); }
 
+int FeatureExtractor::GetFrameCount() { return frames.size(); }
+
 void FeatureExtractor::FindGoodFeaturesToTrackGridded(
     const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
     int cell_count_y, int max_features_per_cell, double quality_level,
@@ -238,3 +240,5 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(
     }
   }
 }
+
+vector<shared_ptr<Frame>> FeatureExtractor::GetFrames() { return frames; }

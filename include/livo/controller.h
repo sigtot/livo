@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include "feature_extractor.h"
+#include "smoother.h"
 
 class Controller {
  private:
