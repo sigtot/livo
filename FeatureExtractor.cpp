@@ -173,7 +173,7 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
   tracks_out_img.header.seq = frames.back()->id;
   cvtColor(frames.back()->image, tracks_out_img.image, CV_GRAY2RGB);
   for (const auto& landmark : landmarks) {
-    if (landmark->keypoint_observations.size() > 2 &&
+    if (landmark->keypoint_observations.size() > 1 &&
         landmark->keypoint_observations.back()->frame->id > frame_count_ - 5) {
       int obsCount = static_cast<int>(landmark->keypoint_observations.size());
       for (int k = 1; k < obsCount; ++k) {
@@ -184,15 +184,13 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
       }
       Point point = landmark->keypoint_observations.back()->keypoint.pt;
       circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
-      /*
-      putText(tracksOutImg.image,
-              to_string(landMark->id), //text
+      putText(tracks_out_img.image,
+              to_string(landmark->id), //text
               point + Point(5, 5),
               FONT_HERSHEY_DUPLEX,
               0.3,
               CV_RGB(255, 0, 0), //font color
               1);
-      */
     }
   }
   tracks_pub_.publish(tracks_out_img.toImageMsg());
