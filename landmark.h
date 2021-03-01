@@ -11,5 +11,8 @@ struct KeyPointObservation;
 struct Landmark {
   std::vector<std::shared_ptr<KeyPointObservation>> keypoint_observations{};
   int id{};
+
+  cv::Mat GetNewestDescriptor();
+  cv::KeyPoint GetNewestKeyPoint();
 };
-#endif  // ORB_TEST__LANDMARK_H_
+#endif

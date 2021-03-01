@@ -136,7 +136,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtractor.h Controller.cpp Controller.h GlobalParams.cpp GlobalParams.h landmark.h frame.h frame.cpp key_point_observation.h match_in_frame.h match_result.h)
+add_executable(${PROJECT_NAME}_node main.cpp FeatureExtractor.cpp FeatureExtractor.h Controller.cpp Controller.h GlobalParams.cpp GlobalParams.h landmark.h frame.h frame.cpp key_point_observation.h match_in_frame.h match_result.h landmark.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
