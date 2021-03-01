@@ -118,7 +118,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+include/livo
 ${catkin_INCLUDE_DIRS}
 ${OpenCV_INCLUDE_DIRS}
 )
@@ -136,7 +136,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/FeatureExtractor.cpp src/FeatureExtractor.h src/Controller.cpp src/Controller.h src/GlobalParams.cpp src/GlobalParams.h src/landmark.h src/frame.h src/frame.cpp src/key_point_observation.h src/match_in_frame.h src/match_result.h src/landmark.cpp src/key_point_observation.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/FeatureExtractor.cpp src/Controller.cpp src/GlobalParams.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
