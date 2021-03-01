@@ -12,6 +12,6 @@ int Landmark::GetLastObservationFrameId() {
   if (last_frame) {
     return last_frame->id;
   } else {
-    return -1; // No frame
+    return -1;  // No frame
   }
 }
