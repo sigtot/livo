@@ -5,7 +5,7 @@
 
 double THRESH = 0.4;
 
-std::map<double, Pose3> gt = {
+const std::map<double, Pose3> gt = {
     {1594370218.006126080,
      Pose3{.point =
                Point3{.x = 81.23285954, .y = -171.5673383, .z = -1.890144046},
@@ -1429,4 +1429,8 @@ Pose3 NewerCollegeGroundTruth::At(double timestamp) {
   std::cout << "Note that the gt table only contains the 100 first poses"
             << std::endl;
   exit(1);
+}
+
+std::map<double, Pose3> NewerCollegeGroundTruth::GetAllPoses() {
+  return gt;
 }
