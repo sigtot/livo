@@ -26,4 +26,9 @@ Pose3 ToPose(const gtsam::Pose3& gtsam_pose) {
   };
 }
 
+Point3 ToPoint(const gtsam::Point3& gtsam_point) {
+  return Point3{
+      .x = gtsam_point.x(), .y = gtsam_point.y(), .z = gtsam_point.z()};
+}
+
 #endif
