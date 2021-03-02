@@ -14,13 +14,14 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
+#include <pose3_stamped.h>
 
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 void Smoother::SmoothBatch(
     const std::vector<std::shared_ptr<Frame>>& frames,
     const std::vector<std::shared_ptr<Landmark>>& landmarks,
-    std::vector<Pose3>& pose_estimates,
+    std::vector<Pose3Stamped>& pose_estimates,
     std::vector<Point3>& landmark_estimates) {
   std::cout << "Let's process those" << landmarks.size() << " landmarks"
             << std::endl;
@@ -83,7 +84,8 @@ void Smoother::SmoothBatch(
   result.print("result");
 
   for (auto& frame : frames) {
-    pose_estimates.push_back(ToPose(result.at<gtsam::Pose3>(frame->id)));
+    Pose3Stamped poseStamped {.pose=ToPose(result.at<gtsam::Pose3>(frame->id)), .stamp=frame->timestamp};
+    pose_estimates.push_back(poseStamped);
   }
 
   for (int i = 0; i < smart_factor_count; ++i) {
