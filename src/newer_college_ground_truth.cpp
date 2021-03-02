@@ -1419,7 +1419,7 @@ Pose3 NewerCollegeGroundTruth::At(double timestamp) {
   // We could bisect or create a map of frame id's to poses, but since we're
   // really only going to use this gt table for very early experiments, this
   // linear search will do.
-  for (auto &gt_it : gt) {
+  for (auto& gt_it : gt) {
     if (std::abs(gt_it.first - timestamp) < THRESH) {
       return gt_it.second;
     }

@@ -3,6 +3,7 @@
 #include "landmark.h"
 #include "frame.h"
 #include "newer_college_ground_truth.h"
+#include "gtsam_conversions.h"
 
 #include <iostream>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -24,28 +25,20 @@ void Smoother::SmoothBatch(
   gtsam::NonlinearFactorGraph graph;
   gtsam::Values estimate;
 
-  auto noise = gtsam::noiseModel::Diagonal::Sigmas(
+  auto prior_noise = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1),
-       gtsam::Vector3::Constant(0.3))
+       gtsam::Vector3::Constant(0.1))
           .finished());
 
   // Add prior on first pose
   Pose3 gt_pose_0 = NewerCollegeGroundTruth::At(frames[0]->timestamp);
-  gtsam::Pose3 gtsam_gt_pose_0(
-      gtsam::Rot3(gt_pose_0.rot.w, gt_pose_0.rot.x, gt_pose_0.rot.y,
-                  gt_pose_0.rot.z),
-      gtsam::Point3(gt_pose_0.point.x, gt_pose_0.point.y, gt_pose_0.point.z));
-  graph.addPrior(0, gtsam_gt_pose_0, noise);
+  graph.addPrior(0, ToGtsamPose(gt_pose_0), prior_noise);
+  ToGtsamPose(gt_pose_0).print("prior 0");
 
   // Add prior on 50th pose to define scale
   Pose3 gt_pose_50 = NewerCollegeGroundTruth::At(frames[50]->timestamp);
-  gtsam::Pose3 gtsam_gt_pose_50(
-      gtsam::Rot3(gt_pose_0.rot.w, gt_pose_0.rot.x, gt_pose_0.rot.y,
-                  gt_pose_0.rot.z),
-      gtsam::Point3(gt_pose_0.point.x, gt_pose_0.point.y, gt_pose_0.point.z));
-  graph.addPrior(50, gtsam_gt_pose_0, noise);
-
-  std::map<int, SmartFactor::shared_ptr> smart_factors;
+  ToGtsamPose(gt_pose_50).print("prior 50");
+  graph.addPrior(50, ToGtsamPose(gt_pose_50), prior_noise);
 
   // san raf RESIZE_FACTOR=0.5
   // Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0,
@@ -57,27 +50,30 @@ void Smoother::SmoothBatch(
 
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
+  int smart_factor_count = 0;
   for (auto& landmark : landmarks) {
     if (landmark->keypoint_observations.size() < 10) {
       continue;
     }
+    std::cout << "adding landmark with "
+              << landmark->keypoint_observations.size() << " observations"
+              << std::endl;
     SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K));
     for (auto& obs : landmark->keypoint_observations) {
       auto pt = obs->keypoint.pt;
       smart_factor->add(gtsam::Point2(pt.x, pt.y), obs->frame->id);
     }
     graph.add(smart_factor);
+    smart_factor_count++;
   }
+  std::cout << "Added " << smart_factor_count << " smart factors" << std::endl;
 
   // initialize values off from ground truth
   gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25),
                          gtsam::Point3(0.05, -0.10, 0.20));
   for (auto& frame : frames) {
     Pose3 gt_pose = NewerCollegeGroundTruth::At(frame->timestamp);
-    gtsam::Pose3 gtsam_gt_pose(
-        gtsam::Rot3(gt_pose.rot.w, gt_pose.rot.x, gt_pose.rot.y, gt_pose.rot.z),
-        gtsam::Point3(gt_pose.point.x, gt_pose.point.y, gt_pose.point.z));
-    estimate.insert(frame->id, gtsam_gt_pose.compose(gt_offset));
+    estimate.insert(frame->id, ToGtsamPose(gt_pose).compose(gt_offset));
   }
 
   gtsam::LevenbergMarquardtOptimizer optimizer(graph, estimate);
