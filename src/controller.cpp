@@ -29,7 +29,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
                           pose_estimates, landmark_estimates);
     std::cout << "poses:" << std::endl;
     for (auto& pose_stamped : pose_estimates) {
-      std::cout << "[" << pose_stamped.pose.point.x << ", " << pose_stamped.pose.point.y << ", "
+      std::cout << "[" << pose_stamped.pose.point.x << ", "
+                << pose_stamped.pose.point.y << ", "
                 << pose_stamped.pose.point.z << "]" << std::endl;
       nav_msgs::Odometry odometry_msg;
       odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -46,30 +47,30 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
       std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z
                 << "]" << std::endl;
 
-        visualization_msgs::Marker marker;
-        marker.pose.position = ToPointMsg(landmark);
+      visualization_msgs::Marker marker;
+      marker.pose.position = ToPointMsg(landmark);
 
-        marker.pose.orientation.x = 0.0;
-        marker.pose.orientation.y = 0.0;
-        marker.pose.orientation.z = 0.0;
-        marker.pose.orientation.w = 1.0;
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
 
-        marker.scale.x = 0.2;
-        marker.scale.y = 0.2;
-        marker.scale.z = 0.2;
+      marker.scale.x = 0.2;
+      marker.scale.y = 0.2;
+      marker.scale.z = 0.2;
 
-        marker.color.r = 0.0f;
-        marker.color.g = 1.0f;
-        marker.color.b = 0.0f;
-        marker.color.a = 1.0f;
+      marker.color.r = 0.0f;
+      marker.color.g = 1.0f;
+      marker.color.b = 0.0f;
+      marker.color.a = 1.0f;
 
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.type = visualization_msgs::Marker::CUBE;
-        marker.id = i;
-        marker.ns = "landmarks";
-        marker.header.stamp = ros::Time(new_frame->timestamp);
-        marker.header.frame_id = "map";
-        markerArray.markers.push_back(marker);
+      marker.action = visualization_msgs::Marker::ADD;
+      marker.type = visualization_msgs::Marker::CUBE;
+      marker.id = i;
+      marker.ns = "landmarks";
+      marker.header.stamp = ros::Time(new_frame->timestamp);
+      marker.header.frame_id = "map";
+      markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);
     exit(0);

@@ -1431,6 +1431,4 @@ Pose3 NewerCollegeGroundTruth::At(double timestamp) {
   exit(1);
 }
 
-std::map<double, Pose3> NewerCollegeGroundTruth::GetAllPoses() {
-  return gt;
-}
+std::map<double, Pose3> NewerCollegeGroundTruth::GetAllPoses() { return gt; }
