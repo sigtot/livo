@@ -15,6 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 
+find_package(GTSAM REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -136,7 +138,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp include/livo/smoother.h)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp include/livo/smoother.h src/newer_college_ground_truth.cpp include/livo/newer_college_ground_truth.h include/livo/pose3.h include/livo/point3.h include/livo/rot3.h)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -150,6 +152,7 @@ add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/c
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
+    gtsam
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
 )
