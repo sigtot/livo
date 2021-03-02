@@ -3,6 +3,8 @@
 #include "ros_conversions.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 #include <pose3_stamped.h>
 
 #include <chrono>
@@ -38,10 +40,38 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
     }
 
     std::cout << "landmarks:" << std::endl;
-    for (auto& landmark : landmark_estimates) {
+    visualization_msgs::MarkerArray markerArray;
+    for (int i = 0; i < landmark_estimates.size(); ++i) {
+      auto landmark = landmark_estimates[i];
       std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z
                 << "]" << std::endl;
+
+        visualization_msgs::Marker marker;
+        marker.pose.position = ToPointMsg(landmark);
+
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = 0.2;
+        marker.scale.y = 0.2;
+        marker.scale.z = 0.2;
+
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.id = i;
+        marker.ns = "landmarks";
+        marker.header.stamp = ros::Time(new_frame->timestamp);
+        marker.header.frame_id = "map";
+        markerArray.markers.push_back(marker);
     }
+    landmark_publisher_.publish(markerArray);
     exit(0);
   }
 }
