@@ -19,7 +19,9 @@ typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 void Smoother::SmoothBatch(
     const std::vector<std::shared_ptr<Frame>>& frames,
-    const std::vector<std::shared_ptr<Landmark>>& landmarks) {
+    const std::vector<std::shared_ptr<Landmark>>& landmarks,
+    std::vector<Pose3>& pose_estimates,
+    std::vector<Point3>& landmark_estimates) {
   std::cout << "Let's process those" << landmarks.size() << " landmarks"
             << std::endl;
   gtsam::NonlinearFactorGraph graph;
@@ -79,4 +81,22 @@ void Smoother::SmoothBatch(
   gtsam::LevenbergMarquardtOptimizer optimizer(graph, estimate);
   gtsam::Values result = optimizer.optimize();
   result.print("result");
+
+  for (auto& frame : frames) {
+    pose_estimates.push_back(ToPose(result.at<gtsam::Pose3>(frame->id)));
+  }
+
+  for (int i = 0; i < smart_factor_count; ++i) {
+    SmartFactor::shared_ptr smart_factor =
+        boost::dynamic_pointer_cast<SmartFactor>(graph[i]);
+    if (smart_factor) {
+      // The output of point() is in boost::optional<Point3>, as sometimes
+      // the triangulation operation inside smart factor will encounter
+      // degeneracy.
+      boost::optional<gtsam::Point3> point = smart_factor->point(result);
+      if (point) {  // ignore if boost::optional return nullptr
+        landmark_estimates.push_back(ToPoint(*point));
+      }
+    }
+  }
 }

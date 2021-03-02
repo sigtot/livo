@@ -15,13 +15,21 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   std::cout << "Landmark count: " << frontend.GetLandmarkCount() << std::endl;
 
   if (frontend.GetFrameCount() > 100) {
-    auto frame_0 = frontend.GetFrames()[0];
-    auto frame_50 = frontend.GetFrames()[50];
-    std::cout << "frame " << frame_0->id << ": " << std::setprecision(20)
-              << frame_0->timestamp << std::endl;
-    std::cout << "frame " << frame_50->id << ": " << std::setprecision(20)
-              << frame_50->timestamp << std::endl;
-    Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetLandmarks());
+    std::vector<Pose3> pose_estimates;
+    std::vector<Point3> landmark_estimates;
+    Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetLandmarks(),
+                          pose_estimates, landmark_estimates);
+    std::cout << "poses:" << std::endl;
+    for (auto& pose : pose_estimates) {
+      std::cout << "[" << pose.point.x << ", " << pose.point.y << ", "
+                << pose.point.z << "]" << std::endl;
+    }
+
+    std::cout << "landmarks:" << std::endl;
+    for (auto& landmark : landmark_estimates) {
+      std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z
+                << "]" << std::endl;
+    }
     exit(0);
   }
 }
