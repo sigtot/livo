@@ -242,3 +242,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(
 }
 
 vector<shared_ptr<Frame>> FeatureExtractor::GetFrames() { return frames; }
+
+vector<shared_ptr<Landmark>> FeatureExtractor::GetLandmarks() {
+  return landmarks;
+}

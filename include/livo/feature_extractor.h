@@ -59,6 +59,8 @@ class FeatureExtractor {
   int GetFrameCount();
 
   vector<shared_ptr<Frame>> GetFrames();
+
+  vector<shared_ptr<Landmark>> GetLandmarks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
