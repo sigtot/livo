@@ -168,9 +168,9 @@ void FeatureExtractor::getMatches(const shared_ptr<Frame>& frame,
 
   // Homography is much better than fundamental matrix for whatever reason.
   // Could be due to low parallax
-  findHomography(src_points, dst_points, CV_RANSAC, 3, outlier_mask);
-  // findFundamentalMat(srcPoints, dstPoints, CV_FM_RANSAC, 3., 0.99,
-  // outlierMask);
+  // findHomography(src_points, dst_points, CV_RANSAC, 3, outlier_mask);
+  findFundamentalMat(src_points, dst_points, CV_FM_RANSAC, 3., 0.99,
+                     outlier_mask);
 }
 
 pair<shared_ptr<Frame>, shared_ptr<Frame>>
