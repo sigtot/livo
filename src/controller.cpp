@@ -20,7 +20,13 @@ Controller::Controller(FeatureExtractor& frontend,
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
-  std::cout << "Landmark count: " << frontend.GetLandmarkCount() << std::endl;
+  int landmark_count_before = frontend.GetLandmarkCount();
+  frontend.CullLandmarks();
+  int landmark_count_after = frontend.GetLandmarkCount();
+  std::cout << "Landmark count before and after cull: " << landmark_count_before
+            << " -> " << landmark_count_after << "("
+            << landmark_count_before - landmark_count_after << " culled)"
+            << std::endl;
 
   if (frontend.GetFrameCount() > 200 && false) {
     std::vector<Pose3Stamped> pose_estimates;

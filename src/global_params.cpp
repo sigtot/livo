@@ -21,6 +21,10 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh) {
   ReadVariable(nh, "max_features_per_cell",
                GetInstance().max_features_per_cell_);
   ReadVariable(nh, "resize_factor", GetInstance().resize_factor_);
+  ReadVariable(nh, "landmark_culling_frame_count",
+               GetInstance().landmark_culling_frame_count_);
+  ReadVariable(nh, "landmark_culling_observation_percentage",
+               GetInstance().landmark_culling_observation_percentage_);
 }
 
 // Implement parameter accessors here
@@ -28,3 +32,9 @@ int GlobalParams::MaxFeaturesPerCell() {
   return GetInstance().max_features_per_cell_;
 }
 double GlobalParams::ResizeFactor() { return GetInstance().resize_factor_; }
+int GlobalParams::LandmarkCullingFrameCount() {
+  return GetInstance().landmark_culling_frame_count_;
+}
+double GlobalParams::LandmarkCullingObservationPercentage() {
+  return GetInstance().landmark_culling_observation_percentage_;
+}

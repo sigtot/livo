@@ -35,6 +35,8 @@ class FeatureExtractor {
                          const vector<KeyPoint>& keypoints,
                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
+  void CullLandmark(int landmark_id);
+
   static void FindGoodFeaturesToTrackGridded(const cv::Mat& img,
                                              vector<cv::Point2f>& corners,
                                              int cell_count_x, int cell_count_y,
@@ -51,6 +53,8 @@ class FeatureExtractor {
                             const ros::Publisher& tracks_pub, int lag);
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
+
+  void CullLandmarks();
 
   void PublishLandmarkTracksImage();
 

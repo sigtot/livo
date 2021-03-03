@@ -7,6 +7,8 @@
 #include "match_result.h"
 #include "match_in_frame.h"
 
+#include <algorithm>
+
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
     : matches_pub_(matches_pub),
@@ -249,4 +251,29 @@ vector<shared_ptr<Frame>> FeatureExtractor::GetFrames() { return frames; }
 
 vector<shared_ptr<Landmark>> FeatureExtractor::GetLandmarks() {
   return landmarks;
+}
+void FeatureExtractor::CullLandmarks() {
+  if (frame_count_ < GlobalParams::LandmarkCullingFrameCount()) {
+    return;
+  }
+  auto frame = frames[frame_count_ - GlobalParams::LandmarkCullingFrameCount()];
+  for (auto& landmark_weak : frame->new_landmarks) {
+    auto landmark = landmark_weak.lock();
+    if (landmark) {
+      if (landmark->keypoint_observations.size() <
+          GlobalParams::LandmarkCullingObservationPercentage() *
+              GlobalParams::LandmarkCullingFrameCount()) {
+        CullLandmark(landmark->id);
+      }
+    }
+  }
+}
+
+void FeatureExtractor::CullLandmark(int landmark_id) {
+  auto new_end =
+      std::remove_if(landmarks.begin(), landmarks.end(),
+                     [landmark_id](const shared_ptr<Landmark>& landmark) {
+                       return landmark->id == landmark_id;
+                     });
+  landmarks.erase(new_end, landmarks.end());
 }
