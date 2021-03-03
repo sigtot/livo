@@ -22,7 +22,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
   frontend.PublishLandmarkTracksImage();
   std::cout << "Landmark count: " << frontend.GetLandmarkCount() << std::endl;
 
-  if (frontend.GetFrameCount() > 200) {
+  if (frontend.GetFrameCount() > 200 && false) {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
     Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetLandmarks(),

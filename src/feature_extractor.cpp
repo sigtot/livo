@@ -129,6 +129,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
           ->landmark = weak_ptr<Landmark>(new_landmark);
       new_frame->keypoint_observations[match_in_frame.match.queryIdx]
           ->landmark = weak_ptr<Landmark>(new_landmark);
+      match_in_frame.frame->new_landmarks.push_back(
+          weak_ptr<Landmark>(new_landmark));
 
       // cout << "Add new landmark: " << "new frame" << newFrame->id << ", old
       // frame" << matchInFrame.frame->id << " landmark id" << newLandmark->id
