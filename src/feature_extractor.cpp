@@ -9,7 +9,10 @@
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub,
                                    const ros::Publisher& tracks_pub, int lag)
-    : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag) {}
+    : matches_pub_(matches_pub),
+      tracks_pub_(tracks_pub),
+      lag(lag),
+      orb_extractor() {}
 
 shared_ptr<Frame> FeatureExtractor::imageCallback(
     const sensor_msgs::Image::ConstPtr& msg) {
@@ -27,8 +30,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
   Mat descriptors;
 
   vector<cv::Point2f> corners;
-  FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4,
-                                 GlobalParams::MaxFeaturesPerCell(), 0.01, 7);
+  orb_extractor(img_resized, cv::Mat(), keypoints, descriptors);
 
   for (auto& corner : corners) {
     keypoints.emplace_back(corner, 1);

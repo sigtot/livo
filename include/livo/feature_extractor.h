@@ -8,6 +8,7 @@
 #include <vector>
 #include "landmark.h"
 #include "frame.h"
+#include "ORBextractor.h"
 
 using namespace std;
 using namespace cv;
@@ -28,6 +29,7 @@ class FeatureExtractor {
   int frame_count_ = 0;
   int lag;
   const bool debug = true;
+  ORB_SLAM::ORBextractor orb_extractor;
 
   static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors,
                          const vector<KeyPoint>& keypoints,
