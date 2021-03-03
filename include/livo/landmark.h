@@ -8,7 +8,8 @@
 
 struct KeyPointObservation;
 
-struct Landmark {
+struct Landmark
+{
   std::vector<std::shared_ptr<KeyPointObservation>> keypoint_observations{};
   int id{};
 

@@ -5,8 +5,9 @@
 #include <vector>
 #include <map>
 
-class NewerCollegeGroundTruth {
- public:
+class NewerCollegeGroundTruth
+{
+public:
   static Pose3 At(double timestamp);
   static std::map<double, Pose3> GetAllPoses();
 };

@@ -8,7 +8,8 @@
 #include <vector>
 #include "key_point_observation.h"
 
-struct Frame {
+struct Frame
+{
   std::vector<cv::KeyPoint> getKeyPoints() const;
 
   cv::Mat getDescriptors() const;

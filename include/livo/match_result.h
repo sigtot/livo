@@ -7,7 +7,8 @@
 
 #include "frame.h"
 
-struct MatchResult {
+struct MatchResult
+{
   std::vector<cv::DMatch> matches{};
   std::vector<uchar> inliers{};
 };

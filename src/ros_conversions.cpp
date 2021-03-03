@@ -1,6 +1,7 @@
 #include "ros_conversions.h"
 
-geometry_msgs::Point ToPointMsg(Point3 point) {
+geometry_msgs::Point ToPointMsg(Point3 point)
+{
   geometry_msgs::Point point_msg;
 
   point_msg.x = point.x;
@@ -9,7 +10,8 @@ geometry_msgs::Point ToPointMsg(Point3 point) {
 
   return point_msg;
 }
-geometry_msgs::Pose ToPoseMsg(Pose3 pose) {
+geometry_msgs::Pose ToPoseMsg(Pose3 pose)
+{
   geometry_msgs::Pose pose_msg;
 
   pose_msg.orientation.x = pose.rot.x;

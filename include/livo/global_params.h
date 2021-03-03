@@ -3,13 +3,13 @@
 
 #include <ros/ros.h>
 
-class GlobalParams {
- private:
+class GlobalParams
+{
+private:
   GlobalParams() = default;
   static GlobalParams& GetInstance();
   template <class T>
-  static void ReadVariable(const ros::NodeHandle& nh,
-                           const std::string& variable_name, T& variable);
+  static void ReadVariable(const ros::NodeHandle& nh, const std::string& variable_name, T& variable);
 
   // Add parameters here
   int max_features_per_cell_ = 10;
@@ -17,7 +17,7 @@ class GlobalParams {
   int landmark_culling_frame_count_ = 20;
   double landmark_culling_observation_percentage_ = .40;
 
- public:
+public:
   static void LoadParams(const ros::NodeHandle& nh);
   GlobalParams(GlobalParams const&) = delete;
   void operator=(GlobalParams const&) = delete;

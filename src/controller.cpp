@@ -10,33 +10,30 @@
 #include <chrono>
 #include <thread>
 
-Controller::Controller(FeatureExtractor& frontend,
-                       ros::Publisher& posePublisher,
-                       ros::Publisher& landmarkPublisher)
-    : frontend(frontend),
-      pose_publisher_(posePublisher),
-      landmark_publisher_(landmarkPublisher) {}
+Controller::Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher)
+  : frontend(frontend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
+{
+}
 
-void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
+void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
+{
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
   int landmark_count_before = frontend.GetLandmarkCount();
   frontend.CullLandmarks();
   int landmark_count_after = frontend.GetLandmarkCount();
-  std::cout << "Landmark count before and after cull: " << landmark_count_before
-            << " -> " << landmark_count_after << "("
-            << landmark_count_before - landmark_count_after << " culled)"
-            << std::endl;
+  std::cout << "Landmark count before and after cull: " << landmark_count_before << " -> " << landmark_count_after
+            << "(" << landmark_count_before - landmark_count_after << " culled)" << std::endl;
 
-  if (frontend.GetFrameCount() > 100) {
+  if (frontend.GetFrameCount() > 100)
+  {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
-    Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetLandmarks(),
-                          pose_estimates, landmark_estimates);
+    Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetLandmarks(), pose_estimates, landmark_estimates);
     std::cout << "poses:" << std::endl;
-    for (auto& pose_stamped : pose_estimates) {
-      std::cout << "[" << pose_stamped.pose.point.x << ", "
-                << pose_stamped.pose.point.y << ", "
+    for (auto& pose_stamped : pose_estimates)
+    {
+      std::cout << "[" << pose_stamped.pose.point.x << ", " << pose_stamped.pose.point.y << ", "
                 << pose_stamped.pose.point.z << "]" << std::endl;
       nav_msgs::Odometry odometry_msg;
       odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -48,10 +45,10 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
 
     std::cout << "landmarks:" << std::endl;
     visualization_msgs::MarkerArray markerArray;
-    for (int i = 0; i < landmark_estimates.size(); ++i) {
+    for (int i = 0; i < landmark_estimates.size(); ++i)
+    {
       auto landmark = landmark_estimates[i];
-      std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z
-                << "]" << std::endl;
+      std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z << "]" << std::endl;
 
       visualization_msgs::Marker marker;
       marker.pose.position = ToPointMsg(landmark);

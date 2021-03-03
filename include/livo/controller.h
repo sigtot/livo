@@ -5,15 +5,15 @@
 #include "feature_extractor.h"
 #include "smoother.h"
 
-class Controller {
- private:
+class Controller
+{
+private:
   FeatureExtractor& frontend;
   ros::Publisher pose_publisher_;
   ros::Publisher landmark_publisher_;
 
- public:
-  explicit Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher,
-                      ros::Publisher& landmarkPublisher);
+public:
+  explicit Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher);
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 };

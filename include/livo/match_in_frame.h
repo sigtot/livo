@@ -5,7 +5,8 @@
 #include <opencv2/features2d/features2d.hpp>
 #include "frame.h"
 
-struct MatchInFrame {
+struct MatchInFrame
+{
   cv::DMatch match;
   std::shared_ptr<Frame> frame;
 };

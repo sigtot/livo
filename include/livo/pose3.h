@@ -4,7 +4,8 @@
 #include "point3.h"
 #include "rot3.h"
 
-struct Pose3 {
+struct Pose3
+{
   Point3 point;
   Rot3 rot;
 };

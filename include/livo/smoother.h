@@ -8,13 +8,12 @@
 #include <vector>
 #include <map>
 
-class Smoother {
- public:
-  static void SmoothBatch(
-      const std::vector<std::shared_ptr<Frame>>& frames,
-      const std::map<int, std::shared_ptr<Landmark>>& landmarks,
-      std::vector<Pose3Stamped>& pose_estimates,
-      std::vector<Point3>& landmark_estimates);
+class Smoother
+{
+public:
+  static void SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
+                          const std::map<int, std::shared_ptr<Landmark>>& landmarks,
+                          std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
 };
 
 #endif

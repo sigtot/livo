@@ -8,9 +8,9 @@
 struct Frame;
 struct Landmark;
 
-struct KeyPointObservation {
-  KeyPointObservation(cv::KeyPoint keypoint, cv::Mat descriptor,
-                      std::shared_ptr<Frame> frame);
+struct KeyPointObservation
+{
+  KeyPointObservation(cv::KeyPoint keypoint, cv::Mat descriptor, std::shared_ptr<Frame> frame);
   const cv::KeyPoint keypoint;
   const cv::Mat descriptor;
   std::shared_ptr<Frame> frame;

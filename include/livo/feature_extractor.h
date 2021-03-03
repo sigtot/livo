@@ -13,14 +13,17 @@
 using namespace std;
 using namespace cv;
 
-struct NotEnoughFramesException : public std::exception {
-  const char* what() const noexcept override {
+struct NotEnoughFramesException : public std::exception
+{
+  const char* what() const noexcept override
+  {
     return "Cannot return first two frames when frame count is less than 2";
   }
 };
 
-class FeatureExtractor {
- private:
+class FeatureExtractor
+{
+private:
   ros::Publisher matches_pub_;
   ros::Publisher tracks_pub_;
   vector<shared_ptr<Frame>> frames;
@@ -31,26 +34,20 @@ class FeatureExtractor {
   const bool debug = true;
   ORB_SLAM::ORBextractor orb_extractor;
 
-  static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors,
-                         const vector<KeyPoint>& keypoints,
+  static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors, const vector<KeyPoint>& keypoints,
                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
   void CullLandmark(int landmark_id);
 
-  static void FindGoodFeaturesToTrackGridded(const cv::Mat& img,
-                                             vector<cv::Point2f>& corners,
-                                             int cell_count_x, int cell_count_y,
-                                             int max_features_per_cell,
-                                             double quality_level,
+  static void FindGoodFeaturesToTrackGridded(const cv::Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
+                                             int cell_count_y, int max_features_per_cell, double quality_level,
                                              double min_distance);
 
-  void GetLandmarkMatches(const Mat& descriptors,
-                          const vector<KeyPoint>& keypoints,
-                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
+  void GetLandmarkMatches(const Mat& descriptors, const vector<KeyPoint>& keypoints, vector<DMatch>& matches,
+                          vector<uchar>& outlier_mask);
 
- public:
-  explicit FeatureExtractor(const ros::Publisher& matches_pub,
-                            const ros::Publisher& tracks_pub, int lag);
+public:
+  explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 

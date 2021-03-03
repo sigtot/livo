@@ -3,7 +3,8 @@
 
 #include "pose3.h"
 
-struct Pose3Stamped {
+struct Pose3Stamped
+{
   Pose3 pose;
   double stamp;
 };
