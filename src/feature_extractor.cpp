@@ -134,11 +134,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(
       match_in_frame.frame->new_landmarks.push_back(
           weak_ptr<Landmark>(new_landmark));
 
-      // cout << "Add new landmark: " << "new frame" << newFrame->id << ", old
-      // frame" << matchInFrame.frame->id << " landmark id" << newLandmark->id
-      // << endl;
-
-      landmarks.push_back(move(new_landmark));
+      landmarks[new_landmark->id] = move(new_landmark);
     }
 
     // cout << unmatchedIndices.size() << " observations were not matched" <<
@@ -192,7 +188,8 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
   tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
   tracks_out_img.header.seq = frames.back()->id;
   cvtColor(frames.back()->image, tracks_out_img.image, CV_GRAY2RGB);
-  for (const auto& landmark : landmarks) {
+  for (const auto& landmark_pair : landmarks) {
+    auto landmark = landmark_pair.second;
     if (landmark->keypoint_observations.size() > 1 &&
         landmark->keypoint_observations.back()->frame->id > frame_count_ - 5) {
       int obsCount = static_cast<int>(landmark->keypoint_observations.size());
@@ -256,7 +253,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(
 
 vector<shared_ptr<Frame>> FeatureExtractor::GetFrames() { return frames; }
 
-vector<shared_ptr<Landmark>> FeatureExtractor::GetLandmarks() {
+map<int, shared_ptr<Landmark>> FeatureExtractor::GetLandmarks() {
   return landmarks;
 }
 void FeatureExtractor::CullLandmarks() {
@@ -277,10 +274,5 @@ void FeatureExtractor::CullLandmarks() {
 }
 
 void FeatureExtractor::CullLandmark(int landmark_id) {
-  auto new_end =
-      std::remove_if(landmarks.begin(), landmarks.end(),
-                     [landmark_id](const shared_ptr<Landmark>& landmark) {
-                       return landmark->id == landmark_id;
-                     });
-  landmarks.erase(new_end, landmarks.end());
+  landmarks.erase(landmark_id);
 }

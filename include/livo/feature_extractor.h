@@ -24,7 +24,7 @@ class FeatureExtractor {
   ros::Publisher matches_pub_;
   ros::Publisher tracks_pub_;
   vector<shared_ptr<Frame>> frames;
-  vector<shared_ptr<Landmark>> landmarks;
+  std::map<int, shared_ptr<Landmark>> landmarks;
   int landmark_count_ = 0;
   int frame_count_ = 0;
   int lag;
@@ -66,7 +66,7 @@ class FeatureExtractor {
 
   vector<shared_ptr<Frame>> GetFrames();
 
-  vector<shared_ptr<Landmark>> GetLandmarks();
+  map<int, shared_ptr<Landmark>> GetLandmarks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

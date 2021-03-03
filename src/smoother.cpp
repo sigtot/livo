@@ -20,7 +20,7 @@ typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 void Smoother::SmoothBatch(
     const std::vector<std::shared_ptr<Frame>>& frames,
-    const std::vector<std::shared_ptr<Landmark>>& landmarks,
+    const std::map<int, std::shared_ptr<Landmark>>& landmarks,
     std::vector<Pose3Stamped>& pose_estimates,
     std::vector<Point3>& landmark_estimates) {
   std::cout << "Let's process those" << landmarks.size() << " landmarks"
@@ -54,7 +54,8 @@ void Smoother::SmoothBatch(
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   int smart_factor_count = 0;
-  for (auto& landmark : landmarks) {
+  for (auto& landmark_pair : landmarks) {
+    auto landmark = landmark_pair.second;
     if (landmark->keypoint_observations.size() < 10) {
       continue;
     }
