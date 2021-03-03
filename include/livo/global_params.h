@@ -15,7 +15,7 @@ class GlobalParams {
   int max_features_per_cell_ = 10;
   double resize_factor_ = 1.f;
   int landmark_culling_frame_count_ = 20;
-  double landmark_culling_observation_percentage_ = .50;
+  double landmark_culling_observation_percentage_ = .40;
 
  public:
   static void LoadParams(const ros::NodeHandle& nh);

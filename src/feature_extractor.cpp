@@ -200,10 +200,17 @@ void FeatureExtractor::PublishLandmarkTracksImage() {
         line(tracks_out_img.image,
              landmark->keypoint_observations[k]->keypoint.pt,
              landmark->keypoint_observations[k - 1]->keypoint.pt,
-             Scalar(0, 255, 0), 1);
+             Scalar(255, 0, 0), 1);
       }
       Point point = landmark->keypoint_observations.back()->keypoint.pt;
-      circle(tracks_out_img.image, point, 5, Scalar(0, 0, 255), 1);
+      if (landmark->keypoint_observations.front()->frame->id <
+          frame_count_ - GlobalParams::LandmarkCullingFrameCount()) {
+        // Landmark has passed the culling criteria so we draw it in green
+        circle(tracks_out_img.image, point, 5, Scalar(0, 255, 0), 2);
+      } else {
+        // Landmark might not have passed the culling criteria: draw in red
+        circle(tracks_out_img.image, point, 3, Scalar(0, 0, 255), 1);
+      }
       /*
       putText(tracks_out_img.image,
               to_string(landmark->id),  // text
