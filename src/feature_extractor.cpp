@@ -16,9 +16,8 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub, const ros:
 
 shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
-  auto cvPtr = cv_bridge::toCvCopy(msg,
-                                   sensor_msgs::image_encodings::TYPE_8UC1);  // Makes copy. We can also share to
-                                                                              // increase performance
+  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // Makes copy. We can also share to
+                                                                                   // increase performance
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
 
@@ -55,7 +54,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
   if (!frames.empty())
   {
     MatchResult match_result;
-    getMatches(frames.back(), descriptors, keypoints, match_result.matches, match_result.inliers);
+    getMatches(descriptors, keypoints, frames.back()->getDescriptors(), frames.back()->getKeyPoints(),
+               match_result.matches, match_result.inliers);
 
     vector<MatchInFrame> good_matches;
     for (int i = 0; i < keypoints.size(); ++i)
@@ -147,22 +147,19 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
   return new_frame;
 }
 
-void FeatureExtractor::getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors,
-                                  const vector<KeyPoint>& keypoints, vector<DMatch>& matches,
-                                  vector<uchar>& outlier_mask)
+void FeatureExtractor::getMatches(const Mat& query_descriptors, const vector<KeyPoint>& query_keypoints,
+                                  const cv::Mat& train_descriptors, const vector<KeyPoint>& train_keypoints,
+                                  vector<DMatch>& matches, vector<uchar>& outlier_mask)
 {
   Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
-  auto prev_key_points = frame->getKeyPoints();
-  auto prev_descriptors = frame->getDescriptors();
-
-  matcher->match(descriptors, prev_descriptors, matches);
+  matcher->match(query_descriptors, train_descriptors, matches);
 
   vector<Point> src_points;
   vector<Point> dst_points;
   for (auto match : matches)
   {
-    src_points.push_back(keypoints[match.queryIdx].pt);
-    dst_points.push_back(prev_key_points[match.trainIdx].pt);
+    src_points.push_back(query_keypoints[match.queryIdx].pt);
+    dst_points.push_back(train_keypoints[match.trainIdx].pt);
   }
 
   // Homography is much better than fundamental matrix for whatever reason.

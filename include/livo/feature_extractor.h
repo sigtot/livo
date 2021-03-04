@@ -34,7 +34,8 @@ private:
   const bool debug = true;
   ORB_SLAM::ORBextractor orb_extractor;
 
-  static void getMatches(const shared_ptr<Frame>& frame, const Mat& descriptors, const vector<KeyPoint>& keypoints,
+  static void getMatches(const Mat& query_descriptors, const vector<KeyPoint>& query_keypoints,
+                         const cv::Mat& train_descriptors, const vector<KeyPoint>& train_keypoints,
                          vector<DMatch>& matches, vector<uchar>& outlier_mask);
 
   void CullLandmark(int landmark_id);
