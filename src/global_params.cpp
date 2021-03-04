@@ -25,6 +25,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "resize_factor", GetInstance().resize_factor_);
   ReadVariable(nh, "landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
   ReadVariable(nh, "landmark_culling_observation_percentage", GetInstance().landmark_culling_observation_percentage_);
+  ReadVariable(nh, "landmark_matching_window", GetInstance().landmark_matching_window_);
 }
 
 // Implement parameter accessors here
@@ -43,4 +44,8 @@ int GlobalParams::LandmarkCullingFrameCount()
 double GlobalParams::LandmarkCullingObservationPercentage()
 {
   return GetInstance().landmark_culling_observation_percentage_;
+}
+int GlobalParams::LandmarkMatchingWindow()
+{
+  return GetInstance().landmark_matching_window_;
 }
