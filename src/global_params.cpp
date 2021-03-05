@@ -30,6 +30,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
   ReadVariable(nh, "landmark_culling_observation_percentage", GetInstance().landmark_culling_observation_percentage_);
   ReadVariable(nh, "landmark_matching_window", GetInstance().landmark_matching_window_);
+  ReadVariable(nh, "ground_truth_file", GetInstance().ground_truth_file_);
 }
 
 // Implement parameter accessors here
@@ -52,4 +53,8 @@ double GlobalParams::LandmarkCullingObservationPercentage()
 int GlobalParams::LandmarkMatchingWindow()
 {
   return GetInstance().landmark_matching_window_;
+}
+std::string GlobalParams::GroundTruthFile()
+{
+  return GetInstance().ground_truth_file_;
 }

@@ -2,6 +2,7 @@
 #define ORB_TEST__GLOBAL_PARAMS_H_
 
 #include <ros/ros.h>
+#include <string>
 
 class GlobalParams
 {
@@ -17,6 +18,7 @@ private:
   int landmark_culling_frame_count_ = 20;
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
+  std::string ground_truth_file_ = "/path/to/registered_poses.csv";
 
 public:
   static void LoadParams(const ros::NodeHandle& nh);
@@ -29,6 +31,7 @@ public:
   static int LandmarkCullingFrameCount();
   static double LandmarkCullingObservationPercentage();
   static int LandmarkMatchingWindow();
+  static std::string GroundTruthFile();
 };
 
 #endif
