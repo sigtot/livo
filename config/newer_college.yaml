@@ -1,0 +1,5 @@
+max_features_per_cell: 10
+resize_factor: 1.0
+landmark_culling_frame_count: 20
+landmark_culling_observation_percentage: .40
+landmark_matching_window: 5

@@ -11,10 +11,14 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh, const std::string& va
 {
   if (!nh.getParam(variable_name, variable))
   {
-    std::cout << "Could not read param " << variable_name
+    std::cout << "WARN: Could not read param " << variable_name
               << " from parameter server, so using "
                  "default value "
               << variable << std::endl;
+  }
+  else
+  {
+    std::cout << "Read param " << variable_name << " from parameter server: " << variable << std::endl;
   }
 }
 
