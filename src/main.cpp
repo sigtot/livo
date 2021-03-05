@@ -36,12 +36,15 @@ int main(int argc, char** argv)
 
   for (auto& gt_pose : NewerCollegeGroundTruth::GetAllPoses())
   {
+    if (gt_pose.first > 1583836735.573982) {
+      break;
+    }
     nav_msgs::Odometry odometry_msg;
     odometry_msg.header.stamp = ros::Time(gt_pose.first);
     odometry_msg.header.frame_id = "map";
     odometry_msg.pose.pose = ToPoseMsg(gt_pose.second);
     gt_pub.publish(odometry_msg);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
   }
 
   ros::spin();

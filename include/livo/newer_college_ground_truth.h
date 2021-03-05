@@ -15,10 +15,11 @@ private:
   static NewerCollegeGroundTruth& GetInstance();
 
 public:
-  static Pose3 At(double timestamp);
-  static std::map<double, Pose3> GetAllPoses();
   NewerCollegeGroundTruth(NewerCollegeGroundTruth const&) = delete;
   void operator=(NewerCollegeGroundTruth const&) = delete;
+
+  static Pose3 At(double timestamp);
+  static std::multimap<double, Pose3> GetAllPoses();
   static void LoadFromFile(const std::string& filename);
 };
 
