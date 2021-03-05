@@ -18,6 +18,7 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
 
   GlobalParams::LoadParams(nh);
+  NewerCollegeGroundTruth::LoadFromFile(GlobalParams::GroundTruthFile());
 
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);

@@ -2,6 +2,8 @@
 #include <map>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <array>
 
 double THRESH = 0.4;
 
@@ -633,4 +635,39 @@ Pose3 NewerCollegeGroundTruth::At(double timestamp)
 std::map<double, Pose3> NewerCollegeGroundTruth::GetAllPoses()
 {
   return gt;
+}
+NewerCollegeGroundTruth& NewerCollegeGroundTruth::GetInstance()
+{
+  static NewerCollegeGroundTruth instance;
+  return instance;
+}
+
+void NewerCollegeGroundTruth::LoadFromFile(const std::string& filename)
+{
+  std::ifstream f;
+  f.open(filename, std::ios::in);
+  std::string line;
+  bool past_first_line = false;
+  while (std::getline(f, line))
+  {
+    if (!past_first_line)
+    {
+      past_first_line = true;
+      continue;
+    }
+    std::stringstream ss(line);
+    int secs, nsecs;
+    double data[7];
+    char c;
+    ss >> secs >> c >> nsecs >> c;
+    int i = 0;
+    while ((ss >> data[i++] >> c) && (c == ','))
+      ;
+    Pose3 pose{ .point = { .x = data[0], .y = data[1], .z = data[2] },
+                .rot = { .x = data[3], .y = data[4], .z = data[5], .w = data[6] } };
+    double ts = double(secs) + double(nsecs) * 1e-9;
+    std::cout << "secs, nsecs: " << secs << "," << nsecs << " ts: " << std::setprecision(24) << ts << std::endl;
+    GetInstance().gt_.insert({ ts, pose });
+  }
+  f.close();
 }
