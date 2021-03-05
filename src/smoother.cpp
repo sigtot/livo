@@ -52,7 +52,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   for (auto& landmark_pair : landmarks)
   {
     auto landmark = landmark_pair.second;
-    if (landmark->keypoint_observations.size() < 10)
+    if (landmark->keypoint_observations.size() < 30)
     {
       continue;
     }

@@ -1,17 +1,14 @@
 #include "frame.h"
-std::vector<cv::KeyPoint> Frame::getKeyPoints() const
+
+std::vector<std::shared_ptr<KeyPointObservation>> Frame::GetUnmatchedObservations()
 {
-  std::vector<cv::KeyPoint> keypoints;  // TODO reserve space up front to avoid resizes
-  transform(keypoint_observations.begin(), keypoint_observations.end(), back_inserter(keypoints),
-            [](const std::shared_ptr<KeyPointObservation>& o) -> cv::KeyPoint { return o->keypoint; });
-  return keypoints;
-}
-cv::Mat Frame::getDescriptors() const
-{
-  cv::Mat descriptors;
-  for (const auto& obs : keypoint_observations)
+  std::vector<std::shared_ptr<KeyPointObservation>> unmatched_observations;
+  for (auto& obs : keypoint_observations)
   {
-    descriptors.push_back(obs->descriptor);
+    if (!obs->landmark.lock())
+    {
+      unmatched_observations.push_back(obs);
+    }
   }
-  return descriptors;
+  return unmatched_observations;
 }

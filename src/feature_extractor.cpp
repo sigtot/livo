@@ -53,92 +53,88 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
   // Perform matching and create new landmarks
   if (!frames.empty())
   {
+    // Match with existing landmarks
+    std::vector<LandmarkMatch> landmark_matches;
+    std::vector<std::shared_ptr<KeyPointObservation>> unmatched_observations;
+    GetLandmarkMatches(new_frame->keypoint_observations, unmatched_observations, landmark_matches);
+    for (auto& landmark_match : landmark_matches)
+    {
+      landmark_match.landmark_->keypoint_observations.push_back(landmark_match.observation_);
+      auto obs = landmark_match.observation_;
+      auto lm = weak_ptr<Landmark>(landmark_match.landmark_);
+      auto obs_value = *obs;
+      landmark_match.observation_->landmark = weak_ptr<Landmark>(landmark_match.landmark_);
+    }
+    std::cout << unmatched_observations.size() << " remaining of " << new_frame->keypoint_observations.size()
+              << " observations after matching with existing landmarks." << std::endl;
+
+    std::vector<KeyPoint> unmatched_keypoints;
+    cv::Mat unmatched_descriptors;
+    for (auto& observation : unmatched_observations)
+    {
+      unmatched_keypoints.push_back(observation->keypoint);
+      unmatched_descriptors.push_back(observation->descriptor);
+    }
+
+    auto prev_frame_unmatched_observations = frames.back()->GetUnmatchedObservations();
+    std::vector<KeyPoint> prev_frame_unmatched_keypoints;
+    cv::Mat prev_frame_unmatched_descriptors;
+    for (auto& observation : prev_frame_unmatched_observations)
+    {
+      prev_frame_unmatched_keypoints.push_back(observation->keypoint);
+      prev_frame_unmatched_descriptors.push_back(observation->descriptor);
+    }
     MatchResult match_result;
-    getMatches(descriptors, keypoints, frames.back()->getDescriptors(), frames.back()->getKeyPoints(),
-               match_result.matches, match_result.inliers);
+    getMatches(unmatched_descriptors, unmatched_keypoints, prev_frame_unmatched_descriptors,
+               prev_frame_unmatched_keypoints, match_result.matches, match_result.inliers);
 
-    vector<MatchInFrame> good_matches;
-    for (int i = 0; i < keypoints.size(); ++i)
+    // Remove dupes, outliers and bad matches
+    std::map<int, cv::DMatch> best_matches_by_train_idx;
+    for (int i = 0; i < unmatched_observations.size(); ++i)
     {
-      if (match_result.inliers[i] && match_result.matches[i].queryIdx >= 0 &&
-          match_result.matches[i].trainIdx >= 0 &&  // can be -1, idk why
-          match_result.matches[i].distance < 20)
+      auto match = match_result.matches[i];
+      // train and query idx can be -1 for some reason?
+      if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < unmatched_observations.size() &&
+          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() && match.distance < 20)
       {
-        good_matches.push_back(MatchInFrame{ .match = match_result.matches[i], .frame = frames.back() });
-      }
-    }
-
-    // You cannot observe the same landmark more than once in a frame
-    map<int, MatchInFrame> existing_landmark_matches;
-    map<int, MatchInFrame> no_landmark_matches;
-    for (auto& match : good_matches)
-    {
-      auto landmark = match.frame->keypoint_observations[match.match.trainIdx]->landmark.lock();
-      if (landmark)
-      {
-        auto existing_landmark_match = existing_landmark_matches.find(landmark->id);
-        if (existing_landmark_match != existing_landmark_matches.end())
+        auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
+        if (dupe_match != best_matches_by_train_idx.end())
         {
-          if (match.match.distance > existing_landmark_match->second.match.distance)
+          if (match.distance < dupe_match->second.distance)
           {
-            existing_landmark_matches[landmark->id] = match;
-          }
+            best_matches_by_train_idx[match.trainIdx] = match;
+          }  // else discarded ...
         }
         else
         {
-          existing_landmark_matches[landmark->id] = match;
-        }
-      }
-      else
-      {
-        auto existing_no_landmark_match = no_landmark_matches.find(match.match.trainIdx);
-        if (existing_no_landmark_match != no_landmark_matches.end())
-        {
-          if (match.match.distance > existing_no_landmark_match->second.match.distance)
-          {
-            no_landmark_matches[match.match.trainIdx] = match;
-          }
-        }
-        else
-        {
-          no_landmark_matches[match.match.trainIdx] = match;
+          best_matches_by_train_idx[match.trainIdx] = match;
         }
       }
     }
 
-    for (auto& match_in_frame_it : existing_landmark_matches)
+    // Init new landmarks
+    for (auto& match_by_train_idx : best_matches_by_train_idx)
     {
-      auto match_in_frame = match_in_frame_it.second;
-      auto existing_landmark =
-          match_in_frame.frame->keypoint_observations[match_in_frame.match.trainIdx]->landmark.lock();
-      // Add observation for existing landmark
-      // cout << "Add obs to existing landmark: " << "new frame " <<
-      // newFrame->id << ", old frame" << matchInFrame.frame->id << " landmark
-      // id " << existingLandmark->id << endl;
-      new_frame->keypoint_observations[match_in_frame.match.queryIdx]->landmark = weak_ptr<Landmark>(existing_landmark);
-      existing_landmark->keypoint_observations.push_back(
-          new_frame->keypoint_observations[match_in_frame.match.queryIdx]);
-    }
+      auto match = match_by_train_idx.second;
 
-    for (auto& match_in_frame_it : no_landmark_matches)
-    {
-      auto match_in_frame = match_in_frame_it.second;
       // Init new landmark
       shared_ptr<Landmark> new_landmark = make_shared<Landmark>(Landmark());
       new_landmark->id = landmark_count_++;
-      new_landmark->keypoint_observations.push_back(
-          match_in_frame.frame->keypoint_observations[match_in_frame.match.trainIdx]);
-      new_landmark->keypoint_observations.push_back(new_frame->keypoint_observations[match_in_frame.match.queryIdx]);
-      match_in_frame.frame->keypoint_observations[match_in_frame.match.trainIdx]->landmark =
-          weak_ptr<Landmark>(new_landmark);
-      new_frame->keypoint_observations[match_in_frame.match.queryIdx]->landmark = weak_ptr<Landmark>(new_landmark);
-      match_in_frame.frame->new_landmarks.push_back(weak_ptr<Landmark>(new_landmark));
 
+      // Add weak_ptr to previous frame
+      new_landmark->keypoint_observations.push_back(prev_frame_unmatched_observations[match.trainIdx]);
+      prev_frame_unmatched_observations[match.trainIdx]->landmark = std::weak_ptr<Landmark>(new_landmark);
+
+      // Also add to the new_landmarks vector
+      frames.back()->new_landmarks.push_back(std::weak_ptr<Landmark>(new_landmark));
+
+      // Add weak_ptr to new frame
+      new_landmark->keypoint_observations.push_back(unmatched_observations[match.queryIdx]);
+      unmatched_observations[match.queryIdx]->landmark = std::weak_ptr<Landmark>(new_landmark);
+
+      // Move shared_ptr to landmarks map
       landmarks[new_landmark->id] = move(new_landmark);
     }
-
-    // cout << unmatchedIndices.size() << " observations were not matched" <<
-    // endl;
   }
 
   // Persist new frame
@@ -222,9 +218,93 @@ void FeatureExtractor::PublishLandmarkTracksImage()
   tracks_pub_.publish(tracks_out_img.toImageMsg());
 }
 
-void FeatureExtractor::GetLandmarkMatches(const Mat& descriptors, const vector<KeyPoint>& keypoints,
-                                          vector<DMatch>& matches, vector<uchar>& outlier_mask)
+void FeatureExtractor::GetLandmarkMatches(vector<shared_ptr<KeyPointObservation>> new_observations,
+                                          std::vector<std::shared_ptr<KeyPointObservation>>& remaining_observations,
+                                          vector<LandmarkMatch>& landmark_matches)
 {
+  std::map<int, vector<shared_ptr<Landmark>>> landmarks_table;
+  for (auto& landmark_pair : landmarks)
+  {
+    auto landmark = landmark_pair.second;
+    if (landmark->GetLastObservationFrameId() > frame_count_ - GlobalParams::LandmarkCullingFrameCount())
+    {
+      landmarks_table[landmark->GetLastObservationFrameId()].push_back(landmark);
+    }
+  }
+
+  for (auto& x : landmarks_table)
+  {
+    int frame_id = x.first;  // TODO unused. maybe use a vector instead of a map
+    auto landmarks_in_frame = x.second;
+    if (landmarks_in_frame.size() < 8)
+    {
+      continue;
+    }
+    std::vector<KeyPoint> landmark_keypoints;
+    cv::Mat landmark_descriptors;
+    for (auto& landmark : landmarks_in_frame)
+    {
+      landmark_keypoints.push_back(landmark->GetNewestKeyPoint());
+      landmark_descriptors.push_back(landmark->GetNewestDescriptor());
+    }
+
+    std::vector<KeyPoint> new_keypoints;
+    cv::Mat new_descriptors;
+    for (auto& observation : new_observations)
+    {
+      new_keypoints.push_back(observation->keypoint);
+      new_descriptors.push_back(observation->descriptor);
+    }
+
+    MatchResult match_result;
+    getMatches(landmark_descriptors, landmark_keypoints, new_descriptors, new_keypoints, match_result.matches,
+               match_result.inliers);
+
+    // Remove dupes, outliers and bad matches
+    std::map<int, cv::DMatch> best_matches_by_train_idx;
+    for (int i = 0; i < landmarks_in_frame.size(); ++i)
+    {
+      auto match = match_result.matches[i];
+      // train and query idx can be -1 for some reason?
+      // and larger than new_observations.size somehow? this was maybe due to a dereference bug. TODO: investigate
+      if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < new_observations.size() &&
+          match.trainIdx >= 0 && match.trainIdx < new_observations.size() && match.distance < 20)
+      {
+        auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
+        if (dupe_match != best_matches_by_train_idx.end())
+        {
+          if (match.distance < dupe_match->second.distance)
+          {
+            best_matches_by_train_idx[match.trainIdx] = match;
+          }  // else discarded ...
+        }
+        else
+        {
+          best_matches_by_train_idx[match.trainIdx] = match;
+        }
+      }
+    }
+
+    std::map<int, bool> observations_to_remove;
+    for (auto& match_by_train_idx : best_matches_by_train_idx)
+    {
+      auto match = match_by_train_idx.second;
+      landmark_matches.push_back(
+          LandmarkMatch{ landmarks_in_frame[match.queryIdx], new_observations[match.trainIdx], match.distance });
+      observations_to_remove[match.trainIdx] = true;
+    }
+
+    // Remove-erase all the matched observations for the next matching iteration
+    // TODO: This will likely be faster if we index directly instead of applying the remove_if predicate to all items
+    {
+      auto i = new_observations.size() - 1;
+      new_observations.erase(
+          std::remove_if(new_observations.begin(), new_observations.end(),
+                         [&observations_to_remove, &i](const auto& obs) { return observations_to_remove.count(i--); }),
+          new_observations.end());
+    }
+  }
+  remaining_observations = new_observations;
 }
 
 int FeatureExtractor::GetLandmarkCount()

@@ -10,9 +10,7 @@
 
 struct Frame
 {
-  std::vector<cv::KeyPoint> getKeyPoints() const;
-
-  cv::Mat getDescriptors() const;
+  std::vector<std::shared_ptr<KeyPointObservation>> GetUnmatchedObservations();
 
   cv::Mat image;
   std::vector<std::shared_ptr<KeyPointObservation>> keypoint_observations;

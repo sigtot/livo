@@ -9,6 +9,7 @@
 #include "landmark.h"
 #include "frame.h"
 #include "ORBextractor.h"
+#include "landmark_match.h"
 
 using namespace std;
 using namespace cv;
@@ -44,8 +45,9 @@ private:
                                              int cell_count_y, int max_features_per_cell, double quality_level,
                                              double min_distance);
 
-  void GetLandmarkMatches(const Mat& descriptors, const vector<KeyPoint>& keypoints, vector<DMatch>& matches,
-                          vector<uchar>& outlier_mask);
+  void GetLandmarkMatches(vector<shared_ptr<KeyPointObservation>> new_observations,
+                          std::vector<std::shared_ptr<KeyPointObservation>>& remaining_observations,
+                          vector<LandmarkMatch>& landmark_matches);
 
 public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
