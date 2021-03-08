@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <fstream>
 #include <array>
+#include <sstream>
 
 double THRESH = 0.4;
 

@@ -298,10 +298,11 @@ void FeatureExtractor::GetLandmarkMatches(vector<shared_ptr<KeyPointObservation>
     // TODO: This will likely be faster if we index directly instead of applying the remove_if predicate to all items
     {
       auto i = new_observations.size() - 1;
-      new_observations.erase(
-          std::remove_if(new_observations.begin(), new_observations.end(),
-                         [&observations_to_remove, &i](const auto& obs) { return observations_to_remove.count(i--); }),
-          new_observations.end());
+      new_observations.erase(std::remove_if(new_observations.begin(), new_observations.end(),
+                                            [&observations_to_remove, &i](const shared_ptr<KeyPointObservation>& obs) {
+                                              return observations_to_remove.count(i--);
+                                            }),
+                             new_observations.end());
     }
   }
   remaining_observations = new_observations;
