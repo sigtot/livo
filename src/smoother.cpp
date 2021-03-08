@@ -15,6 +15,7 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <pose3_stamped.h>
+#include <global_params.h>
 
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
@@ -44,7 +45,8 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   // 388.42480338, 274.84471313));
 
   // newer college RESIZE_FACTOR=1
-  gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(431.38739114, 430.24961762, 0.0, 427.4407802, 238.52694868));
+  gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
+                                                  GlobalParams::CamU0(), GlobalParams::CamV0()));
 
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 

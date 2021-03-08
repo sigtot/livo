@@ -20,6 +20,11 @@ private:
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
 
+  double cam_fx_ = 431.38739114;
+  double cam_fy_ = 430.24961762;
+  double cam_u0_ = 427.4407802;
+  double cam_v0_ = 238.52694868;;
+
 public:
   static void LoadParams(const ros::NodeHandle& nh);
   GlobalParams(GlobalParams const&) = delete;
@@ -32,6 +37,10 @@ public:
   static double LandmarkCullingObservationPercentage();
   static int LandmarkMatchingWindow();
   static std::string GroundTruthFile();
+  static double CamFx();
+  static double CamFy();
+  static double CamU0();
+  static double CamV0();
 };
 
 #endif
