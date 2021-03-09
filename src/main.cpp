@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college
-  auto sub = nh.subscribe("/camera/infra1/image_rect_raw", 1000, &Controller::imageCallback, &controller);
+  auto sub = nh.subscribe("output/image", 1000, &Controller::imageCallback, &controller);
 
   ROS_INFO("Starting up");
 
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
     }
     nav_msgs::Odometry odometry_msg;
     odometry_msg.header.stamp = ros::Time(gt_pose.first);
-    odometry_msg.header.frame_id = "map";
+    odometry_msg.header.frame_id = "world";
     odometry_msg.pose.pose = ToPoseMsg(gt_pose.second);
     gt_pub.publish(odometry_msg);
     std::this_thread::sleep_for(std::chrono::milliseconds(3));

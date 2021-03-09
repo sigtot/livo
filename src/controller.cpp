@@ -52,7 +52,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       nav_msgs::Odometry odometry_msg;
       odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
       odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
-      odometry_msg.header.frame_id = "map";
+      odometry_msg.header.frame_id = "world";
       pose_publisher_.publish(odometry_msg);
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -86,7 +86,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       marker.id = i;
       marker.ns = "landmarks";
       marker.header.stamp = ros::Time(new_frame->timestamp);
-      marker.header.frame_id = "map";
+      marker.header.frame_id = "world";
       markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);

@@ -54,7 +54,7 @@ void TryProjectDebug(const std::vector<std::shared_ptr<Landmark>>& landmarks, do
     marker.id = i;
     marker.ns = "landmarks";
     marker.header.stamp = ros::Time(timestamp);
-    marker.header.frame_id = "map";
+    marker.header.frame_id = "world";
     marker_array.markers.push_back(marker);
 
     ++i;
