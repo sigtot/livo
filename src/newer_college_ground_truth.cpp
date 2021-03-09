@@ -5,6 +5,7 @@
 #include <fstream>
 #include <array>
 #include <sstream>
+#include <gtsam_conversions.h>
 
 double THRESH = 0.4;
 
@@ -58,8 +59,9 @@ void NewerCollegeGroundTruth::LoadFromFile(const std::string& filename)
     int i = 0;
     while ((ss >> data[i++] >> c) && (c == ','))
       ;
-    Pose3 pose{ .point = { .x = data[0], .y = data[1], .z = data[2] },
+    Pose3 raw_pose{ .point = { .x = data[0], .y = data[1], .z = data[2] },
                 .rot = { .x = data[3], .y = data[4], .z = data[5], .w = data[6] } };
+    auto pose = OrientAlongZ(raw_pose);
     double ts = double(secs) + double(nsecs) * 1e-9;
     GetInstance().gt_.insert({ ts, pose });
   }

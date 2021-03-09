@@ -21,3 +21,10 @@ Point3 ToPoint(const gtsam::Point3& gtsam_point)
 {
   return Point3{ .x = gtsam_point.x(), .y = gtsam_point.y(), .z = gtsam_point.z() };
 }
+Pose3 OrientAlongZ(const Pose3& pose)
+{
+  auto orient_to_z_delta = gtsam::Pose3(gtsam::Rot3::Ypr(M_PI / 2, 0, M_PI / 2), gtsam::Point3::Zero());
+  auto gtsam_pose = ToGtsamPose(pose);
+  auto oriented_pose = gtsam_pose.compose(orient_to_z_delta);
+  return ToPose(oriented_pose);
+}
