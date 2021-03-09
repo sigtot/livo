@@ -72,8 +72,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   std::cout << "Added " << smart_factor_count << " smart factors" << std::endl;
 
   // initialize values off from ground truth
-  gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25),
-                         gtsam::Point3(0.05, -0.10, 0.20));
+  gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25), gtsam::Point3(0.05, -0.10, 0.20));
   // or exactly on ground truth?
   // gtsam::Pose3 gt_offset(gtsam::Rot3(), gtsam::Point3::Zero());
   for (auto& frame : frames)

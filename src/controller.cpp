@@ -32,12 +32,13 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     std::vector<std::shared_ptr<Landmark>> non_culled_landmarks;
     for (const auto& landmark : frontend.GetLandmarks())
     {
-      if (landmark.second->keypoint_observations.size() > 10) {
+      if (landmark.second->keypoint_observations.size() > 10)
+      {
         non_culled_landmarks.push_back(landmark.second);
       }
     }
-    //TryProjectDebug(non_culled_landmarks, 10.0, frontend.GetFrames()[0]->timestamp, landmark_publisher_);
-    //TrySendGtsamSFMPoses(frontend.GetFrames()[0]->timestamp, pose_publisher_);
+    // TryProjectDebug(non_culled_landmarks, 10.0, frontend.GetFrames()[0]->timestamp, landmark_publisher_);
+    // TrySendGtsamSFMPoses(frontend.GetFrames()[0]->timestamp, pose_publisher_);
   }
 
   if (frontend.GetFrameCount() > 100)

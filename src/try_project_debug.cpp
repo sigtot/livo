@@ -76,8 +76,9 @@ void TrySendGtsamSFMPoses(double timestamp, ros::Publisher& pose_publisher)
   std::vector<gtsam::Pose3> poses;
   int i = 1;
   poses.push_back(init);
-  for(; i < steps; ++i) {
-    auto gtsam_pose = poses[i-1].compose(delta);
+  for (; i < steps; ++i)
+  {
+    auto gtsam_pose = poses[i - 1].compose(delta);
     poses.push_back(gtsam_pose);
     nav_msgs::Odometry odometry_msg;
     odometry_msg.header.stamp = ros::Time(timestamp);

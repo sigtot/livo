@@ -23,7 +23,8 @@ private:
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
-  double cam_v0_ = 238.52694868;;
+  double cam_v0_ = 238.52694868;
+  ;
 
 public:
   static void LoadParams(const ros::NodeHandle& nh);

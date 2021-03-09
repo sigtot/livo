@@ -36,7 +36,8 @@ int main(int argc, char** argv)
 
   for (auto& gt_pose : NewerCollegeGroundTruth::GetAllPoses())
   {
-    if (gt_pose.first > 1583836735.573982) {
+    if (gt_pose.first > 1583836735.573982)
+    {
       break;
     }
     nav_msgs::Odometry odometry_msg;
