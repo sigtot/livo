@@ -37,6 +37,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       }
     }
     TryProjectDebug(non_culled_landmarks, 10.0, frontend.GetFrames()[0]->timestamp, landmark_publisher_);
+    TrySendGtsamSFMPoses(frontend.GetFrames()[0]->timestamp, pose_publisher_);
   }
 
   if (frontend.GetFrameCount() > 100)

@@ -10,4 +10,6 @@
 void TryProjectDebug(const std::vector<std::shared_ptr<Landmark>>& landmarks, double depth, double timestamp,
                      ros::Publisher& landmark_publisher);
 
+void TrySendGtsamSFMPoses(double timestamp, ros::Publisher& pose_publisher);
+
 #endif  // ORB_TEST_INCLUDE_LIVO_TRY_PROJECT_DEBUG_H_

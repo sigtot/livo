@@ -9,6 +9,8 @@
 #include <gtsam/geometry/PinholePose.h>
 #include <gtsam/geometry/Point2.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <nav_msgs/Odometry.h>
+#include <thread>
 
 typedef gtsam::PinholePose<gtsam::Cal3_S2> Camera;
 
@@ -60,4 +62,28 @@ void TryProjectDebug(const std::vector<std::shared_ptr<Landmark>>& landmarks, do
     ++i;
   }
   landmark_publisher.publish(marker_array);
+}
+
+void TrySendGtsamSFMPoses(double timestamp, ros::Publisher& pose_publisher)
+{
+  const gtsam::Pose3& init = gtsam::Pose3(gtsam::Rot3::Ypr(M_PI / 2, 0, -M_PI / 2), gtsam::Point3(30, 0, 0));
+  const gtsam::Pose3& delta =
+      gtsam::Pose3(gtsam::Rot3::Ypr(0, -M_PI / 4, 0), gtsam::Point3(sin(M_PI / 4) * 30, 0, 30 * (1 - sin(M_PI / 4))));
+  int steps = 8;
+
+  // Create the set of ground-truth poses
+  // Default values give a circular trajectory, radius 30 at pi/4 intervals, always facing the circle center
+  std::vector<gtsam::Pose3> poses;
+  int i = 1;
+  poses.push_back(init);
+  for(; i < steps; ++i) {
+    auto gtsam_pose = poses[i-1].compose(delta);
+    poses.push_back(gtsam_pose);
+    nav_msgs::Odometry odometry_msg;
+    odometry_msg.header.stamp = ros::Time(timestamp);
+    odometry_msg.header.frame_id = "world";
+    odometry_msg.pose.pose = ToPoseMsg(ToPose(gtsam_pose));
+    pose_publisher.publish(odometry_msg);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+  }
 }

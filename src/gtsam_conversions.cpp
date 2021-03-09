@@ -1,7 +1,7 @@
 #include "gtsam_conversions.h"
 gtsam::Pose3 ToGtsamPose(Pose3 pose)
 {
-  return gtsam::Pose3(gtsam::Rot3(pose.rot.w, pose.rot.x, pose.rot.y, pose.rot.z),
+  return gtsam::Pose3(gtsam::Rot3::Quaternion(pose.rot.w, pose.rot.x, pose.rot.y, pose.rot.z),
                       gtsam::Point3(pose.point.x, pose.point.y, pose.point.z));
 }
 Pose3 ToPose(const gtsam::Pose3& gtsam_pose)
