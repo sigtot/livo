@@ -12,6 +12,4 @@ Pose3 ToPose(const gtsam::Pose3& gtsam_pose);
 
 Point3 ToPoint(const gtsam::Point3& gtsam_point);
 
-Pose3 OrientAlongZ(const Pose3& pose);
-
 #endif

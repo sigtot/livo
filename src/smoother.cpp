@@ -50,6 +50,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
 
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
+  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(M_PI / 2, 0, M_PI / 2), gtsam::Point3::Zero());
   int smart_factor_count = 0;
   for (auto& landmark_pair : landmarks)
   {
@@ -59,7 +60,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
       continue;
     }
     std::cout << "adding landmark with " << landmark->keypoint_observations.size() << " observations" << std::endl;
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K, body_P_sensor));
     for (auto& obs : landmark->keypoint_observations)
     {
       auto pt = obs->keypoint.pt;
@@ -71,10 +72,10 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   std::cout << "Added " << smart_factor_count << " smart factors" << std::endl;
 
   // initialize values off from ground truth
-  // gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25),
-  //                       gtsam::Point3(0.05, -0.10, 0.20));
+  gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25),
+                         gtsam::Point3(0.05, -0.10, 0.20));
   // or exactly on ground truth?
-  gtsam::Pose3 gt_offset(gtsam::Rot3(), gtsam::Point3::Zero());
+  // gtsam::Pose3 gt_offset(gtsam::Rot3(), gtsam::Point3::Zero());
   for (auto& frame : frames)
   {
     Pose3 gt_pose = NewerCollegeGroundTruth::At(frame->timestamp);
