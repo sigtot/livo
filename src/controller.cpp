@@ -1,6 +1,8 @@
 #include "controller.h"
 #include "frame.h"
 #include "ros_conversions.h"
+#include "try_project_debug.h"
+
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -24,6 +26,18 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   int landmark_count_after = frontend.GetLandmarkCount();
   std::cout << "Landmark count before and after cull: " << landmark_count_before << " -> " << landmark_count_after
             << "(" << landmark_count_before - landmark_count_after << " culled)" << std::endl;
+
+  if (frontend.GetFrameCount() == 20)
+  {
+    std::vector<std::shared_ptr<Landmark>> non_culled_landmarks;
+    for (const auto& landmark : frontend.GetLandmarks())
+    {
+      if (landmark.second->keypoint_observations.size() > 10) {
+        non_culled_landmarks.push_back(landmark.second);
+      }
+    }
+    TryProjectDebug(non_culled_landmarks, 10.0, frontend.GetFrames()[0]->timestamp, landmark_publisher_);
+  }
 
   if (frontend.GetFrameCount() > 100)
   {
