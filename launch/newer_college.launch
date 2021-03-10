@@ -1,23 +1,9 @@
 <launch>
 
-<arg name="input_camera_name" default="cam0" />
-<arg name="scale" default="1.0" />
-<arg name="calib_path" default="/home/sigtot/Downloads/data/newer_college/04_calibration/kalibr_output/camchain_D435i__SN844212071220rooster_2020-03-11-10-05-35_0.yaml"/>
-
-  <node name="image_undistort_node" pkg="image_undistort" type="image_undistort_node">
-    <param name="input_camera_namespace" value="cam0"/>
-    <param name="input_camera_info_from_ros_params" value = "true"/>
-    <param name="scale" value="$(arg scale)"/>
-    <param name="output_camera_info_source" value="auto_generated"/>
-    <rosparam file="$(arg calib_path)"/>
-    <remap from="input/image" to="/camera/infra1/image_rect_raw"/>
-  </node>
-
   <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
     <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
   </node>
 
-  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 world camera_infra1_frame 100" />
-
+  <node pkg="tf" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 1 world camera_infra1_frame 100" />
 
 </launch>

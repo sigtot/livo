@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college
-  auto sub = nh.subscribe("output/image", 1000, &Controller::imageCallback, &controller);
+  auto sub = nh.subscribe("/camera/infra1/image_rect_raw", 1000, &Controller::imageCallback, &controller);
 
   ROS_INFO("Starting up");
 
