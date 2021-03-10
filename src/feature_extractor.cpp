@@ -85,7 +85,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
       auto match = match_result.matches[i];
       // train and query idx can be -1 for some reason?
       if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < unmatched_observations.size() &&
-          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() && match.distance < 20)
+          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() && match.distance < GlobalParams::MatchMaxDistance())
       {
         auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
         if (dupe_match != best_matches_by_train_idx.end())
@@ -258,7 +258,8 @@ void FeatureExtractor::GetLandmarkMatches(vector<shared_ptr<KeyPointObservation>
       // train and query idx can be -1 for some reason?
       // and larger than new_observations.size somehow? this was maybe due to a dereference bug. TODO: investigate
       if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < new_observations.size() &&
-          match.trainIdx >= 0 && match.trainIdx < new_observations.size() && match.distance < 20)
+          match.trainIdx >= 0 && match.trainIdx < new_observations.size() &&
+          match.distance < GlobalParams::MatchMaxDistance())
       {
         auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
         if (dupe_match != best_matches_by_train_idx.end())

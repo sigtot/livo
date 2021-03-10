@@ -4,6 +4,7 @@ landmark_culling_frame_count: 20
 landmark_culling_observation_percentage: .40
 landmark_matching_window: 5
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
+match_max_distance: 20.0
 
 cam_fx: 431.38739114
 cam_fy: 430.24961762
