@@ -26,17 +26,7 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
   vector<KeyPoint> keypoints;
   Mat descriptors;
 
-  vector<cv::Point2f> corners;
   orb_extractor(img_resized, cv::Mat(), keypoints, descriptors);
-
-  for (auto& corner : corners)
-  {
-    keypoints.emplace_back(corner, 1);
-  }
-
-  orb->compute(img_resized, keypoints, descriptors);
-  keypoints.insert(keypoints.end(), keypoints.begin(), keypoints.end());
-  descriptors.push_back(descriptors);
 
   // Register observations in new frame
   shared_ptr<Frame> new_frame = make_shared<Frame>();
