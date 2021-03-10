@@ -2,7 +2,6 @@
 #include "key_point_observation.h"
 #include "landmark.h"
 #include "frame.h"
-#include "newer_college_ground_truth.h"
 #include "gtsam_conversions.h"
 
 #include <iostream>
@@ -31,14 +30,14 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.1)).finished());
 
   // Add prior on first pose
-  Pose3 gt_pose_0 = NewerCollegeGroundTruth::At(frames[0]->timestamp);
-  graph.addPrior(0, ToGtsamPose(gt_pose_0), prior_noise);
-  ToGtsamPose(gt_pose_0).print("prior 0");
+  gtsam::Pose3 gtsam_prior_0(gtsam::Rot3(), gtsam::Point3::Zero());
+  graph.addPrior(0, gtsam_prior_0, prior_noise);
+  gtsam_prior_0.print("prior 0");
 
-  // Add prior on 50th pose to define scale
-  Pose3 gt_pose_50 = NewerCollegeGroundTruth::At(frames[50]->timestamp);
-  ToGtsamPose(gt_pose_50).print("prior 50");
-  graph.addPrior(50, ToGtsamPose(gt_pose_50), prior_noise);
+  // Add another prior on the 2nd pose to define scale
+  gtsam::Pose3 gtsam_prior_1(gtsam::Rot3(), gtsam::Point3(0.1, 0, 0));
+  graph.addPrior(1, gtsam_prior_1, prior_noise);
+  gtsam_prior_1.print("prior 1");
 
   // san raf RESIZE_FACTOR=0.5
   // Cal3_S2::shared_ptr K(new Cal3_S2(593.690871957, 593.74699226, 0.0,
@@ -75,10 +74,15 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25), gtsam::Point3(0.05, -0.10, 0.20));
   // or exactly on ground truth?
   // gtsam::Pose3 gt_offset(gtsam::Rot3(), gtsam::Point3::Zero());
+  std::vector<gtsam::Pose3> initial_poses;
+  initial_poses.push_back(gtsam_prior_0);
+  initial_poses.push_back(gtsam_prior_1);
+  gtsam::Pose3 increment(gtsam::Rot3(), gtsam::Point3(0.1, 0, 0));
   for (auto& frame : frames)
   {
-    Pose3 gt_pose = NewerCollegeGroundTruth::At(frame->timestamp);
-    estimate.insert(frame->id, ToGtsamPose(gt_pose).compose(gt_offset));
+    auto gtsam_pose = initial_poses.back().compose(increment);
+    estimate.insert(frame->id, gtsam_pose);
+    initial_poses.push_back(gtsam_pose);
   }
 
   gtsam::LevenbergMarquardtOptimizer optimizer(graph, estimate);
