@@ -49,7 +49,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
 
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(M_PI / 2, 0, M_PI / 2), gtsam::Point3::Zero());
+  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   int smart_factor_count = 0;
   for (auto& landmark_pair : landmarks)
   {
