@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <thread>
+#include <global_params.h>
 
 Controller::Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher)
   : frontend(frontend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
@@ -22,7 +23,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
   int landmark_count_before = frontend.GetLandmarkCount();
-  frontend.CullLandmarks();
+  frontend.CullLandmarks(GlobalParams::LandmarkCullingFrameCount(),
+                         GlobalParams::LandmarkCullingObservationPercentage());
   int landmark_count_after = frontend.GetLandmarkCount();
   std::cout << "Landmark count before and after cull: " << landmark_count_before << " -> " << landmark_count_after
             << "(" << landmark_count_before - landmark_count_after << " culled)" << std::endl;

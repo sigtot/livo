@@ -341,20 +341,19 @@ map<int, shared_ptr<Landmark>> FeatureExtractor::GetLandmarks()
 {
   return landmarks;
 }
-void FeatureExtractor::CullLandmarks()
+void FeatureExtractor::CullLandmarks(int frame_window, double min_obs_percentage)
 {
-  if (frame_count_ < GlobalParams::LandmarkCullingFrameCount())
+  if (frame_count_ < frame_window)
   {
     return;
   }
-  auto frame = frames[frame_count_ - GlobalParams::LandmarkCullingFrameCount()];
+  auto frame = frames[frame_count_ - frame_window];
   for (auto& landmark_weak : frame->new_landmarks)
   {
     auto landmark = landmark_weak.lock();
     if (landmark)
     {
-      if (landmark->keypoint_observations.size() <
-          GlobalParams::LandmarkCullingObservationPercentage() * GlobalParams::LandmarkCullingFrameCount())
+      if (landmark->keypoint_observations.size() < min_obs_percentage * frame_window)
       {
         CullLandmark(landmark->id);
       }

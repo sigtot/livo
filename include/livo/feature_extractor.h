@@ -54,7 +54,7 @@ public:
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 
-  void CullLandmarks();
+  void CullLandmarks(int frame_window, double min_obs_percentage);
 
   void PublishLandmarkTracksImage();
 
