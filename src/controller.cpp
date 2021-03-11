@@ -23,6 +23,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
   int landmark_count_before = frontend.GetLandmarkCount();
+  frontend.CullLandmarks(5, .6);
+  frontend.CullLandmarks(10, .4);
   frontend.CullLandmarks(GlobalParams::LandmarkCullingFrameCount(),
                          GlobalParams::LandmarkCullingObservationPercentage());
   int landmark_count_after = frontend.GetLandmarkCount();
