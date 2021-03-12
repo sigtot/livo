@@ -35,6 +35,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
+  ReadVariable(nh, "/orb_test_node/track_nms_squared_dist_thresh", GetInstance().track_nms_squared_dist_thresh_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -76,6 +77,13 @@ int GlobalParams::FeatureExtractionInterval()
 int GlobalParams::TrackCountLowerThresh()
 {
   return GetInstance().track_count_lower_thresh_;
+}
+// Distance threshold for suppressing tracks in non-max suppression scheme.
+// Features closer than this threshold (in squared euclidean distance) to another point will be suppressed
+// if the other features has a longer track.
+double GlobalParams::TrackNMSSquaredDistThresh()
+{
+  return GetInstance().track_nms_squared_dist_thresh_;
 }
 
 double GlobalParams::CamFx()

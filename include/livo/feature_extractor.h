@@ -54,6 +54,8 @@ private:
                           std::vector<std::shared_ptr<KeyPointObservation>>& remaining_observations,
                           vector<LandmarkMatch>& landmark_matches);
 
+  void NonMaxSuppressTracks(double squared_dist_thresh);
+
 public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 

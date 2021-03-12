@@ -32,7 +32,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<cv::Point2f> prev_points;
     for (auto track : active_tracks_)
     {
-      std::cout << "frame " << track.back().frame->id << std::endl;
       prev_points.push_back(track.back().pt);
     }
 
@@ -54,7 +53,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
         // TODO perf erase-remove?
         old_tracks_.push_back(std::move(active_tracks_[i]));
         active_tracks_.erase(active_tracks_.begin() + i);
-        std::cout << "moved track " << i << " to the old tracks" << endl;
       }
     }
 
@@ -84,6 +82,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       active_tracks_.push_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
     }
   }
+
+  NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
 
   frames.push_back(new_frame);
 }
@@ -439,4 +439,21 @@ void FeatureExtractor::CullLandmarks(int frame_window, double min_obs_percentage
 void FeatureExtractor::CullLandmark(int landmark_id)
 {
   landmarks.erase(landmark_id);
+}
+
+void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
+{
+  for (int i = 0; i < active_tracks_.size(); ++i)
+  {
+    for (int j = static_cast<int>(active_tracks_.size()) - 1; j > i; --j)
+    {
+      auto d_vec = (active_tracks_[i].back().pt - active_tracks_[j].back().pt);
+      double d2 = d_vec.dot(d_vec);
+      if (d2 < squared_dist_thresh) {
+        active_tracks_.erase(active_tracks_.begin() + j);
+
+        // TODO: Maybe, if track is of certain min length, add it to old_tracks_ instead of deleting
+      }
+    }
+  }
 }

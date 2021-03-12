@@ -23,6 +23,7 @@ private:
 
   int feature_extraction_interval_ = 5;
   int track_count_lower_thresh_ = 100;
+  double track_nms_squared_dist_thresh_ = 16.;
 
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
@@ -45,6 +46,7 @@ public:
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();
+  static double TrackNMSSquaredDistThresh();
 
   static double CamFx();
   static double CamFy();
