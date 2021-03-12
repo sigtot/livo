@@ -407,6 +407,11 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
       corners.insert(corners.begin(), corners_in_roi.begin(), corners_in_roi.end());
     }
   }
+
+  Size winSize = Size( 5, 5 );
+  Size zeroZone = Size( -1, -1 );
+  TermCriteria criteria = TermCriteria( TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001 );
+  cv::cornerSubPix(img, corners, winSize, zeroZone, criteria);
 }
 
 vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
