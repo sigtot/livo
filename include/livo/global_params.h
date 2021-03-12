@@ -22,6 +22,7 @@ private:
   double match_max_distance_ = 20;
 
   int feature_extraction_interval_ = 5;
+  int track_count_lower_thresh_ = 100;
 
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
@@ -43,6 +44,7 @@ public:
   static double MatchMaxDistance();
 
   static int FeatureExtractionInterval();
+  static int TrackCountLowerThresh();
 
   static double CamFx();
   static double CamFy();

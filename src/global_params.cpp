@@ -34,6 +34,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/ground_truth_file", GetInstance().ground_truth_file_);
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
+  ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -66,6 +67,17 @@ std::string GlobalParams::GroundTruthFile()
 {
   return GetInstance().ground_truth_file_;
 }
+
+int GlobalParams::FeatureExtractionInterval()
+{
+  return GetInstance().feature_extraction_interval_;
+}
+// When the number of tracks goes below this threshold, we extract new features.
+int GlobalParams::TrackCountLowerThresh()
+{
+  return GetInstance().track_count_lower_thresh_;
+}
+
 double GlobalParams::CamFx()
 {
   return GetInstance().cam_fx_;
@@ -85,8 +97,4 @@ double GlobalParams::CamV0()
 double GlobalParams::MatchMaxDistance()
 {
   return GetInstance().match_max_distance_;
-}
-int GlobalParams::FeatureExtractionInterval()
-{
-  return GetInstance().feature_extraction_interval_;
 }

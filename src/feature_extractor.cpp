@@ -44,7 +44,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
     {
-      std::cout << i << ": status=" << (status[i] == 1) << ", err= " << err[i] << std::endl;
       // Select good points
       if (status[i] == 1)
       {
@@ -55,7 +54,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
         // TODO perf erase-remove?
         old_tracks_.push_back(std::move(active_tracks_[i]));
         active_tracks_.erase(active_tracks_.begin() + i);
-        std::cout << "move this one to the old tracks" << endl;
+        std::cout << "moved track " << i << " to the old tracks" << endl;
       }
     }
 
@@ -73,9 +72,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
+    std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
   }
 
-  if ((frames.size() % GlobalParams::FeatureExtractionInterval()) == 0)
+  if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
     FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
