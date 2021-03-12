@@ -10,6 +10,7 @@
 #include "frame.h"
 #include "ORBextractor.h"
 #include "landmark_match.h"
+#include "feature.h"
 
 using namespace std;
 using namespace cv;
@@ -33,6 +34,10 @@ private:
   int frame_count_ = 0;
   int lag;
   const bool debug = true;
+
+  std::vector<std::vector<Feature>> active_tracks_;
+  std::vector<std::vector<Feature>> old_tracks_;
+
   ORB_SLAM::ORBextractor orb_extractor;
 
   static void getMatches(const Mat& query_descriptors, const vector<KeyPoint>& query_keypoints,
@@ -53,6 +58,8 @@ public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 
   shared_ptr<Frame> imageCallback(const sensor_msgs::Image::ConstPtr& msg);
+
+  shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 
   void CullLandmarks(int frame_window, double min_obs_percentage);
 

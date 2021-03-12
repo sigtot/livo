@@ -20,6 +20,8 @@ Controller::Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
+  frontend.lkCallback(msg);
+  /*
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
   frontend.PublishLandmarkTracksImage();
   int landmark_count_before = frontend.GetLandmarkCount();
@@ -98,4 +100,5 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     landmark_publisher_.publish(markerArray);
     exit(0);
   }
+   */
 }

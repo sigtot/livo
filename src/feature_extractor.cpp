@@ -8,16 +8,90 @@
 #include "match_in_frame.h"
 
 #include <algorithm>
+#include <utility>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag)
   : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag), orb_extractor()
 {
 }
 
+shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
+{
+  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe share?
+  Mat img_resized;
+  resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
+
+  shared_ptr<Frame> new_frame = make_shared<Frame>();
+  new_frame->image = img_resized;
+  new_frame->id = frame_count_++;
+  new_frame->timestamp = msg->header.stamp.toSec();
+
+  if (!frames.empty())
+  {
+    auto prev_img = frames.back()->image;
+    vector<cv::Point2f> prev_points;
+    for (auto track : active_tracks_)
+    {
+      std::cout << "frame " << track.back().frame->id << std::endl;
+      prev_points.push_back(track.back().pt);
+    }
+
+    vector<cv::Point2f> new_points;
+    vector<uchar> status;
+    vector<float> err;
+    TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
+    cv::calcOpticalFlowPyrLK(prev_img, img_resized, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
+
+    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
+    {
+      std::cout << i << ": status=" << (status[i] == 1) << ", err= " << err[i] << std::endl;
+      // Select good points
+      if (status[i] == 1)
+      {
+        active_tracks_[i].push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
+      }
+      else
+      {
+        // TODO perf erase-remove?
+        old_tracks_.push_back(std::move(active_tracks_[i]));
+        active_tracks_.erase(active_tracks_.begin() + i);
+        std::cout << "move this one to the old tracks" << endl;
+      }
+    }
+
+    cv_bridge::CvImage tracks_out_img;
+    tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+    tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
+    tracks_out_img.header.seq = frames.back()->id;
+    cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
+
+    for (const auto& track : active_tracks_) {
+      for (int i = 1; i < track.size(); ++i) {
+        cv::line(tracks_out_img.image, track[i - 1].pt, track[i].pt, Scalar(0, 255, 0), 2);
+      }
+      cv::circle(tracks_out_img.image, track.back().pt, 5, Scalar(0, 255, 0), -1);
+    }
+
+    tracks_pub_.publish(tracks_out_img.toImageMsg());
+  }
+
+  if ((frames.size() % GlobalParams::FeatureExtractionInterval()) == 0)
+  {
+    vector<Point2f> corners;
+    FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    for (const auto& corner : corners)
+    {
+      active_tracks_.push_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
+    }
+  }
+
+  frames.push_back(new_frame);
+}
+
 shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // Makes copy. We can also share to
-                                                                                   // increase performance
+  // increase performance
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
 
@@ -85,7 +159,8 @@ shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::Cons
       auto match = match_result.matches[i];
       // train and query idx can be -1 for some reason?
       if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < unmatched_observations.size() &&
-          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() && match.distance < GlobalParams::MatchMaxDistance())
+          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() &&
+          match.distance < GlobalParams::MatchMaxDistance())
       {
         auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
         if (dupe_match != best_matches_by_train_idx.end())

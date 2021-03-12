@@ -33,6 +33,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/landmark_matching_window", GetInstance().landmark_matching_window_);
   ReadVariable(nh, "/orb_test_node/ground_truth_file", GetInstance().ground_truth_file_);
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
+  ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
+
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
   ReadVariable(nh, "/orb_test_node/cam_u0", GetInstance().cam_u0_);
@@ -83,4 +85,8 @@ double GlobalParams::CamV0()
 double GlobalParams::MatchMaxDistance()
 {
   return GetInstance().match_max_distance_;
+}
+int GlobalParams::FeatureExtractionInterval()
+{
+  return GetInstance().feature_extraction_interval_;
 }

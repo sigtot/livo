@@ -21,6 +21,8 @@ private:
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
   double match_max_distance_ = 20;
 
+  int feature_extraction_interval_ = 5;
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -39,6 +41,9 @@ public:
   static int LandmarkMatchingWindow();
   static std::string GroundTruthFile();
   static double MatchMaxDistance();
+
+  static int FeatureExtractionInterval();
+
   static double CamFx();
   static double CamFy();
   static double CamU0();

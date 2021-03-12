@@ -11,6 +11,7 @@ struct Landmark;
 struct KeyPointObservation
 {
   KeyPointObservation(cv::KeyPoint keypoint, cv::Mat descriptor, std::shared_ptr<Frame> frame);
+  const cv::Point2f point;
   const cv::KeyPoint keypoint;
   const cv::Mat descriptor;
   std::shared_ptr<Frame> frame;
