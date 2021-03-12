@@ -1,6 +1,5 @@
 #include "smoother.h"
 #include "key_point_observation.h"
-#include "landmark.h"
 #include "frame.h"
 #include "gtsam_conversions.h"
 
@@ -19,10 +18,10 @@
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
-                           const std::map<int, std::shared_ptr<Landmark>>& landmarks,
+                           const std::vector<std::vector<Feature>>& tracks,
                            std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
 {
-  std::cout << "Let's process those" << landmarks.size() << " landmarks" << std::endl;
+  std::cout << "Let's process those" << tracks.size() << " tracks!" << std::endl;
   gtsam::NonlinearFactorGraph graph;
   gtsam::Values estimate;
 
@@ -51,19 +50,18 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
 
   auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   int smart_factor_count = 0;
-  for (auto& landmark_pair : landmarks)
+  for (auto& track : tracks)
   {
-    auto landmark = landmark_pair.second;
-    if (landmark->keypoint_observations.size() < 30)
+    if (track.size() < 30)
     {
       continue;
     }
-    std::cout << "adding landmark with " << landmark->keypoint_observations.size() << " observations" << std::endl;
+    std::cout << "adding landmark with " << track.size() << " observations" << std::endl;
     SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K, body_P_sensor));
-    for (auto& obs : landmark->keypoint_observations)
+    for (auto& feature : track)
     {
-      auto pt = obs->keypoint.pt;
-      smart_factor->add(gtsam::Point2(pt.x, pt.y), obs->frame->id);
+      auto pt = feature.pt;
+      smart_factor->add(gtsam::Point2(pt.x, pt.y), feature.frame->id);
     }
     graph.add(smart_factor);
     smart_factor_count++;

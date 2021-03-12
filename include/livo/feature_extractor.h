@@ -76,6 +76,8 @@ public:
   vector<shared_ptr<Frame>> GetFrames();
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
+
+  std::vector<std::vector<Feature>> GetTracks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

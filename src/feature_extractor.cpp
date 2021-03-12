@@ -81,11 +81,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       active_tracks_.push_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
     }
+    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
 
-  NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
+  //NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
 
   frames.push_back(new_frame);
+  return new_frame;
 }
 
 shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
@@ -456,4 +458,9 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
       }
     }
   }
+}
+
+std::vector<std::vector<Feature>> FeatureExtractor::GetTracks()
+{
+  return active_tracks_;
 }
