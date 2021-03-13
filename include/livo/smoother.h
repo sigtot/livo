@@ -24,7 +24,7 @@ private:
 
 public:
   Smoother();
-  void Initialize(const std::vector<std::shared_ptr<Frame>>& frames, const vector<struct Track>& tracks,
+  void Initialize(const std::vector<std::shared_ptr<Frame>>& frames, vector<shared_ptr<Track>> tracks,
                    std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
 };
 

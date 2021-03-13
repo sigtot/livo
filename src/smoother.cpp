@@ -12,7 +12,7 @@
 #include <pose3_stamped.h>
 #include <global_params.h>
 
-void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<Track>& tracks,
+void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, std::vector<shared_ptr<Track>> tracks,
                           std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
 {
   std::cout << "Let's process those" << tracks.size() << " tracks!" << std::endl;
@@ -45,18 +45,18 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, con
   auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
-    if (track.features.size() < 30)
+    if (track->features.size() < 30)
     {
       continue;
     }
-    std::cout << "adding landmark with " << track.features.size() << " observations" << std::endl;
+    std::cout << "adding landmark with " << track->features.size() << " observations" << std::endl;
     SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K, body_P_sensor));
-    for (auto& feature : track.features)
+    for (auto& feature : track->features)
     {
       auto pt = feature.pt;
       smart_factor->add(gtsam::Point2(pt.x, pt.y), feature.frame->id);
     }
-    smart_factors_[track.id] = smart_factor;
+    smart_factors_[track->id] = smart_factor;
     graph.add(smart_factor);
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;

@@ -1,7 +1,6 @@
 #include "controller.h"
 #include "frame.h"
 #include "ros_conversions.h"
-#include "try_project_debug.h"
 
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>

@@ -1,16 +1,18 @@
 #ifndef ORB_TEST_FEATUREEXTRACTOR_H
 #define ORB_TEST_FEATUREEXTRACTOR_H
 
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <vector>
 #include "landmark.h"
 #include "frame.h"
 #include "ORBextractor.h"
 #include "landmark_match.h"
 #include "track.h"
+
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <vector>
+#include <memory>
 
 using namespace std;
 using namespace cv;
@@ -35,8 +37,8 @@ private:
   int lag;
   const bool debug = true;
 
-  std::vector<Track> active_tracks_;
-  std::vector<Track> old_tracks_;
+  std::vector<std::shared_ptr<Track>> active_tracks_;
+  std::vector<std::shared_ptr<Track>> old_tracks_;
 
   ORB_SLAM::ORBextractor orb_extractor;
 
@@ -79,7 +81,7 @@ public:
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
 
-  std::vector<Track> GetTracks();
+  std::vector<shared_ptr<Track>> GetTracks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

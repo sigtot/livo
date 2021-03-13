@@ -5,7 +5,6 @@
 
 #include "global_params.h"
 #include "match_result.h"
-#include "match_in_frame.h"
 
 #include <algorithm>
 #include <utility>
@@ -32,7 +31,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<cv::Point2f> prev_points;
     for (const auto& track : active_tracks_)
     {
-      prev_points.push_back(track.features.back().pt);
+      prev_points.push_back(track->features.back().pt);
     }
 
     vector<cv::Point2f> new_points;
@@ -41,7 +40,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
     cv::calcOpticalFlowPyrLK(prev_img, img_resized, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
 
-    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
+    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
+         --i)  // iterate backwards to not mess up vector when erasing
     {
       // Select good points
       if (status[i] != 1)
@@ -58,11 +58,12 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
 
-    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
+    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
+         --i)  // iterate backwards to not mess up vector when erasing
     {
       if (inlier_mask[i])
       {
-        active_tracks_[i].features.push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
+        active_tracks_[i]->features.push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
       }
       else
       {
@@ -81,11 +82,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
-    for (const auto& track : active_tracks_) {
-      for (int i = 1; i < track.features.size(); ++i) {
-        cv::line(tracks_out_img.image, track.features[i - 1].pt, track.features[i].pt, Scalar(0, 255, 0), 2);
+    for (const auto& track : active_tracks_)
+    {
+      for (int i = 1; i < track->features.size(); ++i)
+      {
+        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, Scalar(0, 255, 0), 2);
       }
-      cv::circle(tracks_out_img.image, track.features.back().pt, 5, Scalar(0, 255, 0), -1);
+      cv::circle(tracks_out_img.image, track->features.back().pt, 5, Scalar(0, 255, 0), -1);
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
@@ -99,7 +102,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      active_tracks_.emplace_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
+      active_tracks_.push_back(
+          std::make_shared<Track>(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } }));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
@@ -420,18 +424,20 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
       // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
       goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_per_cell, quality_level, min_distance);
 
-      Size winSize = Size( 5, 5 );
-      Size zeroZone = Size( -1, -1 );
-      TermCriteria criteria = TermCriteria( TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001 );
-      if (corners_in_roi.empty()) {
-        continue; // Nothing further to do
+      Size winSize = Size(5, 5);
+      Size zeroZone = Size(-1, -1);
+      TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001);
+      if (corners_in_roi.empty())
+      {
+        continue;  // Nothing further to do
       }
       cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
 
       vector<cv::Point2f> best_corners;
       for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_per_cell); ++i)
       {
-        if (PointWasSubPixRefined(corners_in_roi[i])) {
+        if (PointWasSubPixRefined(corners_in_roi[i]))
+        {
           best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
         }
       }
@@ -440,7 +446,8 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
   }
 }
 
-bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh) {
+bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh)
+{
   return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
 }
 
@@ -484,9 +491,10 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   {
     for (int j = static_cast<int>(active_tracks_.size()) - 1; j > i; --j)
     {
-      auto d_vec = (active_tracks_[i].features.back().pt - active_tracks_[j].features.back().pt);
+      auto d_vec = (active_tracks_[i]->features.back().pt - active_tracks_[j]->features.back().pt);
       double d2 = d_vec.dot(d_vec);
-      if (d2 < squared_dist_thresh) {
+      if (d2 < squared_dist_thresh)
+      {
         active_tracks_.erase(active_tracks_.begin() + j);
 
         // TODO: Maybe, if track is of certain min length, add it to old_tracks_ instead of deleting
@@ -495,7 +503,7 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   }
 }
 
-std::vector<Track> FeatureExtractor::GetTracks()
+std::vector<shared_ptr<Track>> FeatureExtractor::GetTracks()
 {
   return active_tracks_;
 }
