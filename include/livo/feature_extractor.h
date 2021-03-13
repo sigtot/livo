@@ -56,6 +56,8 @@ private:
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
+  static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);
+
 public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 

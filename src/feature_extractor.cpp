@@ -405,16 +405,25 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
       Size winSize = Size( 5, 5 );
       Size zeroZone = Size( -1, -1 );
       TermCriteria criteria = TermCriteria( TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001 );
+      if (corners_in_roi.empty()) {
+        continue; // Nothing further to do
+      }
       cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
 
       vector<cv::Point2f> best_corners;
       for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_per_cell); ++i)
       {
-        best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
+        if (PointWasSubPixRefined(corners_in_roi[i])) {
+          best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
+        }
       }
       corners.insert(corners.begin(), best_corners.begin(), best_corners.end());
     }
   }
+}
+
+bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh) {
+  return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
 }
 
 vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
