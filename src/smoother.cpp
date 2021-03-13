@@ -8,18 +8,12 @@
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot3.h>
-#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
-#include <gtsam/geometry/Cal3_S2.h>
-#include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <pose3_stamped.h>
 #include <global_params.h>
 
-typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
-
-void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
-                           const std::vector<std::vector<Feature>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
-                           std::vector<Point3>& landmark_estimates)
+void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<Track>& tracks,
+                          std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
 {
   std::cout << "Let's process those" << tracks.size() << " tracks!" << std::endl;
   gtsam::NonlinearFactorGraph graph;
@@ -49,24 +43,23 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
-  std::vector<SmartFactor::shared_ptr> smart_factors;
   for (auto& track : tracks)
   {
-    if (track.size() < 30)
+    if (track.features.size() < 30)
     {
       continue;
     }
-    std::cout << "adding landmark with " << track.size() << " observations" << std::endl;
+    std::cout << "adding landmark with " << track.features.size() << " observations" << std::endl;
     SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K, body_P_sensor));
-    for (auto& feature : track)
+    for (auto& feature : track.features)
     {
       auto pt = feature.pt;
       smart_factor->add(gtsam::Point2(pt.x, pt.y), feature.frame->id);
     }
-    smart_factors.push_back(smart_factor);
+    smart_factors_[track.id] = smart_factor;
     graph.add(smart_factor);
   }
-  std::cout << "Added " << smart_factors.size() << " smart factors" << std::endl;
+  std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
   // initialize values off from ground truth
   gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25), gtsam::Point3(0.05, -0.10, 0.20));
@@ -93,9 +86,9 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
     pose_estimates.push_back(poseStamped);
   }
 
-  for (const auto& smart_factor : smart_factors)
+  for (const auto& smart_factor_pair : smart_factors_)
   {
-    boost::optional<gtsam::Point3> point = smart_factor->point();
+    boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
     if (point)
     {  // ignore if boost::optional returns nullptr
       landmark_estimates.push_back(ToPoint(*point));

@@ -17,7 +17,7 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub, const ros:
 
 shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
-  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe share?
+  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe toCvShare?
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
 
@@ -30,9 +30,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     auto prev_img = frames.back()->image;
     vector<cv::Point2f> prev_points;
-    for (auto track : active_tracks_)
+    for (const auto& track : active_tracks_)
     {
-      prev_points.push_back(track.back().pt);
+      prev_points.push_back(track.features.back().pt);
     }
 
     vector<cv::Point2f> new_points;
@@ -62,7 +62,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       if (inlier_mask[i])
       {
-        active_tracks_[i].push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
+        active_tracks_[i].features.push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
       }
       else
       {
@@ -82,10 +82,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
     for (const auto& track : active_tracks_) {
-      for (int i = 1; i < track.size(); ++i) {
-        cv::line(tracks_out_img.image, track[i - 1].pt, track[i].pt, Scalar(0, 255, 0), 2);
+      for (int i = 1; i < track.features.size(); ++i) {
+        cv::line(tracks_out_img.image, track.features[i - 1].pt, track.features[i].pt, Scalar(0, 255, 0), 2);
       }
-      cv::circle(tracks_out_img.image, track.back().pt, 5, Scalar(0, 255, 0), -1);
+      cv::circle(tracks_out_img.image, track.features.back().pt, 5, Scalar(0, 255, 0), -1);
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
@@ -99,7 +99,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      active_tracks_.push_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
+      active_tracks_.emplace_back(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } });
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
@@ -484,7 +484,7 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   {
     for (int j = static_cast<int>(active_tracks_.size()) - 1; j > i; --j)
     {
-      auto d_vec = (active_tracks_[i].back().pt - active_tracks_[j].back().pt);
+      auto d_vec = (active_tracks_[i].features.back().pt - active_tracks_[j].features.back().pt);
       double d2 = d_vec.dot(d_vec);
       if (d2 < squared_dist_thresh) {
         active_tracks_.erase(active_tracks_.begin() + j);
@@ -495,7 +495,7 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   }
 }
 
-std::vector<std::vector<Feature>> FeatureExtractor::GetTracks()
+std::vector<Track> FeatureExtractor::GetTracks()
 {
   return active_tracks_;
 }

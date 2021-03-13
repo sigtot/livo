@@ -10,7 +10,7 @@
 #include "frame.h"
 #include "ORBextractor.h"
 #include "landmark_match.h"
-#include "feature.h"
+#include "track.h"
 
 using namespace std;
 using namespace cv;
@@ -35,8 +35,8 @@ private:
   int lag;
   const bool debug = true;
 
-  std::vector<std::vector<Feature>> active_tracks_;
-  std::vector<std::vector<Feature>> old_tracks_;
+  std::vector<Track> active_tracks_;
+  std::vector<Track> old_tracks_;
 
   ORB_SLAM::ORBextractor orb_extractor;
 
@@ -79,7 +79,7 @@ public:
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
 
-  std::vector<std::vector<Feature>> GetTracks();
+  std::vector<Track> GetTracks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
