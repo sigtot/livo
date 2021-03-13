@@ -399,19 +399,22 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
       cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
       cv::Mat roi = img(mask);
       vector<cv::Point2f> corners_in_roi;
-      goodFeaturesToTrack(roi, corners_in_roi, max_features_per_cell, quality_level, min_distance);
-      for (auto& corner : corners_in_roi)
+      // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
+      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_per_cell, quality_level, min_distance);
+
+      Size winSize = Size( 5, 5 );
+      Size zeroZone = Size( -1, -1 );
+      TermCriteria criteria = TermCriteria( TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001 );
+      cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
+
+      vector<cv::Point2f> best_corners;
+      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_per_cell); ++i)
       {
-        corner += cv::Point2f(cell_x * cell_w, cell_y * cell_h);
+        best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
       }
-      corners.insert(corners.begin(), corners_in_roi.begin(), corners_in_roi.end());
+      corners.insert(corners.begin(), best_corners.begin(), best_corners.end());
     }
   }
-
-  Size winSize = Size( 5, 5 );
-  Size zeroZone = Size( -1, -1 );
-  TermCriteria criteria = TermCriteria( TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001 );
-  cv::cornerSubPix(img, corners, winSize, zeroZone, criteria);
 }
 
 vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
