@@ -44,7 +44,23 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
     {
       // Select good points
-      if (status[i] == 1)
+      if (status[i] != 1)
+      {
+        // TODO perf erase-remove?
+        old_tracks_.push_back(std::move(active_tracks_[i]));
+        active_tracks_.erase(active_tracks_.begin() + i);
+        prev_points.erase(prev_points.begin() + i);
+        new_points.erase(new_points.begin() + i);
+      }
+    }
+
+    vector<uchar> inlier_mask;
+
+    findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
+
+    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i) // iterate backwards to not mess up vector when erasing
+    {
+      if (inlier_mask[i])
       {
         active_tracks_[i].push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
       }
@@ -53,9 +69,12 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
         // TODO perf erase-remove?
         old_tracks_.push_back(std::move(active_tracks_[i]));
         active_tracks_.erase(active_tracks_.begin() + i);
+        prev_points.erase(prev_points.begin() + i);
+        new_points.erase(new_points.begin() + i);
       }
     }
 
+    // PUBLISH LANDMARK IMAGE. TODO: Move to separate fn
     cv_bridge::CvImage tracks_out_img;
     tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
     tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
@@ -71,6 +90,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
     std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
+    // END PUBLISH LANDMARK IMAGE
   }
 
   if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
@@ -83,8 +103,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
-
-  //NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
 
   frames.push_back(new_frame);
   return new_frame;
