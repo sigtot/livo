@@ -17,9 +17,9 @@
 
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
-void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
-                           const std::vector<std::vector<Feature>>& tracks,
-                           std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
+void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
+                           const std::vector<std::vector<Feature>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
+                           std::vector<Point3>& landmark_estimates)
 {
   std::cout << "Let's process those" << tracks.size() << " tracks!" << std::endl;
   gtsam::NonlinearFactorGraph graph;
@@ -49,7 +49,7 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
-  int smart_factor_count = 0;
+  std::vector<SmartFactor::shared_ptr> smart_factors;
   for (auto& track : tracks)
   {
     if (track.size() < 30)
@@ -63,10 +63,10 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
       auto pt = feature.pt;
       smart_factor->add(gtsam::Point2(pt.x, pt.y), feature.frame->id);
     }
+    smart_factors.push_back(smart_factor);
     graph.add(smart_factor);
-    smart_factor_count++;
   }
-  std::cout << "Added " << smart_factor_count << " smart factors" << std::endl;
+  std::cout << "Added " << smart_factors.size() << " smart factors" << std::endl;
 
   // initialize values off from ground truth
   gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25), gtsam::Point3(0.05, -0.10, 0.20));
@@ -83,29 +83,26 @@ void Smoother::SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
     initial_poses.push_back(gtsam_pose);
   }
 
-  gtsam::LevenbergMarquardtOptimizer optimizer(graph, estimate);
-  gtsam::Values result = optimizer.optimize();
+  auto result = isam2.update(graph, estimate);
   result.print("result");
 
   for (auto& frame : frames)
   {
-    Pose3Stamped poseStamped{ .pose = ToPose(result.at<gtsam::Pose3>(frame->id)), .stamp = frame->timestamp };
+    Pose3Stamped poseStamped{ .pose = ToPose(isam2.calculateEstimate<gtsam::Pose3>(frame->id)),
+                              .stamp = frame->timestamp };
     pose_estimates.push_back(poseStamped);
   }
 
-  for (int i = 0; i < smart_factor_count; ++i)
+  for (const auto& smart_factor : smart_factors)
   {
-    SmartFactor::shared_ptr smart_factor = boost::dynamic_pointer_cast<SmartFactor>(graph[i]);
-    if (smart_factor)
-    {
-      // The output of point() is in boost::optional<Point3>, as sometimes
-      // the triangulation operation inside smart factor will encounter
-      // degeneracy.
-      boost::optional<gtsam::Point3> point = smart_factor->point(result);
-      if (point)
-      {  // ignore if boost::optional return nullptr
-        landmark_estimates.push_back(ToPoint(*point));
-      }
+    boost::optional<gtsam::Point3> point = smart_factor->point();
+    if (point)
+    {  // ignore if boost::optional returns nullptr
+      landmark_estimates.push_back(ToPoint(*point));
     }
   }
+}
+
+Smoother::Smoother() : isam2()
+{
 }

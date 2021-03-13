@@ -13,8 +13,8 @@
 #include <thread>
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher)
-  : frontend(frontend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
+Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher)
+  : frontend(frontend), backend(backend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
 {
 }
 
@@ -26,7 +26,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
-    Smoother::SmoothBatch(frontend.GetFrames(), frontend.GetTracks(), pose_estimates, landmark_estimates);
+    backend.Initialize(frontend.GetFrames(), frontend.GetTracks(), pose_estimates, landmark_estimates);
     std::cout << "poses:" << std::endl;
     for (auto& pose_stamped : pose_estimates)
     {

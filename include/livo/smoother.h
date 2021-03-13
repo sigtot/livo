@@ -9,13 +9,17 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <gtsam/nonlinear/ISAM2.h>
 
 class Smoother
 {
+private:
+  gtsam::ISAM2 isam2;
+
 public:
-  static void SmoothBatch(const std::vector<std::shared_ptr<Frame>>& frames,
-                          const std::vector<std::vector<Feature>>& tracks,
-                          std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
+  Smoother();
+  void Initialize(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<std::vector<Feature>>& tracks,
+                   std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
 };
 
 #endif

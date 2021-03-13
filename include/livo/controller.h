@@ -9,11 +9,12 @@ class Controller
 {
 private:
   FeatureExtractor& frontend;
+  Smoother& backend;
   ros::Publisher pose_publisher_;
   ros::Publisher landmark_publisher_;
 
 public:
-  explicit Controller(FeatureExtractor& frontend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher);
+  explicit Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher);
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 };

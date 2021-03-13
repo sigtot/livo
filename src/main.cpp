@@ -26,7 +26,8 @@ int main(int argc, char** argv)
   auto gt_pub = nh.advertise<nav_msgs::Odometry>("/ground_truth", 1000);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor feature_extractor(matches_pub, tracks_pub, 20);
-  Controller controller(feature_extractor, pose_pub, landmarks_pub);
+  Smoother smoother;
+  Controller controller(feature_extractor, smoother, pose_pub, landmarks_pub);
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college
