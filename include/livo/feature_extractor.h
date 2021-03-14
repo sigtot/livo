@@ -60,6 +60,8 @@ private:
 
   static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);
 
+  static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);
+
 public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 

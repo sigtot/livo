@@ -108,6 +108,17 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
 
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
+  {
+    if (IsCloseToImageEdge(active_tracks_[i]->features.back().pt, img_resized.cols, img_resized.rows,
+                           GlobalParams::ImageEdgePaddingPercent()))
+    {
+      // TODO perf erase-remove?
+      old_tracks_.push_back(std::move(active_tracks_[i]));
+      active_tracks_.erase(active_tracks_.begin() + i);
+    }
+  }
+
   frames.push_back(new_frame);
   return new_frame;
 }
@@ -506,4 +517,10 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
 std::vector<shared_ptr<Track>> FeatureExtractor::GetTracks()
 {
   return active_tracks_;
+}
+bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
+{
+  double padding_x = width * padding_percentage;
+  double padding_y = height * padding_percentage;
+  return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
 }
