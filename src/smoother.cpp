@@ -2,6 +2,8 @@
 #include "key_point_observation.h"
 #include "frame.h"
 #include "gtsam_conversions.h"
+#include "pose3_stamped.h"
+#include "global_params.h"
 
 #include <iostream>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -9,8 +11,9 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/nonlinear/Values.h>
-#include <pose3_stamped.h>
-#include <global_params.h>
+#include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
 
 void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
                           const std::vector<shared_ptr<Track>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
@@ -73,12 +76,12 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
     initial_poses.push_back(gtsam_pose);
   }
 
-  auto result = isam2.update(graph, estimate);
+  auto result = isam2->update(graph, estimate);
   result.print("result");
 
   for (auto& frame : frames)
   {
-    Pose3Stamped poseStamped{ .pose = ToPose(isam2.calculateEstimate<gtsam::Pose3>(frame->id)),
+    Pose3Stamped poseStamped{ .pose = ToPose(isam2->calculateEstimate<gtsam::Pose3>(frame->id)),
                               .stamp = frame->timestamp };
     pose_estimates.push_back(poseStamped);
   }
@@ -93,7 +96,7 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
   }
 }
 
-Smoother::Smoother() : isam2()
+Smoother::Smoother() : isam2(new gtsam::ISAM2())
 {
 }
 
@@ -135,8 +138,8 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   }
   std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
 
-  auto prev_pose = isam2.calculateEstimate<gtsam::Pose3>(frame->id - 1);
-  auto prev_prev_pose = isam2.calculateEstimate<gtsam::Pose3>(frame->id - 2);
+  auto prev_pose = isam2->calculateEstimate<gtsam::Pose3>(frame->id - 1);
+  auto prev_prev_pose = isam2->calculateEstimate<gtsam::Pose3>(frame->id - 2);
   auto motion_delta = prev_prev_pose.between(prev_pose);
   auto motion_predicted_pose = prev_pose.compose(motion_delta);
 
@@ -146,7 +149,7 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   gtsam::ISAM2Result result;
   try
   {
-    result = isam2.update(new_factors, estimate);
+    result = isam2->update(new_factors, estimate);
   }
   catch (gtsam::CheiralityException& e)
   {
@@ -175,5 +178,5 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     }
   }
 
-  return Pose3Stamped{ .pose = ToPose(isam2.calculateEstimate<gtsam::Pose3>(frame->id)), .stamp = frame->timestamp };
+  return Pose3Stamped{ .pose = ToPose(isam2->calculateEstimate<gtsam::Pose3>(frame->id)), .stamp = frame->timestamp };
 }
