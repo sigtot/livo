@@ -25,7 +25,11 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
-    backend.Initialize(frontend.GetFrames(), frontend.GetTracks(), pose_estimates, landmark_estimates);
+    auto old_tracks = frontend.GetOldTracks();
+    auto tracks = frontend.GetActiveTracks();
+    tracks.insert(tracks.begin(), old_tracks.begin(), old_tracks.end());
+
+    backend.Initialize(frontend.GetFrames(), tracks, pose_estimates, landmark_estimates);
     for (auto& pose_stamped : pose_estimates)
     {
       nav_msgs::Odometry odometry_msg;
@@ -69,7 +73,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     landmark_publisher_.publish(markerArray);
   } else if (frontend.GetFrameCount() > 100) {
     std::vector<Point3> landmark_estimates;
-    auto pose_stamped = backend.Update(new_frame, frontend.GetTracks(), landmark_estimates);
+    auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);
     nav_msgs::Odometry odometry_msg;
     odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
     odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);

@@ -83,7 +83,8 @@ public:
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
 
-  std::vector<shared_ptr<Track>> GetTracks();
+  std::vector<shared_ptr<Track>> GetActiveTracks();
+  std::vector<shared_ptr<Track>> GetOldTracks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

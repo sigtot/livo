@@ -514,13 +514,19 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   }
 }
 
-std::vector<shared_ptr<Track>> FeatureExtractor::GetTracks()
-{
-  return active_tracks_;
-}
 bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
 {
   double padding_x = width * padding_percentage;
   double padding_y = height * padding_percentage;
   return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
+}
+
+std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveTracks()
+{
+  return active_tracks_;
+}
+
+std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
+{
+  return old_tracks_;
 }
