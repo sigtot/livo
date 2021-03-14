@@ -8,7 +8,7 @@ match_max_distance: 20.0
 
 feature_extraction_interval: 20
 track_count_lower_thresh: 50
-track_nms_squared_dist_thresh: 400.
+track_nms_squared_dist_thresh: 1200.
 min_track_length_for_smoothing: 15
 image_edge_padding_percent: .05
 

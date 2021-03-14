@@ -86,9 +86,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       for (int i = 1; i < track->features.size(); ++i)
       {
-        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, Scalar(0, 255, 0), 2);
+        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, Scalar(0, 255, 0), 1);
       }
-      cv::circle(tracks_out_img.image, track->features.back().pt, 5, Scalar(0, 255, 0), -1);
+      cv::circle(tracks_out_img.image, track->features.back().pt, 5, Scalar(0, 255, 0), 1);
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
