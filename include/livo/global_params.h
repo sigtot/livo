@@ -20,11 +20,12 @@ private:
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
   double match_max_distance_ = 20;
-  int min_track_length_for_smoothing_ = 15;
 
   int feature_extraction_interval_ = 5;
   int track_count_lower_thresh_ = 100;
   double track_nms_squared_dist_thresh_ = 16.;
+  int min_track_length_for_smoothing_ = 15;
+  double image_edge_padding_percent_ = 0.05;
 
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
@@ -49,6 +50,7 @@ public:
   static int TrackCountLowerThresh();
   static double TrackNMSSquaredDistThresh();
   static int MinTrackLengthForSmoothing();
+  static double ImageEdgePaddingPercent();
 
   static double CamFx();
   static double CamFy();
