@@ -12,8 +12,9 @@
 #include <pose3_stamped.h>
 #include <global_params.h>
 
-void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, std::vector<shared_ptr<Track>> tracks,
-                          std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
+void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
+                          const std::vector<shared_ptr<Track>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
+                          std::vector<Point3>& landmark_estimates)
 {
   std::cout << "Let's process those" << tracks.size() << " tracks!" << std::endl;
   gtsam::NonlinearFactorGraph graph;
@@ -45,7 +46,7 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, std
   auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
-    if (track->features.size() < 30)
+    if (track->features.size() < GlobalParams::MinTrackLengthForSmoothing())
     {
       continue;
     }
@@ -61,10 +62,6 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, std
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
-  // initialize values off from ground truth
-  gtsam::Pose3 gt_offset(gtsam::Rot3::Rodrigues(-0.1, 0.2, 0.25), gtsam::Point3(0.05, -0.10, 0.20));
-  // or exactly on ground truth?
-  // gtsam::Pose3 gt_offset(gtsam::Rot3(), gtsam::Point3::Zero());
   std::vector<gtsam::Pose3> initial_poses;
   initial_poses.push_back(gtsam_prior_0);
   initial_poses.push_back(gtsam_prior_1);
@@ -98,4 +95,85 @@ void Smoother::Initialize(const std::vector<std::shared_ptr<Frame>>& frames, std
 
 Smoother::Smoother() : isam2()
 {
+}
+
+Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<shared_ptr<Track>>& tracks,
+                              vector<Point3>& landmark_estimates)
+{
+  gtsam::NonlinearFactorGraph new_factors;
+
+  gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
+                                                  GlobalParams::CamU0(), GlobalParams::CamV0()));
+
+  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+  for (auto& track : tracks)
+  {
+    if (track->features.size() == GlobalParams::MinTrackLengthForSmoothing())  // < short tracks have not been added
+                                                                               // yet, so add them now
+    {
+      std::cout << "initializing landmark " << track->id << " with " << track->features.size() << " observations"
+                << std::endl;
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(measurementNoise, K, body_P_sensor));
+      for (auto& feature : track->features)
+      {
+        auto pt = feature.pt;
+        smart_factor->add(gtsam::Point2(pt.x, pt.y), feature.frame->id);
+      }
+      smart_factors_[track->id] = smart_factor;
+      new_factors.add(smart_factor);
+    }
+    else if (track->features.size() > GlobalParams::MinTrackLengthForSmoothing())
+    {
+      auto pt = track->features.back().pt;
+      smart_factors_[track->id]->add(gtsam::Point2(pt.x, pt.y), track->features.back().frame->id);
+    }
+    else
+    {
+      continue;
+    }
+  }
+  std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
+
+  auto prev_pose = isam2.calculateEstimate<gtsam::Pose3>(frame->id - 1);
+  auto prev_prev_pose = isam2.calculateEstimate<gtsam::Pose3>(frame->id - 2);
+  auto motion_delta = prev_prev_pose.between(prev_pose);
+  auto motion_predicted_pose = prev_pose.compose(motion_delta);
+
+  gtsam::Values estimate;
+  estimate.insert(frame->id, motion_predicted_pose);
+
+  gtsam::ISAM2Result result;
+  try
+  {
+    result = isam2.update(new_factors, estimate);
+  }
+  catch (gtsam::CheiralityException& e)
+  {
+    std::cout << "nearby variable: " << e.nearbyVariable() << std::endl;
+      for (auto& track : tracks)
+      {
+        if (track->features.size() == GlobalParams::MinTrackLengthForSmoothing())  // the tracks that were added
+        {
+          std::cout << "track " << track->id << ":";
+          for (auto& feature : track->features) {
+            std::cout << feature.pt << ", ";
+          }
+          std::cout << std::endl;
+        }
+      }
+    throw;
+  }
+  result.print("isam2 result");
+
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
+    if (point)
+    {  // ignore if boost::optional returns nullptr
+      landmark_estimates.push_back(ToPoint(*point));
+    }
+  }
+
+  return Pose3Stamped{ .pose = ToPose(isam2.calculateEstimate<gtsam::Pose3>(frame->id)), .stamp = frame->timestamp };
 }

@@ -21,16 +21,13 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend.lkCallback(msg);
 
-  if (frontend.GetFrameCount() > 100)
+  if (frontend.GetFrameCount() == 100)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
     backend.Initialize(frontend.GetFrames(), frontend.GetTracks(), pose_estimates, landmark_estimates);
-    std::cout << "poses:" << std::endl;
     for (auto& pose_stamped : pose_estimates)
     {
-      std::cout << "[" << pose_stamped.pose.point.x << ", " << pose_stamped.pose.point.y << ", "
-                << pose_stamped.pose.point.z << "]" << std::endl;
       nav_msgs::Odometry odometry_msg;
       odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
       odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
@@ -39,12 +36,10 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    std::cout << "landmarks:" << std::endl;
     visualization_msgs::MarkerArray markerArray;
     for (int i = 0; i < landmark_estimates.size(); ++i)
     {
       auto landmark = landmark_estimates[i];
-      std::cout << "[" << landmark.x << ", " << landmark.y << ", " << landmark.z << "]" << std::endl;
 
       visualization_msgs::Marker marker;
       marker.pose.position = ToPointMsg(landmark);
@@ -72,7 +67,46 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);
-    exit(0);
+  } else if (frontend.GetFrameCount() > 100) {
+    std::vector<Point3> landmark_estimates;
+    auto pose_stamped = backend.Update(new_frame, frontend.GetTracks(), landmark_estimates);
+    nav_msgs::Odometry odometry_msg;
+    odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
+    odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
+    odometry_msg.header.frame_id = "world";
+    pose_publisher_.publish(odometry_msg);
+
+    visualization_msgs::MarkerArray markerArray;
+    for (int i = 0; i < landmark_estimates.size(); ++i)
+    {
+      auto landmark = landmark_estimates[i];
+
+      visualization_msgs::Marker marker;
+      marker.pose.position = ToPointMsg(landmark);
+
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
+
+      marker.scale.x = 0.2;
+      marker.scale.y = 0.2;
+      marker.scale.z = 0.2;
+
+      marker.color.r = 0.0f;
+      marker.color.g = 1.0f;
+      marker.color.b = 0.0f;
+      marker.color.a = 1.0f;
+
+      marker.action = visualization_msgs::Marker::ADD;
+      marker.type = visualization_msgs::Marker::CUBE;
+      marker.id = i;
+      marker.ns = "landmarks";
+      marker.header.stamp = ros::Time(new_frame->timestamp);
+      marker.header.frame_id = "world";
+      markerArray.markers.push_back(marker);
+    }
+    landmark_publisher_.publish(markerArray);
   }
   /*
   shared_ptr<Frame> new_frame = frontend.imageCallback(msg);
