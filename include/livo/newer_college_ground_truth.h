@@ -13,6 +13,7 @@ private:
 
   NewerCollegeGroundTruth() = default;
   static NewerCollegeGroundTruth& GetInstance();
+  static Pose3 Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, double to_ts, double target_ts);
 
 public:
   NewerCollegeGroundTruth(NewerCollegeGroundTruth const&) = delete;

@@ -1,11 +1,15 @@
 #include "newer_college_ground_truth.h"
+#include "gtsam_conversions.h"
+
 #include <map>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <array>
 #include <sstream>
-#include <gtsam_conversions.h>
+
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/base/Lie.h>
 
 double THRESH = 0.4;
 
@@ -15,10 +19,14 @@ Pose3 NewerCollegeGroundTruth::At(double timestamp)
   auto gt_it = GetInstance().gt_.upper_bound(timestamp);
   if (gt_it != GetInstance().gt_.end())
   {
+    auto ts_after = gt_it->first;
+    auto pose_after = gt_it->second;
     --gt_it;
     if (gt_it != GetInstance().gt_.end() && std::abs(gt_it->first - timestamp) < THRESH)
     {
-      return gt_it->second;
+      auto ts_before = gt_it->first;
+      auto pose_before = gt_it->second;
+      return Interpolate(pose_before, pose_after, ts_before, ts_after, timestamp);
     }
   }
 
@@ -65,4 +73,18 @@ void NewerCollegeGroundTruth::LoadFromFile(const std::string& filename)
     GetInstance().gt_.insert({ ts, pose });
   }
   f.close();
+}
+
+Pose3 NewerCollegeGroundTruth::Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, double to_ts,
+                                           double target_ts)
+{
+  assert(from_ts < to_ts);
+  assert(from_ts < target_ts);
+  assert(target_ts < to_ts);
+  gtsam::Pose3 gtsam_from_pose = ToGtsamPose(from_pose);
+  gtsam::Pose3 gtsam_to_pose = ToGtsamPose(to_pose);
+  double t = (target_ts - from_ts) / (to_ts - from_ts);
+
+  // X o Exp(t * Log(between(X, Y)))
+  return ToPose(gtsam::interpolate(gtsam_from_pose, gtsam_to_pose, t));
 }
