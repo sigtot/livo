@@ -7,10 +7,12 @@ ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment
 match_max_distance: 20.0
 
 feature_extraction_interval: 20
-track_count_lower_thresh: 50
+track_count_lower_thresh: 100
 track_nms_squared_dist_thresh: 1200.
-min_track_length_for_smoothing: 15
+min_track_length_for_smoothing: 10
 image_edge_padding_percent: .05
+
+timeshift_cam_imu: 0.01379378638037798
 
 cam_fx: 431.38739114
 cam_fy: 430.24961762

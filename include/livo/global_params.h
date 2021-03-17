@@ -27,6 +27,8 @@ private:
   int min_track_length_for_smoothing_ = 15;
   double image_edge_padding_percent_ = 0.05;
 
+  double timeshift_cam_imu_ = 0.01379378638037798;
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -51,6 +53,8 @@ public:
   static double TrackNMSSquaredDistThresh();
   static int MinTrackLengthForSmoothing();
   static double ImageEdgePaddingPercent();
+
+  static double TimeshiftCamImu();
 
   static double CamFx();
   static double CamFy();

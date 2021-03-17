@@ -39,6 +39,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_track_length_for_smoothing", GetInstance().min_track_length_for_smoothing_);
   ReadVariable(nh, "/orb_test_node/image_edge_padding_percent", GetInstance().image_edge_padding_percent_);
 
+  ReadVariable(nh, "/orb_test_node/timeshift_cam_imu", GetInstance().timeshift_cam_imu_);
+
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
   ReadVariable(nh, "/orb_test_node/cam_u0", GetInstance().cam_u0_);
@@ -86,6 +88,11 @@ int GlobalParams::TrackCountLowerThresh()
 double GlobalParams::TrackNMSSquaredDistThresh()
 {
   return GetInstance().track_nms_squared_dist_thresh_;
+}
+
+double GlobalParams::TimeshiftCamImu()
+{
+  return GetInstance().timeshift_cam_imu_;
 }
 
 double GlobalParams::CamFx()
