@@ -24,9 +24,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   new_frame->image = img_resized;
   new_frame->id = frame_count_++;
   new_frame->timestamp = msg->header.stamp.toSec();
+  new_frame->stationary = true; // Assume stationary at first
 
   if (!frames.empty())
   {
+    // Obtain prev image and points
     auto prev_img = frames.back()->image;
     vector<cv::Point2f> prev_points;
     for (const auto& track : active_tracks_)
@@ -34,12 +36,14 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       prev_points.push_back(track->features.back().pt);
     }
 
+    // Use optical flow to calculate new point predictions
     vector<cv::Point2f> new_points;
     vector<uchar> status;
     vector<float> err;
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
     cv::calcOpticalFlowPyrLK(prev_img, img_resized, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
 
+    // Discard bad points
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
          --i)  // iterate backwards to not mess up vector when erasing
     {
@@ -54,10 +58,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       }
     }
 
+    // Discard RANSAC outliers
     vector<uchar> inlier_mask;
-
     findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
-
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
          --i)  // iterate backwards to not mess up vector when erasing
     {
@@ -75,6 +78,19 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       }
     }
 
+    double total_dist = 0;
+    for (size_t i = 0; i < new_points.size(); ++i)
+    {
+      auto d_vec = (prev_points[i] - new_points[i]);
+      double d = std::sqrt(d_vec.dot(d_vec));
+      total_dist += d;
+    }
+    double average_dist = total_dist / new_points.size();
+
+    if (!frames.back()->stationary || average_dist > GlobalParams::StationaryThresh()) {
+      new_frame->stationary = false;
+    }
+
     // PUBLISH LANDMARK IMAGE. TODO: Move to separate fn
     cv_bridge::CvImage tracks_out_img;
     tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
@@ -82,13 +98,15 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
+    auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 255, 0);
+
     for (const auto& track : active_tracks_)
     {
       for (int i = 1; i < track->features.size(); ++i)
       {
-        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, Scalar(0, 255, 0), 1);
+        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, color, 1);
       }
-      cv::circle(tracks_out_img.image, track->features.back().pt, 5, Scalar(0, 255, 0), 1);
+      cv::circle(tracks_out_img.image, track->features.back().pt, 5, color, 1);
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
@@ -419,6 +437,18 @@ int FeatureExtractor::GetFrameCount()
   return frames.size();
 }
 
+bool cellIsInCenter(int cell, int cell_count)
+{
+  if (cell_count % 2 == 0)
+  {
+    return cell == cell_count / 2 || cell == cell_count / 2 - 1;
+  }
+  else
+  {
+    return cell == cell_count / 2;
+  }
+}
+
 void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                                       int cell_count_y, int max_features_per_cell, double quality_level,
                                                       double min_distance)
@@ -429,6 +459,13 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
   {
     for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
     {
+      /*
+      if (cellIsInCenter(cell_x, cell_count_x) && cellIsInCenter(cell_y, cell_count_y))
+      {
+        std::cout << "skipping cell" << cell_x << "," << cell_y << " because it is in the center" << std::endl;
+        continue;
+      }
+       */
       cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
       cv::Mat roi = img(mask);
       vector<cv::Point2f> corners_in_roi;

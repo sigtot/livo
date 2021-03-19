@@ -26,6 +26,7 @@ private:
   double track_nms_squared_dist_thresh_ = 16.;
   int min_track_length_for_smoothing_ = 15;
   double image_edge_padding_percent_ = 0.05;
+  double stationary_thresh_ = 0.5;
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -53,6 +54,7 @@ public:
   static double TrackNMSSquaredDistThresh();
   static int MinTrackLengthForSmoothing();
   static double ImageEdgePaddingPercent();
+  static double StationaryThresh();
 
   static double TimeshiftCamImu();
 

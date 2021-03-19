@@ -18,6 +18,7 @@ struct Frame
   std::vector<std::weak_ptr<Landmark>> new_landmarks;
   int id;
   double timestamp;
+  bool stationary;
 };
 
 #endif

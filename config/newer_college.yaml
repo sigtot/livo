@@ -11,6 +11,7 @@ track_count_lower_thresh: 100
 track_nms_squared_dist_thresh: 1200.
 min_track_length_for_smoothing: 10
 image_edge_padding_percent: .05
+stationary_thresh: 0.5
 
 timeshift_cam_imu: 0.01379378638037798
 
