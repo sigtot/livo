@@ -6,6 +6,8 @@
 #include "ORBextractor.h"
 #include "landmark_match.h"
 #include "track.h"
+#include "keyframe_transform.h"
+#include "../../src/keyframe_tracker.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -41,6 +43,8 @@ private:
   std::vector<std::shared_ptr<Track>> old_tracks_;
 
   ORB_SLAM::ORBextractor orb_extractor;
+
+  shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
 
   static void getMatches(const Mat& query_descriptors, const vector<KeyPoint>& query_keypoints,
                          const cv::Mat& train_descriptors, const vector<KeyPoint>& train_keypoints,
@@ -86,6 +90,9 @@ public:
 
   std::vector<shared_ptr<Track>> GetActiveTracks();
   std::vector<shared_ptr<Track>> GetOldTracks();
+
+  vector<KeyframeTransform> GetKeyframeTransforms() const;
+  bool ReadyForInitialization() const;
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

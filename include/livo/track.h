@@ -9,6 +9,7 @@
 struct Track
 {
   std::vector<std::shared_ptr<Feature>> features;
+  std::vector<std::shared_ptr<Feature>> key_features;
   int id;
 
   explicit Track(std::vector<std::shared_ptr<Feature>> features) : features(std::move(features))

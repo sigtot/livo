@@ -139,7 +139,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/ORBextractor.cc src/try_project_debug.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp include/livo/gtsam_helpers.h src/imu_queue.cpp include/livo/imu_queue.h)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/ORBextractor.cc src/try_project_debug.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp include/livo/gtsam_helpers.h src/imu_queue.cpp include/livo/imu_queue.h include/ORB_SLAM/Initializer.h src/Initializer.cpp include/livo/keyframe_transform.h src/keyframe_tracker.cpp src/keyframe_tracker.h)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

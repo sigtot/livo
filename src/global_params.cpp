@@ -33,6 +33,10 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/landmark_matching_window", GetInstance().landmark_matching_window_);
   ReadVariable(nh, "/orb_test_node/ground_truth_file", GetInstance().ground_truth_file_);
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
+  ReadVariable(nh, "/orb_test_node/init_keyframe_interval", GetInstance().init_keyframe_interval_);
+  ReadVariable(nh, "/orb_test_node/num_good_keyframes_for_initialization",
+               GetInstance().num_good_keyframes_for_initialization_);
+
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
   ReadVariable(nh, "/orb_test_node/track_nms_squared_dist_thresh", GetInstance().track_nms_squared_dist_thresh_);
@@ -159,6 +163,14 @@ double GlobalParams::CamV0()
 double GlobalParams::MatchMaxDistance()
 {
   return GetInstance().match_max_distance_;
+}
+int GlobalParams::InitKeyframeInterval()
+{
+  return GetInstance().init_keyframe_interval_;
+}
+int GlobalParams::NumGoodKeyframesForInitialization()
+{
+  return GetInstance().num_good_keyframes_for_initialization_;
 }
 int GlobalParams::MinTrackLengthForSmoothing()
 {

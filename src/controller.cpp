@@ -22,6 +22,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
+  if (frontend.ReadyForInitialization()) {
+    std::cout << "Ready for initialization!" << std::endl;
+  }
 
   /*
   if (frontend.GetFrameCount() == 501) {
@@ -50,7 +53,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     backend.InitIMU(frontend.GetFrames());
   }
 
-  if (backend.GetStatus() == kIMUInitialized && frontend.GetNonStationaryFrames().size() == 1001)
+  if (backend.GetStatus() == kIMUInitialized && frontend.GetNonStationaryFrames().size() == 1001 && false)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
@@ -103,7 +106,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     landmark_publisher_.publish(markerArray);
   }
 
-  else if (backend.GetStatus() == kLandmarksInitialized)
+  else if (backend.GetStatus() == kLandmarksInitialized && false)
   {
     std::vector<Point3> landmark_estimates;
     auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);

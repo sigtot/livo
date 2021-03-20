@@ -27,12 +27,12 @@
 namespace ORB_SLAM
 {
 double CheckFundamental(const cv::Mat& F21, std::vector<bool>& vbMatchesInliers,
-                       std::vector<cv::Point2f>& referencePoints, std::vector<cv::Point2f>& currentPoints,
-                       double sigma = 1.0);
+                        const std::vector<cv::Point2f>& referencePoints, const std::vector<cv::Point2f>& currentPoints,
+                        double sigma = 1.0);
 
 double CheckHomography(const cv::Mat& H21, const cv::Mat& H12, std::vector<bool>& vbMatchesInliers,
                        const std::vector<cv::Point2f>& referencePoints, const std::vector<cv::Point2f>& currentPoints,
                        double sigma = 1.0);
-}
+}  // namespace ORB_SLAM
 
 #endif  // ORB_TEST_INCLUDE_ORB_SLAM_INITIALIZER_H_

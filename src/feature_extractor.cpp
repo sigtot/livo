@@ -5,6 +5,7 @@
 
 #include "global_params.h"
 #include "match_result.h"
+#include "Initializer.h"
 
 #include <algorithm>
 #include <utility>
@@ -24,7 +25,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   new_frame->image = img_resized;
   new_frame->id = frame_count_++;
   new_frame->timestamp = msg->header.stamp.toSec();
-  new_frame->stationary = true; // Assume stationary at first
+  new_frame->stationary = true;  // Assume stationary at first
 
   if (!frames.empty())
   {
@@ -87,17 +88,18 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
     double average_dist = total_dist / new_points.size();
 
-    if (!frames.back()->stationary || average_dist > GlobalParams::StationaryThresh()) {
+    if (!frames.back()->stationary || average_dist > GlobalParams::StationaryThresh())
+    {
       new_frame->stationary = false;
-      frames.back()->stationary = false; // When movement is registered between two frames, both are non-stationary
+      frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
 
     // Truncate the tracks because we're still stationary and the tracks contain no information
     if (new_frame->stationary)
     {
-      for (auto &track : active_tracks_ )
+      for (auto& track : active_tracks_)
       {
-        track->features = std::vector<std::shared_ptr<Feature>> {track->features.back()};
+        track->features = std::vector<std::shared_ptr<Feature>>{ track->features.back() };
       }
       old_tracks_.clear();
     }
@@ -123,23 +125,31 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     for (size_t i = 0; i < epilines.rows; ++i)
     {
-      if (std::abs(static_cast<double>(epilines.at<float>(i, 1))) > 0.01) {
-        double a = -static_cast<double>(epilines.at<float>(i, 0))/static_cast<double>(epilines.at<float>(i, 1));
-        double b = -static_cast<double>(epilines.at<float>(i, 2))/static_cast<double>(epilines.at<float>(i, 1));
+      if (std::abs(static_cast<double>(epilines.at<float>(i, 1))) > 0.01)
+      {
+        double a = -static_cast<double>(epilines.at<float>(i, 0)) / static_cast<double>(epilines.at<float>(i, 1));
+        double b = -static_cast<double>(epilines.at<float>(i, 2)) / static_cast<double>(epilines.at<float>(i, 1));
         cv::Point2f pt1(0, b);
-        cv::Point2f pt2(1000, a*1000 + b);
+        cv::Point2f pt2(1000, a * 1000 + b);
         cv::line(tracks_out_img.image, pt1, pt2, Scalar(150, 75, 75), 1);
-      } else {
+      }
+      else
+      {
         std::cout << "Cannot draw badly defined epiline." << std::endl;
       }
 
-      if (std::abs(static_cast<double>(epilines_prev.at<float>(i, 1))) > 0.01) {
-        double a = -static_cast<double>(epilines_prev.at<float>(i, 0))/static_cast<double>(epilines_prev.at<float>(i, 1));
-        double b = -static_cast<double>(epilines_prev.at<float>(i, 2))/static_cast<double>(epilines_prev.at<float>(i, 1));
+      if (std::abs(static_cast<double>(epilines_prev.at<float>(i, 1))) > 0.01)
+      {
+        double a =
+            -static_cast<double>(epilines_prev.at<float>(i, 0)) / static_cast<double>(epilines_prev.at<float>(i, 1));
+        double b =
+            -static_cast<double>(epilines_prev.at<float>(i, 2)) / static_cast<double>(epilines_prev.at<float>(i, 1));
         cv::Point2f pt1(0, b);
-        cv::Point2f pt2(1000, a*1000 + b);
+        cv::Point2f pt2(1000, a * 1000 + b);
         cv::line(tracks_out_img.image, pt1, pt2, Scalar(75, 75, 150), 1);
-      } else {
+      }
+      else
+      {
         std::cout << "Cannot draw badly defined prev epiline." << std::endl;
       }
     }
@@ -178,7 +188,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
                            GlobalParams::ImageEdgePaddingPercent()))
     {
       // TODO perf erase-remove?
-      if (active_tracks_[i]->features.size() >= 3) {
+      if (active_tracks_[i]->features.size() >= 3)
+      {
         old_tracks_.push_back(std::move(active_tracks_[i]));
       }
       active_tracks_.erase(active_tracks_.begin() + i);
@@ -186,6 +197,20 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   frames.push_back(new_frame);
+
+  if (!frames.back()->stationary && frames.size() > GlobalParams::InitKeyframeInterval() &&
+      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0)
+  {
+    if (keyframe_tracker_)
+    {
+      keyframe_tracker_->AddFrame(frames.back(), active_tracks_);
+    }
+    else
+    {
+      keyframe_tracker_ = std::make_shared<KeyframeTracker>(
+          frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_);
+    }
+  }
   return new_frame;
 }
 
@@ -627,4 +652,14 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveTracks()
 std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
 {
   return old_tracks_;
+}
+
+std::vector<KeyframeTransform> FeatureExtractor::GetKeyframeTransforms() const
+{
+  return keyframe_tracker_ ? keyframe_tracker_->GetKeyframeTransforms() : std::vector<KeyframeTransform>{};
+}
+
+bool FeatureExtractor::ReadyForInitialization() const
+{
+  return keyframe_tracker_ && keyframe_tracker_->GoodForInitialization();
 }

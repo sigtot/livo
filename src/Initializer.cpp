@@ -23,7 +23,7 @@
 namespace ORB_SLAM
 {
 double CheckFundamental(const cv::Mat& F21, std::vector<bool>& vbMatchesInliers,
-                        std::vector<cv::Point2f>& referencePoints, std::vector<cv::Point2f>& currentPoints,
+                        const std::vector<cv::Point2f>& referencePoints, const std::vector<cv::Point2f>& currentPoints,
                         double sigma)
 {
   assert(referencePoints.size() == currentPoints.size());

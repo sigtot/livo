@@ -27,6 +27,8 @@ private:
   int min_track_length_for_smoothing_ = 15;
   double image_edge_padding_percent_ = 0.05;
   double stationary_thresh_ = 0.5;
+  int init_keyframe_interval_ = 6;
+  int num_good_keyframes_for_initialization_ = 20;
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -58,6 +60,8 @@ public:
   static int LandmarkMatchingWindow();
   static std::string GroundTruthFile();
   static double MatchMaxDistance();
+  static int InitKeyframeInterval();
+  static int NumGoodKeyframesForInitialization();
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();
