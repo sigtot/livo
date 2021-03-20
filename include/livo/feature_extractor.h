@@ -80,6 +80,7 @@ public:
   int GetFrameCount();
 
   vector<shared_ptr<Frame>> GetFrames();
+  vector<shared_ptr<Frame>> GetNonStationaryFrames();
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
 

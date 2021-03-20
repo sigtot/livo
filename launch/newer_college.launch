@@ -4,6 +4,7 @@
     <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
   </node>
 
-  <node pkg="tf" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 1 world camera_infra1_frame 100" />
+  <node pkg="tf" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 1 world camera_link 100" />
+
 
 </launch>

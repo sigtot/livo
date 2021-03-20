@@ -8,10 +8,10 @@
 
 struct Track
 {
-  std::vector<Feature> features;
+  std::vector<std::shared_ptr<Feature>> features;
   int id;
 
-  explicit Track(std::vector<Feature> features) : features(std::move(features))
+  explicit Track(std::vector<std::shared_ptr<Feature>> features) : features(std::move(features))
   {
     static int counter = 0;
     id = counter++;

@@ -30,6 +30,16 @@ private:
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
+  // For explanation and units, see https://github.com/borglab/gtsam/issues/213
+  double imu_g_ = 9.81000;
+  double imu_n_gravity_x_ = 0.;
+  double imu_n_gravity_y_ = 0.;
+  double imu_n_gravity_z_ = -9.81;
+  double imu_accel_noise_density_ = 0.1;
+  double imu_gyro_noise_density_ = 0.1;
+  double imu_accel_random_walk_ = 0.01;
+  double imu_gyro_random_walk_ = 0.01;
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -56,7 +66,15 @@ public:
   static double ImageEdgePaddingPercent();
   static double StationaryThresh();
 
-  static double TimeshiftCamImu();
+  static double TimeshiftCamImu(); // t_imu = t_cam + shift
+  static double IMUG();
+  static double IMUNGravityX();
+  static double IMUNGravityY();
+  static double IMUNGravityZ();
+  static double IMUAccelNoiseDensity();
+  static double IMUGyroNoiseDensity();
+  static double IMUAccelRandomWalk();
+  static double IMUGyroRandomWalk();
 
   static double CamFx();
   static double CamFy();

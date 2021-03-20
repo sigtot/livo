@@ -41,6 +41,14 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/stationary_thresh", GetInstance().stationary_thresh_);
 
   ReadVariable(nh, "/orb_test_node/timeshift_cam_imu", GetInstance().timeshift_cam_imu_);
+  ReadVariable(nh, "/orb_test_node/imu_g", GetInstance().imu_g_);
+  ReadVariable(nh, "/orb_test_node/imu_n_gravity_x", GetInstance().imu_n_gravity_x_);
+  ReadVariable(nh, "/orb_test_node/imu_n_gravity_y", GetInstance().imu_n_gravity_y_);
+  ReadVariable(nh, "/orb_test_node/imu_n_gravity_z", GetInstance().imu_n_gravity_z_);
+  ReadVariable(nh, "/orb_test_node/imu_accel_noise_density", GetInstance().imu_accel_noise_density_);
+  ReadVariable(nh, "/orb_test_node/imu_gyro_noise_density", GetInstance().imu_gyro_noise_density_);
+  ReadVariable(nh, "/orb_test_node/imu_accel_random_walk", GetInstance().imu_accel_random_walk_);
+  ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -98,6 +106,38 @@ double GlobalParams::StationaryThresh()
 double GlobalParams::TimeshiftCamImu()
 {
   return GetInstance().timeshift_cam_imu_;
+}
+double GlobalParams::IMUAccelNoiseDensity()
+{
+  return GetInstance().imu_accel_noise_density_;
+}
+double GlobalParams::IMUGyroNoiseDensity()
+{
+  return GetInstance().imu_gyro_noise_density_;
+}
+double GlobalParams::IMUAccelRandomWalk()
+{
+  return GetInstance().imu_accel_random_walk_;
+}
+double GlobalParams::IMUGyroRandomWalk()
+{
+  return GetInstance().imu_gyro_random_walk_;
+}
+double GlobalParams::IMUG()
+{
+  return GetInstance().imu_g_;
+}
+double GlobalParams::IMUNGravityX()
+{
+  return GetInstance().imu_n_gravity_x_;
+}
+double GlobalParams::IMUNGravityY()
+{
+  return GetInstance().imu_n_gravity_y_;
+}
+double GlobalParams::IMUNGravityZ()
+{
+  return GetInstance().imu_n_gravity_z_;
 }
 
 double GlobalParams::CamFx()

@@ -12,7 +12,8 @@
 #include <thread>
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& posePublisher, ros::Publisher& landmarkPublisher)
+Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& posePublisher,
+                       ros::Publisher& landmarkPublisher)
   : frontend(frontend), backend(backend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
 {
 }
@@ -20,8 +21,36 @@ Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publi
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend.lkCallback(msg);
+  std::cout << "frame " << new_frame->id << std::endl;
 
-  if (frontend.GetFrameCount() == 100)
+  /*
+  if (frontend.GetFrameCount() == 501) {
+    std::vector<Pose3Stamped> pose_estimates;
+    auto old_tracks = frontend.GetOldTracks();
+    auto tracks = frontend.GetActiveTracks();
+    tracks.insert(tracks.begin(), old_tracks.begin(), old_tracks.end());
+
+    backend.InitIMUOnly(frontend.GetFrames(), tracks, pose_estimates);
+
+    for (auto& pose_stamped : pose_estimates)
+    {
+      nav_msgs::Odometry odometry_msg;
+      odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
+      odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
+      odometry_msg.header.frame_id = "world";
+      pose_publisher_.publish(odometry_msg);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    exit(0);
+  }
+   */
+
+  if (backend.GetStatus() == kUninitialized && !new_frame->stationary) {
+    backend.InitIMU(frontend.GetFrames());
+  }
+
+  if (backend.GetStatus() == kIMUInitialized && frontend.GetNonStationaryFrames().size() == 1001)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
@@ -29,7 +58,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     auto tracks = frontend.GetActiveTracks();
     tracks.insert(tracks.begin(), old_tracks.begin(), old_tracks.end());
 
-    backend.Initialize(frontend.GetFrames(), tracks, pose_estimates, landmark_estimates);
+    backend.InitializeLandmarks(frontend.GetFrames(), tracks, pose_estimates, landmark_estimates);
     for (auto& pose_stamped : pose_estimates)
     {
       nav_msgs::Odometry odometry_msg;
@@ -41,6 +70,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     }
 
     visualization_msgs::MarkerArray markerArray;
+    std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
     for (int i = 0; i < landmark_estimates.size(); ++i)
     {
       auto landmark = landmark_estimates[i];
@@ -53,9 +83,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       marker.pose.orientation.z = 0.0;
       marker.pose.orientation.w = 1.0;
 
-      marker.scale.x = 0.2;
-      marker.scale.y = 0.2;
-      marker.scale.z = 0.2;
+      marker.scale.x = 0.1;
+      marker.scale.y = 0.1;
+      marker.scale.z = 0.1;
 
       marker.color.r = 0.0f;
       marker.color.g = 1.0f;
@@ -71,7 +101,10 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);
-  } else if (frontend.GetFrameCount() > 100) {
+  }
+
+  else if (backend.GetStatus() == kLandmarksInitialized)
+  {
     std::vector<Point3> landmark_estimates;
     auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);
     nav_msgs::Odometry odometry_msg;
@@ -93,9 +126,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       marker.pose.orientation.z = 0.0;
       marker.pose.orientation.w = 1.0;
 
-      marker.scale.x = 0.2;
-      marker.scale.y = 0.2;
-      marker.scale.z = 0.2;
+      marker.scale.x = 0.1;
+      marker.scale.y = 0.1;
+      marker.scale.z = 0.1;
 
       marker.color.r = 0.0f;
       marker.color.g = 1.0f;

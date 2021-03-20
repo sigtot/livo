@@ -33,7 +33,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<cv::Point2f> prev_points;
     for (const auto& track : active_tracks_)
     {
-      prev_points.push_back(track->features.back().pt);
+      prev_points.push_back(track->features.back()->pt);
     }
 
     // Use optical flow to calculate new point predictions
@@ -60,13 +60,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     // Discard RANSAC outliers
     vector<uchar> inlier_mask;
-    findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
+    auto F = findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
          --i)  // iterate backwards to not mess up vector when erasing
     {
       if (inlier_mask[i])
       {
-        active_tracks_[i]->features.push_back(Feature{ .frame = new_frame, .pt = new_points[i] });
+        active_tracks_[i]->features.push_back(std::make_shared<Feature>(new_frame, new_points[i]));
       }
       else
       {
@@ -89,6 +89,17 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     if (!frames.back()->stationary || average_dist > GlobalParams::StationaryThresh()) {
       new_frame->stationary = false;
+      frames.back()->stationary = false; // When movement is registered between two frames, both are non-stationary
+    }
+
+    // Truncate the tracks because we're still stationary and the tracks contain no information
+    if (new_frame->stationary)
+    {
+      for (auto &track : active_tracks_ )
+      {
+        track->features = std::vector<std::shared_ptr<Feature>> {track->features.back()};
+      }
+      old_tracks_.clear();
     }
 
     // PUBLISH LANDMARK IMAGE. TODO: Move to separate fn
@@ -98,15 +109,50 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
+    cv::Mat epilines;
+    cv::computeCorrespondEpilines(prev_points, 1, F, epilines);
+
+    cv::Mat epilines_prev;
+    cv::computeCorrespondEpilines(new_points, 2, F, epilines_prev);
+
+    /*
+    if (frame_count_ >= GlobalParams::MinTrackLengthForSmoothing()) {
+      frames[frame_count_ - GlobalParams::MinTrackLengthForSmoothing()].
+    }
+     */
+
+    for (size_t i = 0; i < epilines.rows; ++i)
+    {
+      if (std::abs(static_cast<double>(epilines.at<float>(i, 1))) > 0.01) {
+        double a = -static_cast<double>(epilines.at<float>(i, 0))/static_cast<double>(epilines.at<float>(i, 1));
+        double b = -static_cast<double>(epilines.at<float>(i, 2))/static_cast<double>(epilines.at<float>(i, 1));
+        cv::Point2f pt1(0, b);
+        cv::Point2f pt2(1000, a*1000 + b);
+        cv::line(tracks_out_img.image, pt1, pt2, Scalar(150, 75, 75), 1);
+      } else {
+        std::cout << "Cannot draw badly defined epiline." << std::endl;
+      }
+
+      if (std::abs(static_cast<double>(epilines_prev.at<float>(i, 1))) > 0.01) {
+        double a = -static_cast<double>(epilines_prev.at<float>(i, 0))/static_cast<double>(epilines_prev.at<float>(i, 1));
+        double b = -static_cast<double>(epilines_prev.at<float>(i, 2))/static_cast<double>(epilines_prev.at<float>(i, 1));
+        cv::Point2f pt1(0, b);
+        cv::Point2f pt2(1000, a*1000 + b);
+        cv::line(tracks_out_img.image, pt1, pt2, Scalar(75, 75, 150), 1);
+      } else {
+        std::cout << "Cannot draw badly defined prev epiline." << std::endl;
+      }
+    }
+
     auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 255, 0);
 
     for (const auto& track : active_tracks_)
     {
       for (int i = 1; i < track->features.size(); ++i)
       {
-        cv::line(tracks_out_img.image, track->features[i - 1].pt, track->features[i].pt, color, 1);
+        cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
       }
-      cv::circle(tracks_out_img.image, track->features.back().pt, 5, color, 1);
+      cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
@@ -120,19 +166,21 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      active_tracks_.push_back(
-          std::make_shared<Track>(std::vector<Feature>{ Feature{ .frame = new_frame, .pt = corner } }));
+      active_tracks_.push_back(std::make_shared<Track>(
+          std::vector<std::shared_ptr<Feature>>{ std::make_shared<Feature>(new_frame, corner) }));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
-    if (IsCloseToImageEdge(active_tracks_[i]->features.back().pt, img_resized.cols, img_resized.rows,
+    if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_resized.cols, img_resized.rows,
                            GlobalParams::ImageEdgePaddingPercent()))
     {
       // TODO perf erase-remove?
-      old_tracks_.push_back(std::move(active_tracks_[i]));
+      if (active_tracks_[i]->features.size() >= 3) {
+        old_tracks_.push_back(std::move(active_tracks_[i]));
+      }
       active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
@@ -504,6 +552,19 @@ vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
   return frames;
 }
 
+vector<shared_ptr<Frame>> FeatureExtractor::GetNonStationaryFrames()
+{
+  vector<shared_ptr<Frame>> non_stationary_frames;
+  for (auto& frame : frames)
+  {
+    if (!frame->stationary)
+    {
+      non_stationary_frames.push_back(frame);
+    }
+  }
+  return non_stationary_frames;
+}
+
 map<int, shared_ptr<Landmark>> FeatureExtractor::GetLandmarks()
 {
   return landmarks;
@@ -539,7 +600,7 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
   {
     for (int j = static_cast<int>(active_tracks_.size()) - 1; j > i; --j)
     {
-      auto d_vec = (active_tracks_[i]->features.back().pt - active_tracks_[j]->features.back().pt);
+      auto d_vec = (active_tracks_[i]->features.back()->pt - active_tracks_[j]->features.back()->pt);
       double d2 = d_vec.dot(d_vec);
       if (d2 < squared_dist_thresh)
       {
