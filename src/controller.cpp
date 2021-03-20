@@ -23,7 +23,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   auto new_frame = frontend.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
   if (frontend.ReadyForInitialization()) {
-    std::cout << "Ready for initialization!" << std::endl;
+    std::cout << "R_H good. Ready for initialization!" << std::endl;
   }
 
   /*
@@ -53,15 +53,13 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     backend.InitIMU(frontend.GetFrames());
   }
 
-  if (backend.GetStatus() == kIMUInitialized && frontend.GetNonStationaryFrames().size() == 1001 && false)
+  if (backend.GetStatus() == kIMUInitialized && frontend.ReadyForInitialization())
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
-    auto old_tracks = frontend.GetOldTracks();
     auto tracks = frontend.GetActiveTracks();
-    tracks.insert(tracks.begin(), old_tracks.begin(), old_tracks.end());
 
-    backend.InitializeLandmarks(frontend.GetFrames(), tracks, pose_estimates, landmark_estimates);
+    backend.InitializeLandmarks(frontend.GetGoodKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
     for (auto& pose_stamped : pose_estimates)
     {
       nav_msgs::Odometry odometry_msg;
@@ -104,6 +102,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);
+    exit(0);
   }
 
   else if (backend.GetStatus() == kLandmarksInitialized && false)

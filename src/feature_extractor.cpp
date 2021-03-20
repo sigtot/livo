@@ -111,49 +111,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
-    cv::Mat epilines;
-    cv::computeCorrespondEpilines(prev_points, 1, F, epilines);
-
-    cv::Mat epilines_prev;
-    cv::computeCorrespondEpilines(new_points, 2, F, epilines_prev);
-
-    /*
-    if (frame_count_ >= GlobalParams::MinTrackLengthForSmoothing()) {
-      frames[frame_count_ - GlobalParams::MinTrackLengthForSmoothing()].
-    }
-     */
-
-    for (size_t i = 0; i < epilines.rows; ++i)
-    {
-      if (std::abs(static_cast<double>(epilines.at<float>(i, 1))) > 0.01)
-      {
-        double a = -static_cast<double>(epilines.at<float>(i, 0)) / static_cast<double>(epilines.at<float>(i, 1));
-        double b = -static_cast<double>(epilines.at<float>(i, 2)) / static_cast<double>(epilines.at<float>(i, 1));
-        cv::Point2f pt1(0, b);
-        cv::Point2f pt2(1000, a * 1000 + b);
-        cv::line(tracks_out_img.image, pt1, pt2, Scalar(150, 75, 75), 1);
-      }
-      else
-      {
-        std::cout << "Cannot draw badly defined epiline." << std::endl;
-      }
-
-      if (std::abs(static_cast<double>(epilines_prev.at<float>(i, 1))) > 0.01)
-      {
-        double a =
-            -static_cast<double>(epilines_prev.at<float>(i, 0)) / static_cast<double>(epilines_prev.at<float>(i, 1));
-        double b =
-            -static_cast<double>(epilines_prev.at<float>(i, 2)) / static_cast<double>(epilines_prev.at<float>(i, 1));
-        cv::Point2f pt1(0, b);
-        cv::Point2f pt2(1000, a * 1000 + b);
-        cv::line(tracks_out_img.image, pt1, pt2, Scalar(75, 75, 150), 1);
-      }
-      else
-      {
-        std::cout << "Cannot draw badly defined prev epiline." << std::endl;
-      }
-    }
-
     auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 255, 0);
 
     for (const auto& track : active_tracks_)
@@ -198,8 +155,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   frames.push_back(new_frame);
 
-  if (!frames.back()->stationary && frames.size() > GlobalParams::InitKeyframeInterval() &&
-      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0)
+  if (frames.size() > GlobalParams::InitKeyframeInterval() &&
+      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0 && !frames.back()->stationary &&
+      !frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()]->stationary)
   {
     if (keyframe_tracker_)
     {
@@ -654,9 +612,9 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
   return old_tracks_;
 }
 
-std::vector<KeyframeTransform> FeatureExtractor::GetKeyframeTransforms() const
+std::vector<KeyframeTransform> FeatureExtractor::GetGoodKeyframeTransforms() const
 {
-  return keyframe_tracker_ ? keyframe_tracker_->GetKeyframeTransforms() : std::vector<KeyframeTransform>{};
+  return keyframe_tracker_ ? keyframe_tracker_->GetGoodKeyframeTransforms() : std::vector<KeyframeTransform>{};
 }
 
 bool FeatureExtractor::ReadyForInitialization() const

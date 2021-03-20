@@ -11,7 +11,7 @@ num_good_keyframes_for_initialization: 20
 feature_extraction_interval: 20
 track_count_lower_thresh: 50
 track_nms_squared_dist_thresh: 1200.
-min_track_length_for_smoothing: 10
+min_track_length_for_smoothing: 5
 image_edge_padding_percent: .05
 stationary_thresh: 0.5
 

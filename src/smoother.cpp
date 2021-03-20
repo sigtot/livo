@@ -28,14 +28,15 @@ using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
 shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
 {
   auto imu_params = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU(GlobalParams::IMUG());
-  //imu_params->n_gravity = gtsam::Vector3(GlobalParams::IMUNGravityX(), GlobalParams::IMUNGravityY(), GlobalParams::IMUNGravityZ());
+  // imu_params->n_gravity = gtsam::Vector3(GlobalParams::IMUNGravityX(), GlobalParams::IMUNGravityY(),
+  // GlobalParams::IMUNGravityZ());
   imu_params->accelerometerCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUAccelNoiseDensity(), 2.0);
   imu_params->gyroscopeCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroNoiseDensity(), 2.0);
   imu_params->biasAccCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUAccelRandomWalk(), 2.0);
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
   imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;
-  //imu_params->biasAccOmegaInt = gtsam::I_6x6 * 1e-5;  // error in the bias used for preintegration
-  //imu_params->body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  // imu_params->biasAccOmegaInt = gtsam::I_6x6 * 1e-5;  // error in the bias used for preintegration
+  // imu_params->body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
 
   auto imu_bias = gtsam::imuBias::ConstantBias();  // Initialize at zero bias
 
@@ -52,11 +53,11 @@ gtsam::SmartProjectionParams GetSmartProjectionParams()
   return smart_projection_params;
 }
 
-void Smoother::InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& frames,
-                          const std::vector<shared_ptr<Track>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
-                          std::vector<Point3>& landmark_estimates)
+void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms,
+                                   const std::vector<shared_ptr<Track>>& tracks,
+                                   std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
 {
-  std::cout << "Let's process those " << tracks.size() << " tracks!" << std::endl;
+  std::cout << "Let's initialize those landmarks!" << std::endl;
   gtsam::NonlinearFactorGraph inertial_graph;
   gtsam::NonlinearFactorGraph batch_graph;
 
@@ -69,33 +70,40 @@ void Smoother::InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& fr
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 3);
 
-  inertial_graph.addPrior(X(0), init_pose, noise_x);
-  inertial_graph.addPrior(V(0), init_velocity, noise_v);
-  inertial_graph.addPrior(B(0), init_bias, noise_b);
+  inertial_graph.addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
+  inertial_graph.addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
+  inertial_graph.addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
-  values_->insert(X(frames[0]->id), init_pose);
-  values_->insert(V(frames[0]->id), init_velocity);
-  values_->insert(B(frames[0]->id), init_bias);
+  values_->insert(X(keyframe_transforms[0].frame1->id), init_pose);
+  values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
+  values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
-  for (int i = 1; i < frames.size(); ++i)
+  std::map<int, bool> frame_ids;
+  frame_ids[keyframe_transforms[0].frame1->id] = true;
+
+  for (auto& keyframe_transform : keyframe_transforms)
   {
-    values_->insert(X(frames[i]->id), init_pose);
-    values_->insert(V(frames[i]->id), init_velocity);
-    values_->insert(B(frames[i]->id), init_bias);
+    values_->insert(X(keyframe_transform.frame2->id), init_pose);
+    values_->insert(V(keyframe_transform.frame2->id), init_velocity);
+    values_->insert(B(keyframe_transform.frame2->id), init_bias);
 
-    if (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
+    if (!imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
     {
-      std::cout << "No IMU measurements in time range " << std::setprecision(17) << frames[i - 1]->timestamp << " -> "
-                << frames[i]->timestamp << std::endl;
+      std::cout << "No IMU measurements in time range " << std::setprecision(17) << keyframe_transform.frame1->timestamp
+                << " -> " << keyframe_transform.frame2->timestamp << std::endl;
       exit(1);
     }
 
-    imu_queue_->integrateIMUMeasurements(imu_measurements_, frames[i - 1]->timestamp, frames[i]->timestamp);
+    imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
+                                         keyframe_transform.frame2->timestamp);
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
-    gtsam::CombinedImuFactor imu_factor(X(frames[i - 1]->id), V(frames[i - 1]->id), X(frames[i]->id), V(frames[i]->id),
-                                        B(frames[i - 1]->id), B(frames[i]->id), imu_combined);
+    gtsam::CombinedImuFactor imu_factor(X(keyframe_transform.frame1->id), V(keyframe_transform.frame1->id),
+                                        X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
+                                        B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id),
+                                        imu_combined);
     inertial_graph.add(imu_factor);
     imu_measurements_->resetIntegration();
+    frame_ids[keyframe_transform.frame2->id] = true;
   }
 
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
@@ -107,22 +115,24 @@ void Smoother::InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& fr
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_P_sensor, GetSmartProjectionParams()));
-    for (auto& feature : track->features)
+    for (auto& feature : track->key_features)
     {
-      auto pt = feature->pt;
-      smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
+      if (frame_ids.count(feature->frame->id)) {
+        auto pt = feature->pt;
+        smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
+      }
     }
-    if (track->features.size() >= GlobalParams::MinTrackLengthForSmoothing())
+    if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
-      std::cout << "adding landmark with " << track->features.size() << " observations" << std::endl;
+      std::cout << "adding landmark with " << track->key_features.size() << " observations" << std::endl;
       smart_factors_[track->id] = smart_factor;
       batch_graph.add(smart_factor);
     }
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
-  //auto result = isam2->update(graph, init_values);
-  //result.print("result");
+  // auto result = isam2->update(graph, init_values);
+  // result.print("result");
 
   batch_graph.add(inertial_graph);
 
@@ -131,10 +141,13 @@ void Smoother::InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& fr
 
   std::cout << "gn worked!" << std::endl;
 
-  for (auto& frame : frames)
+  pose_estimates.push_back(
+      Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
+                    .stamp = keyframe_transforms[0].frame1->timestamp });
+  for (auto& keyframe_transform : keyframe_transforms)
   {
-    Pose3Stamped poseStamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(frame->id))), .stamp = frame->timestamp };
-    pose_estimates.push_back(poseStamped);
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
+                                           .stamp = keyframe_transform.frame2->timestamp });
   }
 
   for (const auto& smart_factor_pair : smart_factors_)
@@ -171,12 +184,12 @@ void Smoother::InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& fr
     }
   }
   graph_->add(inertial_graph);
-  //isam2->update(*graph_, *values_);
+  // isam2->update(*graph_, *values_);
 
   graph_->resize(0);
   values_->clear();
-  auto imu_bias = gn_result.at<gtsam::imuBias::ConstantBias>(B(frames.back()->id));
-  //auto imu_bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frames.back()->id));
+  auto imu_bias = gn_result.at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
+  // auto imu_bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frames.back()->id));
   imu_bias.print("imu bias: ");
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
 }
@@ -311,13 +324,12 @@ void Smoother::InitIMUOnly(const vector<std::shared_ptr<Frame>>& frames, const v
   gtsam::NonlinearFactorGraph graph;
   gtsam::Values init_values;
 
-  //auto init_bias = gtsam::imuBias::ConstantBias(gtsam::Vector3(0.25, 0, 0.87), gtsam::Vector3(0, 0, 0));
-  //auto init_pose = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  // auto init_bias = gtsam::imuBias::ConstantBias(gtsam::Vector3(0.25, 0, 0.87), gtsam::Vector3(0, 0, 0));
+  // auto init_pose = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
 
-  //auto init_bias = gtsam::imuBias::ConstantBias(gtsam::Vector3(-0.87, -0.25, -1), gtsam::Vector3(0, 0, 0));
+  // auto init_bias = gtsam::imuBias::ConstantBias(gtsam::Vector3(-0.87, -0.25, -1), gtsam::Vector3(0, 0, 0));
   auto init_bias = gtsam::imuBias::ConstantBias();
   auto init_pose = gtsam::Pose3(gtsam::Rot3::Ypr(0, 0, 0), gtsam::Point3::Zero());
-
 
   init_values.insert(X(frames[0]->id), init_pose);
   init_values.insert(V(frames[0]->id), gtsam::Vector3(0, 0, 0));
@@ -392,7 +404,7 @@ void Smoother::InitIMU(const std::vector<std::shared_ptr<Frame>>& frames)
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.0001);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 10); // High noise on bias
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 10);  // High noise on bias
 
   values.insert(X(frames[0]->id), init_pose);
   values.insert(V(frames[0]->id), init_velocity);

@@ -91,7 +91,7 @@ public:
   std::vector<shared_ptr<Track>> GetActiveTracks();
   std::vector<shared_ptr<Track>> GetOldTracks();
 
-  vector<KeyframeTransform> GetKeyframeTransforms() const;
+  vector<KeyframeTransform> GetGoodKeyframeTransforms() const;
   bool ReadyForInitialization() const;
 };
 

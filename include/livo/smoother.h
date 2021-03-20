@@ -7,6 +7,7 @@
 #include "feature.h"
 #include "track.h"
 #include "imu_queue.h"
+#include "keyframe_transform.h"
 
 #include <memory>
 #include <vector>
@@ -48,7 +49,7 @@ private:
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
-  void InitializeLandmarks(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<std::shared_ptr<Track>>& tracks,
+  void InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms, const std::vector<std::shared_ptr<Track>>& tracks,
                   std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
 
   void InitIMUOnly(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<std::shared_ptr<Track>>& tracks,

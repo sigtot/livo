@@ -3,8 +3,7 @@
 #include <opencv2/calib3d.hpp>
 #include <Initializer.h>
 
-void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2,
-                               const std::vector<std::shared_ptr<Track>>& tracks)
+void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
   std::vector<cv::Point2f> points1;
@@ -19,18 +18,19 @@ KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std
 {
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  GetPoints(frame1, frame2, tracks, points1, points2);
+  GetPoints(frame1, frame2, tracks, points1, points2, true);
 
   keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2));
 }
 
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                 const std::vector<std::shared_ptr<Track>>& tracks, std::vector<cv::Point2f>& points1,
-                                std::vector<cv::Point2f>& points2)
+                                std::vector<cv::Point2f>& points2, bool init)
 {
   for (auto& track : tracks)
   {
-    if (track->features.empty()) {
+    if (track->features.empty())
+    {
       continue;
     }
     int num_features = static_cast<int>(track->features.size());
@@ -51,7 +51,9 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
     {
       continue;
     }
-    track->key_features.push_back(feat1);
+    if (init) {
+      track->key_features.push_back(feat1);
+    }
     track->key_features.push_back(feat2);
 
     points1.push_back(feat1->pt);
@@ -60,8 +62,9 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
 }
 
 KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::Point2f>& points1,
-                                            const std::vector<cv::Point2f>& points2,
-                                            const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2)
+                                                         const std::vector<cv::Point2f>& points2,
+                                                         const std::shared_ptr<Frame>& frame1,
+                                                         const std::shared_ptr<Frame>& frame2)
 {
   std::vector<uchar> inlier_mask;
   auto F = findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
@@ -80,21 +83,32 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::P
   return KeyframeTransform(frame1, frame2, F, S_H, S_F, R_H);
 }
 
-const std::vector<KeyframeTransform>& KeyframeTracker::GetKeyframeTransforms() const
+std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const
 {
-  return keyframe_transforms_;
+  std::vector<KeyframeTransform> transforms;
+  int i;
+  for (i = static_cast<int>(keyframe_transforms_.size()) - 1;
+       i > keyframe_transforms_.size() - GlobalParams::NumGoodKeyframesForInitialization() &&
+       keyframe_transforms_[i].FundamentalMatGood();
+       --i)
+  {
+  }
+  std::copy(keyframe_transforms_.begin() + i + 1, keyframe_transforms_.end(), std::back_inserter(transforms));
+  return transforms;
 }
 
 bool KeyframeTracker::GoodForInitialization()
 {
-  if (keyframe_transforms_.size() < GlobalParams::NumGoodKeyframesForInitialization()) {
+  if (keyframe_transforms_.size() < GlobalParams::NumGoodKeyframesForInitialization())
+  {
     return false;
   }
 
   for (int i = static_cast<int>(keyframe_transforms_.size()) - 1;
        i > keyframe_transforms_.size() - GlobalParams::NumGoodKeyframesForInitialization(); --i)
   {
-    if (!keyframe_transforms_[i].FundamentalMatGood()) {
+    if (!keyframe_transforms_[i].FundamentalMatGood())
+    {
       return false;
     }
   }
