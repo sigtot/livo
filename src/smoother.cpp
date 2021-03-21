@@ -88,8 +88,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   for (auto& keyframe_transform : keyframe_transforms)
   {
-    values_->insert(X(keyframe_transform.frame2->id), init_pose);
-    values_->insert(V(keyframe_transform.frame2->id), init_velocity);
+    values_->insert(X(keyframe_transform.frame2->id), init_pose); // TODO init on navstate
+    values_->insert(V(keyframe_transform.frame2->id), init_velocity); // TODO init on navstate
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
 
     while (
@@ -444,10 +444,6 @@ void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose
     if (!moved)
     {
       graph.addPrior(X(frames[i]->id), zero_pose, noise_x);
-    }
-    else
-    {
-      std::cout << "Moved frame " << frames[i]->id << std::endl;
     }
     if (frames[i]->stationary)
     {
