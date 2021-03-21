@@ -58,18 +58,20 @@ private:
     while (!ros::isShuttingDown())
     {
       T measurement;
+      bool have_measurement = false;
       {
-        // TODO fix: By locking the measurement queue here, we can block other threads by while process_fn runs
-        // Because the next addMeasurement callback (which is run in a different thread) will wait.
-        // Fix: Release the lock before starting process_fn
         std::lock_guard<std::mutex> lock(measurement_mutex_);
         if (measurements_.size() >= min_process_count_)
         {
           measurement = measurements_.begin()->second;
           measurements_.erase(measurements_.begin());
-          process_fn_(measurement);
+          have_measurement = true;
           last_processed_timestamp_ = measurement->header.stamp.toSec();
         }
+      }
+      if (have_measurement)
+      {
+        process_fn_(measurement);
       }
       if (measurements_.size() < min_process_count_)
       {
