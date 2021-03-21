@@ -91,19 +91,22 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
     double average_dist = total_dist / new_points.size();
 
-    if (!frames.back()->stationary || average_dist > GlobalParams::StationaryThresh())
+    if (average_dist > GlobalParams::StationaryThresh())
     {
       new_frame->stationary = false;
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
 
+
     // Truncate the tracks because we're still stationary and the tracks contain no information
     if (new_frame->stationary)
     {
+      /*
       for (auto& track : active_tracks_)
       {
         track->features = std::vector<std::shared_ptr<Feature>>{ track->features.back() };
       }
+       */
       old_tracks_.clear();
     }
 
@@ -539,19 +542,6 @@ vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
   return frames;
 }
 
-vector<shared_ptr<Frame>> FeatureExtractor::GetNonStationaryFrames()
-{
-  vector<shared_ptr<Frame>> non_stationary_frames;
-  for (auto& frame : frames)
-  {
-    if (!frame->stationary)
-    {
-      non_stationary_frames.push_back(frame);
-    }
-  }
-  return non_stationary_frames;
-}
-
 map<int, shared_ptr<Landmark>> FeatureExtractor::GetLandmarks()
 {
   return landmarks;
@@ -624,4 +614,14 @@ std::vector<KeyframeTransform> FeatureExtractor::GetGoodKeyframeTransforms() con
 bool FeatureExtractor::ReadyForInitialization() const
 {
   return keyframe_tracker_ && keyframe_tracker_->GoodForInitialization();
+}
+
+bool FeatureExtractor::CanPerformStationaryIMUInitialization() const
+{
+  bool perform_stationary_imu_update = !frames.back()->stationary; // Last frame is non-stationary...
+  for (size_t i = frames.size() - 7; perform_stationary_imu_update && i < frames.size() - 2; ++i)
+  {
+    perform_stationary_imu_update = frames[i]->stationary; // ... and the preceding frames are stationary
+  }
+  return perform_stationary_imu_update;
 }

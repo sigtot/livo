@@ -57,7 +57,7 @@ public:
 
   Pose3Stamped Update(const std::shared_ptr<Frame>& frame, const std::vector<std::shared_ptr<Track>>& tracks,
                       std::vector<Point3>& landmark_estimates);
-  void InitIMU(const vector<shared_ptr<Frame>>& vector);
+  void InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose3Stamped>& pose_estimates);
 
   BackendStatus GetStatus();
 };

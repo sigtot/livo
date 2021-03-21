@@ -38,7 +38,7 @@ int main(int argc, char** argv)
   // &Controller::imageCallback, &controller); newer college
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
-      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 2);
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);
   auto sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
                           &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
                           &queued_measurement_processor);

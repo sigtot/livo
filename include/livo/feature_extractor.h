@@ -84,7 +84,6 @@ public:
   int GetFrameCount();
 
   vector<shared_ptr<Frame>> GetFrames();
-  vector<shared_ptr<Frame>> GetNonStationaryFrames();
 
   map<int, shared_ptr<Landmark>> GetLandmarks();
 
@@ -93,6 +92,7 @@ public:
 
   vector<KeyframeTransform> GetGoodKeyframeTransforms() const;
   bool ReadyForInitialization() const;
+  bool CanPerformStationaryIMUInitialization() const;
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

@@ -59,6 +59,9 @@ private:
     {
       T measurement;
       {
+        // TODO fix: By locking the measurement queue here, we can block other threads by while process_fn runs
+        // Because the next addMeasurement callback (which is run in a different thread) will wait.
+        // Fix: Release the lock before starting process_fn
         std::lock_guard<std::mutex> lock(measurement_mutex_);
         if (measurements_.size() >= min_process_count_)
         {

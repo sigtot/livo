@@ -49,8 +49,18 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
    */
 
-  if (backend.GetStatus() == kUninitialized && !new_frame->stationary) {
-    backend.InitIMU(frontend.GetFrames());
+  if (frontend.CanPerformStationaryIMUInitialization()) {
+    std::vector<Pose3Stamped> pose_estimates;
+    backend.InitIMU(frontend.GetFrames(), pose_estimates);
+    for (auto& pose_stamped : pose_estimates)
+    {
+      nav_msgs::Odometry odometry_msg;
+      odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
+      odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
+      odometry_msg.header.frame_id = "world";
+      pose_publisher_.publish(odometry_msg);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
   }
 
   if (backend.GetStatus() == kIMUInitialized && frontend.ReadyForInitialization())

@@ -38,7 +38,10 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
   imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;
   // imu_params->biasAccOmegaInt = gtsam::I_6x6 * 1e-5;  // error in the bias used for preintegration
-  // imu_params->body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  imu_params->body_P_sensor = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
+                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
+      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
 
   auto imu_bias = gtsam::imuBias::ConstantBias();  // Initialize at zero bias
 
@@ -69,7 +72,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 3);
 
   inertial_graph.addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
@@ -398,37 +401,33 @@ void Smoother::InitIMUOnly(const vector<std::shared_ptr<Frame>>& frames, const v
   values_->clear();
    */
 }
-void Smoother::InitIMU(const std::vector<std::shared_ptr<Frame>>& frames)
+void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose3Stamped>& pose_estimates)
 {
   gtsam::NonlinearFactorGraph graph;
   gtsam::Values values;
 
-  auto init_pose = gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Zero());
-  auto init_velocity = gtsam::Vector3(0, 0, 0);
-  auto init_bias = gtsam::imuBias::ConstantBias();
+  auto zero_pose = gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Zero());
+  auto zero_velocity = gtsam::Vector3(0, 0, 0);
+  auto init_bias = imu_measurements_->biasHat();
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.0001);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 10);  // High noise on bias
 
-  values.insert(X(frames[0]->id), init_pose);
-  values.insert(V(frames[0]->id), init_velocity);
+  values.insert(X(frames[0]->id), zero_pose);
+  values.insert(V(frames[0]->id), zero_velocity);
   values.insert(B(frames[0]->id), init_bias);
 
-  graph.addPrior(X(frames[0]->id), init_pose, noise_x);
-  graph.addPrior(V(frames[0]->id), init_velocity, noise_v);
+  graph.addPrior(X(frames[0]->id), zero_pose, noise_x);
+  graph.addPrior(V(frames[0]->id), zero_velocity, noise_v);
   graph.addPrior(B(frames[0]->id), init_bias, noise_b);
 
+  bool moved = false;
+
+  gtsam::NavState navstate = gtsam::NavState();
   for (size_t i = 1; i < frames.size(); ++i)
   {
-    values.insert(X(frames[i]->id), init_pose);
-    values.insert(V(frames[i]->id), init_velocity);
-    values.insert(B(frames[i]->id), init_bias);
-
-    graph.addPrior(X(frames[i]->id), init_pose, noise_x);
-    graph.addPrior(V(frames[i]->id), init_velocity, noise_v);
-
     while (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
     {
       std::cout << "No IMU measurements in time range " << std::setprecision(17) << frames[i - 1]->timestamp << " -> "
@@ -436,8 +435,36 @@ void Smoother::InitIMU(const std::vector<std::shared_ptr<Frame>>& frames)
       std::cout << "Waiting 1 ms" << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-
     imu_queue_->integrateIMUMeasurements(imu_measurements_, frames[i - 1]->timestamp, frames[i]->timestamp);
+
+    if (!frames[i]->stationary) {
+      moved = true;
+    }
+
+    if (!moved)
+    {
+      graph.addPrior(X(frames[i]->id), zero_pose, noise_x);
+    }
+    else
+    {
+      std::cout << "Moved frame " << frames[i]->id << std::endl;
+    }
+    if (frames[i]->stationary)
+    {
+      graph.addPrior(V(frames[i]->id), zero_velocity, noise_v);
+      values.insert(V(frames[i]->id), zero_velocity);
+      navstate = gtsam::NavState(imu_measurements_->predict(navstate, init_bias).pose(), zero_velocity);
+    }
+    else
+    {
+      navstate = imu_measurements_->predict(navstate, init_bias);
+      values.insert(V(frames[i]->id), navstate.velocity());
+    }
+
+    values.insert(X(frames[i]->id), navstate.pose());
+    values.insert(B(frames[i]->id), init_bias);
+
+
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
     gtsam::CombinedImuFactor imu_factor(X(frames[i - 1]->id), V(frames[i - 1]->id), X(frames[i]->id), V(frames[i]->id),
                                         B(frames[i - 1]->id), B(frames[i]->id), imu_combined);
@@ -452,6 +479,12 @@ void Smoother::InitIMU(const std::vector<std::shared_ptr<Frame>>& frames)
   imu_bias.print("imu bias: ");
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
   status_ = kIMUInitialized;
+
+  for (auto& frame : frames)
+  {
+    pose_estimates.push_back(
+        Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(frame->id))), .stamp = frame->timestamp });
+  }
 }
 
 BackendStatus Smoother::GetStatus()
