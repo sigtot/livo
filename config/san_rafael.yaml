@@ -1,0 +1,20 @@
+imu_sub_topic: /vn100/imu
+cam_sub_topic: /camera/image_mono
+
+resize_factor: 0.5
+ground_truth_file: ""
+
+timeshift_cam_imu: 0
+imu_g: 9.91
+imu_n_gravity_x: 0
+imu_n_gravity_y: 0
+imu_n_gravity_z: 0
+imu_accel_noise_density: 0.001372
+imu_gyro_noise_density: 0.00006108
+imu_accel_random_walk: 0.00554371716
+imu_gyro_random_walk: 0.00068563008
+
+cam_fx: 593.690871957
+cam_fy: 593.74699226
+cam_u0: 388.42480338
+cam_v0: 274.84471313

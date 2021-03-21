@@ -8,6 +8,7 @@
 #include "controller.h"
 #include "feature_extractor.h"
 #include "global_params.h"
+#include "queued_measurement_processor.h"
 
 #include <memory>
 
@@ -35,7 +36,12 @@ int main(int argc, char** argv)
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college
-  auto sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000, &Controller::imageCallback, &controller);
+
+  QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 2);
+  auto sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
+                          &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
+                          &queued_measurement_processor);
 
   ROS_INFO("Starting up");
 

@@ -7,7 +7,7 @@
 #include "landmark_match.h"
 #include "track.h"
 #include "keyframe_transform.h"
-#include "../../src/keyframe_tracker.h"
+#include "keyframe_tracker.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>

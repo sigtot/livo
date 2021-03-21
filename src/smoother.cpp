@@ -20,6 +20,8 @@
 #include <gtsam/geometry/triangulation.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
+#include <thread>
+#include <chrono>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
@@ -87,11 +89,13 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     values_->insert(V(keyframe_transform.frame2->id), init_velocity);
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
 
-    if (!imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
+    while (
+        !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
     {
       std::cout << "No IMU measurements in time range " << std::setprecision(17) << keyframe_transform.frame1->timestamp
                 << " -> " << keyframe_transform.frame2->timestamp << std::endl;
-      exit(1);
+      std::cout << "Waiting 1 ms" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
@@ -117,7 +121,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_P_sensor, GetSmartProjectionParams()));
     for (auto& feature : track->key_features)
     {
-      if (frame_ids.count(feature->frame->id)) {
+      if (frame_ids.count(feature->frame->id))
+      {
         auto pt = feature->pt;
         smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
       }
@@ -349,11 +354,12 @@ void Smoother::InitIMUOnly(const vector<std::shared_ptr<Frame>>& frames, const v
 
     graph.addPrior(X(frames[i]->id), init_pose, prior_noise_x_later);
 
-    if (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
+    while (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
     {
       std::cout << "No IMU measurements in time range " << std::setprecision(17) << frames[i - 1]->timestamp << " -> "
                 << frames[i]->timestamp << std::endl;
-      exit(1);
+      std::cout << "Waiting 1 ms" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     int num_intg =
@@ -423,11 +429,12 @@ void Smoother::InitIMU(const std::vector<std::shared_ptr<Frame>>& frames)
     graph.addPrior(X(frames[i]->id), init_pose, noise_x);
     graph.addPrior(V(frames[i]->id), init_velocity, noise_v);
 
-    if (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
+    while (!imu_queue_->hasMeasurementsInRange(frames[i - 1]->timestamp, frames[i]->timestamp))
     {
       std::cout << "No IMU measurements in time range " << std::setprecision(17) << frames[i - 1]->timestamp << " -> "
                 << frames[i]->timestamp << std::endl;
-      exit(1);
+      std::cout << "Waiting 1 ms" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     imu_queue_->integrateIMUMeasurements(imu_measurements_, frames[i - 1]->timestamp, frames[i]->timestamp);
