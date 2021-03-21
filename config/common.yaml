@@ -1,0 +1,14 @@
+max_features_per_cell: 10
+landmark_culling_frame_count: 20
+landmark_culling_observation_percentage: .40
+landmark_matching_window: 5
+match_max_distance: 20.0
+init_keyframe_interval: 6
+num_good_keyframes_for_initialization: 20
+
+feature_extraction_interval: 20
+track_count_lower_thresh: 50
+track_nms_squared_dist_thresh: 1200.
+min_track_length_for_smoothing: 5
+image_edge_padding_percent: .05
+stationary_thresh: 0.5

@@ -22,7 +22,7 @@ int main(int argc, char** argv)
   NewerCollegeGroundTruth::LoadFromFile(GlobalParams::GroundTruthFile());
 
   std::shared_ptr<IMUQueue> imu_queue = std::make_shared<IMUQueue>();
-  auto imu_sub = nh.subscribe("/camera/imu", 1000, &IMUQueue::addMeasurement, &*imu_queue);
+  auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
 
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
   // san raf
   // auto sub = nh.subscribe("/camera/image_mono", 1000,
   // &Controller::imageCallback, &controller); newer college
-  auto sub = nh.subscribe("/camera/infra1/image_rect_raw", 1000, &Controller::imageCallback, &controller);
+  auto sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000, &Controller::imageCallback, &controller);
 
   ROS_INFO("Starting up");
 

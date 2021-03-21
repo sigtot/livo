@@ -13,6 +13,9 @@ private:
   static void ReadVariable(const ros::NodeHandle& nh, const std::string& variable_name, T& variable);
 
   // Add parameters here
+  std::string imu_sub_topic_ = "/imu";
+  std::string cam_sub_topic_ = "/camera";
+
   int max_features_per_cell_ = 10;
   double resize_factor_ = 1.f;
   int landmark_culling_frame_count_ = 20;
@@ -53,6 +56,9 @@ public:
   void operator=(GlobalParams const&) = delete;
 
   // Add parameter accessors here
+  static std::string IMUSubTopic();
+  static std::string CameraSubTopic();
+
   static int MaxFeaturesPerCell();
   static double ResizeFactor();
   static int LandmarkCullingFrameCount();

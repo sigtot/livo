@@ -25,6 +25,9 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh, const std::string& va
 void GlobalParams::LoadParams(const ros::NodeHandle& nh)
 {
   // Add ReadVariable calls here
+  ReadVariable(nh, "/orb_test_node/imu_sub_topic", GetInstance().imu_sub_topic_);
+  ReadVariable(nh, "/orb_test_node/cam_sub_topic", GetInstance().cam_sub_topic_);
+
   ReadVariable(nh, "/orb_test_node/max_features_per_cell", GetInstance().max_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/resize_factor", GetInstance().resize_factor_);
   ReadVariable(nh, "/orb_test_node/landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
@@ -61,6 +64,14 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
 }
 
 // Implement parameter accessors here
+std::string GlobalParams::IMUSubTopic()
+{
+  return GetInstance().imu_sub_topic_;
+}
+std::string GlobalParams::CameraSubTopic()
+{
+  return GetInstance().cam_sub_topic_;
+}
 int GlobalParams::MaxFeaturesPerCell()
 {
   return GetInstance().max_features_per_cell_;

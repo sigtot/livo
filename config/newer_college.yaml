@@ -1,19 +1,8 @@
-max_features_per_cell: 10
-resize_factor: 1.0
-landmark_culling_frame_count: 20
-landmark_culling_observation_percentage: .40
-landmark_matching_window: 5
-ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
-match_max_distance: 20.0
-init_keyframe_interval: 6
-num_good_keyframes_for_initialization: 20
+imu_sub_topic: /camera/imu
+cam_sub_topic: /camera/infra1/image_rect_raw
 
-feature_extraction_interval: 20
-track_count_lower_thresh: 50
-track_nms_squared_dist_thresh: 1200.
-min_track_length_for_smoothing: 5
-image_edge_padding_percent: .05
-stationary_thresh: 0.5
+resize_factor: 1.0
+ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
 
 timeshift_cam_imu: 0.01379378638037798
 imu_g: 9.81
