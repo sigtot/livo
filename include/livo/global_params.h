@@ -11,6 +11,8 @@ private:
   static GlobalParams& GetInstance();
   template <class T>
   static void ReadVariable(const ros::NodeHandle& nh, const std::string& variable_name, T& variable);
+  template <class T>
+  static void ReadVectorVariable(const ros::NodeHandle& nh, const std::string& variable_name, std::vector<T>& variable);
 
   // Add parameters here
   std::string imu_sub_topic_ = "/imu";
@@ -45,6 +47,9 @@ private:
   double imu_accel_random_walk_ = 0.01;
   double imu_gyro_random_walk_ = 0.01;
 
+  std::vector<double> imu_cam_quat_ = { 0., 0., 0., 1. };
+  std::vector<double> imu_cam_vector_ = { 0., 0., 0. };
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -76,7 +81,7 @@ public:
   static double ImageEdgePaddingPercent();
   static double StationaryThresh();
 
-  static double TimeshiftCamImu(); // t_imu = t_cam + shift
+  static double TimeshiftCamImu();  // t_imu = t_cam + shift
   static double IMUG();
   static double IMUNGravityX();
   static double IMUNGravityY();
@@ -85,6 +90,9 @@ public:
   static double IMUGyroNoiseDensity();
   static double IMUAccelRandomWalk();
   static double IMUGyroRandomWalk();
+
+  static std::vector<double> IMUCamQuat();
+  static std::vector<double> IMUCamVector();
 
   static double CamFx();
   static double CamFy();

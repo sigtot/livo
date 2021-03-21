@@ -22,6 +22,31 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh, const std::string& va
   }
 }
 
+template <class T>
+void GlobalParams::ReadVectorVariable(const ros::NodeHandle& nh, const std::string& variable_name, std::vector<T>& variable)
+{
+  if (!nh.getParam(variable_name, variable))
+  {
+    ROS_WARN_STREAM("WARN: Could not read param " << variable_name
+                                                  << " from parameter server, so using "
+                                                     "default value");
+    std::cout << "Default value: ";
+    for (auto &x : variable) {
+      std::cout << x << " ";
+    }
+    std::cout << std::endl;
+  }
+  else
+  {
+    ROS_INFO_STREAM("Read param " << variable_name << " from parameter server: ");
+    std::cout << "value ";
+    for (auto &x : variable) {
+      std::cout << x << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 void GlobalParams::LoadParams(const ros::NodeHandle& nh)
 {
   // Add ReadVariable calls here
@@ -56,6 +81,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_gyro_noise_density", GetInstance().imu_gyro_noise_density_);
   ReadVariable(nh, "/orb_test_node/imu_accel_random_walk", GetInstance().imu_accel_random_walk_);
   ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
+  ReadVectorVariable(nh, "/orb_test_node/imu_cam_quat", GetInstance().imu_cam_quat_);
+  ReadVectorVariable(nh, "/orb_test_node/imu_cam_vector", GetInstance().imu_cam_vector_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -153,6 +180,15 @@ double GlobalParams::IMUNGravityY()
 double GlobalParams::IMUNGravityZ()
 {
   return GetInstance().imu_n_gravity_z_;
+}
+
+std::vector<double> GlobalParams::IMUCamQuat()
+{
+  return GetInstance().imu_cam_quat_;
+}
+std::vector<double> GlobalParams::IMUCamVector()
+{
+  return GetInstance().imu_cam_vector_;
 }
 
 double GlobalParams::CamFx()

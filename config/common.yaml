@@ -6,6 +6,9 @@ match_max_distance: 20.0
 init_keyframe_interval: 6
 num_good_keyframes_for_initialization: 20
 
+imu_cam_quat: [0, 0, 0, 1]
+imu_cam_vector: [0, 0, 0]
+
 feature_extraction_interval: 20
 track_count_lower_thresh: 50
 track_nms_squared_dist_thresh: 1200.
