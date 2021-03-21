@@ -61,21 +61,24 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     // Discard RANSAC outliers
     vector<uchar> inlier_mask;
-    auto F = findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
-    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
-         --i)  // iterate backwards to not mess up vector when erasing
+    if (new_points.size() >= 8)
     {
-      if (inlier_mask[i])
+      auto F = findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
+      for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
+           --i)  // iterate backwards to not mess up vector when erasing
       {
-        active_tracks_[i]->features.push_back(std::make_shared<Feature>(new_frame, new_points[i]));
-      }
-      else
-      {
-        // TODO perf erase-remove?
-        old_tracks_.push_back(std::move(active_tracks_[i]));
-        active_tracks_.erase(active_tracks_.begin() + i);
-        prev_points.erase(prev_points.begin() + i);
-        new_points.erase(new_points.begin() + i);
+        if (inlier_mask[i])
+        {
+          active_tracks_[i]->features.push_back(std::make_shared<Feature>(new_frame, new_points[i]));
+        }
+        else
+        {
+          // TODO perf erase-remove?
+          old_tracks_.push_back(std::move(active_tracks_[i]));
+          active_tracks_.erase(active_tracks_.begin() + i);
+          prev_points.erase(prev_points.begin() + i);
+          new_points.erase(new_points.begin() + i);
+        }
       }
     }
 
@@ -163,7 +166,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       keyframe_tracker_->AddFrame(frames.back(), active_tracks_);
     }
-    else
+    else if (KeyframeTracker::SafeToInitialize(
+                 frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_))
     {
       keyframe_tracker_ = std::make_shared<KeyframeTracker>(
           frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_);

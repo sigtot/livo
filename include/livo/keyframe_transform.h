@@ -24,7 +24,11 @@ struct KeyframeTransform
   }
 
   bool FundamentalMatGood() const {
-    return R_H < 0.45;
+    return Valid() && R_H < 0.45;
+  }
+
+  bool Valid() const {
+    return S_H != -1 && S_F != -1 && R_H != -1;
   }
 };
 

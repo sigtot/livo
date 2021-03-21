@@ -6,11 +6,18 @@
 void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
-  std::vector<cv::Point2f> points1;
-  std::vector<cv::Point2f> points2;
-  GetPoints(frame1, frame2, tracks, points1, points2);
+  if (SafeToAddFrame(frame2, tracks))
+  {
+    std::vector<cv::Point2f> points1;
+    std::vector<cv::Point2f> points2;
+    GetPoints(frame1, frame2, tracks, points1, points2);
 
-  keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2));
+    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2));
+  }
+  else
+  {
+    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), -1, -1, -1);
+  }
 }
 
 KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -51,10 +58,45 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
     {
       continue;
     }
-    if (init) {
+    if (init)
+    {
       track->key_features.push_back(feat1);
     }
     track->key_features.push_back(feat2);
+
+    points1.push_back(feat1->pt);
+    points2.push_back(feat2->pt);
+  }
+}
+
+void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                                    const std::vector<std::shared_ptr<Track>>& tracks,
+                                    std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2)
+{
+  for (const auto& track : tracks)
+  {
+    if (track->features.empty())
+    {
+      continue;
+    }
+    int num_features = static_cast<int>(track->features.size());
+    std::shared_ptr<Feature> feat1 = nullptr;
+    std::shared_ptr<Feature> feat2 = nullptr;
+    for (int i = num_features - 1; i >= 0; --i)
+    {
+      if (track->features[i]->frame->id == frame1->id)
+      {
+        feat1 = track->features[i];
+      }
+      if (track->features[i]->frame->id == frame2->id)
+      {
+        feat2 = track->features[i];
+      }
+    }
+    if (!feat1 || !feat2)
+    {
+      continue;
+    }
 
     points1.push_back(feat1->pt);
     points2.push_back(feat2->pt);
@@ -113,4 +155,23 @@ bool KeyframeTracker::GoodForInitialization()
     }
   }
   return true;
+}
+
+bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame2,
+                                     const std::vector<std::shared_ptr<Track>>& tracks)
+{
+  auto frame1 = keyframe_transforms_.back().frame2;
+  std::vector<cv::Point2f> points1;
+  std::vector<cv::Point2f> points2;
+  GetPointsSafe(frame1, frame2, tracks, points1, points2);
+  return points1.size() >= 8 && points2.size() >= 8;
+}
+
+bool KeyframeTracker::SafeToInitialize(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                                       const std::vector<std::shared_ptr<Track>>& tracks)
+{
+  std::vector<cv::Point2f> points1;
+  std::vector<cv::Point2f> points2;
+  GetPointsSafe(frame1, frame2, tracks, points1, points2);
+  return points1.size() >= 8 && points2.size() >= 8;
 }
