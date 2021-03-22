@@ -25,7 +25,6 @@
 #include <thread>
 #include <chrono>
 
-
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
@@ -98,6 +97,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 1);
+  auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   inertial_graph.addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
   inertial_graph.addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
@@ -138,7 +138,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     gtsam::Rot3 R_cam_frame(R_mat);
 
     gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
-    gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse()); // TODO swap inversions?
+    gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse());  // TODO swap inversions?
     gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
 
     std::cout << "========================= Begin =========================" << std::endl;
@@ -154,8 +154,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     std::cout << "=========================================================" << std::endl;
 
-    gtsam::EssentialMatrix E(R_i, t_i);
-
+    if (GlobalParams::AddEssentialMatrixConstraints()) {
+      gtsam::EssentialMatrix E(R_i, t_i);
+      gtsam::EssentialMatrixConstraint E_factor(X(keyframe_transform.frame1->id), X(keyframe_transform.frame2->id), E,
+                                                noise_E);
+      batch_graph.add(E_factor);
+    }
 
     values_->insert(X(keyframe_transform.frame2->id), gtsam::Pose3(R_i, t_i_scaled));
     values_->insert(V(keyframe_transform.frame2->id), navstate.velocity());
@@ -176,7 +180,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  //auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  // auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(

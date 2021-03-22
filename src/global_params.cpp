@@ -64,6 +64,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/init_keyframe_interval", GetInstance().init_keyframe_interval_);
   ReadVariable(nh, "/orb_test_node/num_good_keyframes_for_initialization",
                GetInstance().num_good_keyframes_for_initialization_);
+  ReadVariable(nh, "/orb_test_node/add_essential_matrix_constraints", GetInstance().add_essential_matrix_constraints_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
@@ -226,4 +227,8 @@ int GlobalParams::MinTrackLengthForSmoothing()
 double GlobalParams::ImageEdgePaddingPercent()
 {
   return GetInstance().image_edge_padding_percent_;
+}
+bool GlobalParams::AddEssentialMatrixConstraints()
+{
+  return GetInstance().add_essential_matrix_constraints_;
 }
