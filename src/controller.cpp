@@ -68,6 +68,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     std::vector<Pose3Stamped> pose_estimates;
     std::vector<Point3> landmark_estimates;
     auto tracks = frontend.GetActiveTracks();
+    for (auto & track : frontend.GetOldTracks()) {
+      if (!track->key_features.empty())
+      {
+        tracks.push_back(track);
+      }
+    }
 
     backend.InitializeLandmarks(frontend.GetGoodKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
     for (auto& pose_stamped : pose_estimates)
