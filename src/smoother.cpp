@@ -67,8 +67,23 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   gtsam::NonlinearFactorGraph batch_graph;
 
   gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  gtsam::Vector3 init_velocity(0, 0, 0);
   gtsam::imuBias::ConstantBias init_bias = imu_measurements_->biasHat();
+
+  while (!imu_queue_->hasMeasurementsInRange(keyframe_transforms[0].frame1->timestamp,
+                                             keyframe_transforms[0].frame2->timestamp))
+  {
+    std::cout << "No IMU measurements in time range " << std::setprecision(17)
+              << keyframe_transforms[0].frame1->timestamp << " -> " << keyframe_transforms[0].frame2->timestamp
+              << std::endl;
+    std::cout << "Waiting 1 ms" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transforms[0].frame1->timestamp,
+                                       keyframe_transforms[0].frame2->timestamp);
+  gtsam::Vector3 init_velocity = imu_measurements_->predict(gtsam::NavState(), init_bias).velocity();
+  imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
+
+  std::cout << "init velocity " << init_velocity << std::endl;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
@@ -86,12 +101,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   std::map<int, bool> frame_ids;
   frame_ids[keyframe_transforms[0].frame1->id] = true;
 
+  gtsam::NavState navstate(init_pose, init_velocity);
   for (auto& keyframe_transform : keyframe_transforms)
   {
-    values_->insert(X(keyframe_transform.frame2->id), init_pose); // TODO init on navstate
-    values_->insert(V(keyframe_transform.frame2->id), init_velocity); // TODO init on navstate
-    values_->insert(B(keyframe_transform.frame2->id), init_bias);
-
     while (
         !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
     {
@@ -103,13 +115,19 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
                                          keyframe_transform.frame2->timestamp);
+    navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
+
+    values_->insert(X(keyframe_transform.frame2->id), navstate.pose());
+    values_->insert(V(keyframe_transform.frame2->id), navstate.velocity());
+    values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
+
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
     gtsam::CombinedImuFactor imu_factor(X(keyframe_transform.frame1->id), V(keyframe_transform.frame1->id),
                                         X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
                                         B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id),
                                         imu_combined);
     inertial_graph.add(imu_factor);
-    imu_measurements_->resetIntegration();
+    imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
     frame_ids[keyframe_transform.frame2->id] = true;
   }
 
@@ -437,7 +455,8 @@ void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose
     }
     imu_queue_->integrateIMUMeasurements(imu_measurements_, frames[i - 1]->timestamp, frames[i]->timestamp);
 
-    if (!frames[i]->stationary) {
+    if (!frames[i]->stationary)
+    {
       moved = true;
     }
 
@@ -460,13 +479,12 @@ void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose
     values.insert(X(frames[i]->id), navstate.pose());
     values.insert(B(frames[i]->id), init_bias);
 
-
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
     gtsam::CombinedImuFactor imu_factor(X(frames[i - 1]->id), V(frames[i - 1]->id), X(frames[i]->id), V(frames[i]->id),
                                         B(frames[i - 1]->id), B(frames[i]->id), imu_combined);
 
     graph.add(imu_factor);
-    imu_measurements_->resetIntegration();
+    imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
   }
 
   gtsam::GaussNewtonOptimizer optimizer(graph, values);
