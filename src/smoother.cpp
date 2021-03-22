@@ -18,10 +18,13 @@
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/geometry/triangulation.h>
+#include <gtsam/geometry/EssentialMatrix.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/slam/EssentialMatrixConstraint.h>
 #include <thread>
 #include <chrono>
+
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
@@ -107,6 +110,11 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   std::map<int, bool> frame_ids;
   frame_ids[keyframe_transforms[0].frame1->id] = true;
 
+  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
+                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
+      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+
   gtsam::NavState navstate(init_pose, init_velocity);
   for (auto& keyframe_transform : keyframe_transforms)
   {
@@ -123,7 +131,33 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                          keyframe_transform.frame2->timestamp);
     navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
 
-    values_->insert(X(keyframe_transform.frame2->id), navstate.pose());
+    auto E_mat = ToMatrix3(keyframe_transform.GetEssentialMat());
+    auto R_mat = ToMatrix3(keyframe_transform.GetRotation());
+    auto t = keyframe_transform.GetTranslation();
+    gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
+    gtsam::Rot3 R_cam_frame(R_mat);
+
+    gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
+    gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse()); // TODO swap inversions?
+    gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
+
+    std::cout << "========================= Begin =========================" << std::endl;
+
+    std::cout << "R_c = " << R_cam_frame.ypr() << std::endl;
+    t_unit_cam_frame.print("t_c = ");
+    std::cout << "R_i = " << R_i.ypr() << std::endl;
+    t_i.print("t_i = ");
+    t_i_scaled.print("t_i_scaled = ");
+    std::cout << "navstate R_i = " << navstate.pose().rotation().ypr() << std::endl;
+    std::cout << "navstate t_i = " << navstate.pose().translation() << std::endl;
+    std::cout << "navstate v_i = " << navstate.velocity() << std::endl;
+
+    std::cout << "=========================================================" << std::endl;
+
+    gtsam::EssentialMatrix E(R_i, t_i);
+
+
+    values_->insert(X(keyframe_transform.frame2->id), gtsam::Pose3(R_i, t_i_scaled));
     values_->insert(V(keyframe_transform.frame2->id), navstate.velocity());
     values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
 
@@ -142,10 +176,6 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
-                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
-      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
   //auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
@@ -163,7 +193,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     {
       std::cout << "adding landmark with " << track->key_features.size() << " observations" << std::endl;
       smart_factors_[track->id] = smart_factor;
-      //batch_graph.add(smart_factor);
+      batch_graph.add(smart_factor);
     }
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;

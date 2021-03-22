@@ -16,7 +16,8 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::
   }
   else
   {
-    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), -1, -1, -1);
+    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), cv::Mat(), cv::Mat(), std::vector<double>{}, -1, -1,
+                                      -1);
   }
 }
 
@@ -109,8 +110,8 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::P
                                                          const std::shared_ptr<Frame>& frame2)
 {
   std::vector<uchar> inlier_mask;
-  auto F = findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
-  auto H = findHomography(points1, points2, cv::RANSAC, 3);
+  auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
+  auto H = cv::findHomography(points1, points2, cv::RANSAC, 3);
 
   std::vector<bool> F_check_inliers;
   double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points1, points2);
@@ -122,7 +123,17 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::P
 
   std::cout << "R_H = " << R_H << ", S_H = " << S_H << ", S_F = " << S_F << std::endl;
 
-  return KeyframeTransform(frame1, frame2, F, S_H, S_F, R_H);
+  cv::Mat K = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0., GlobalParams::CamFy(),
+               GlobalParams::CamV0(), 0., 0., 1.);
+
+  // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
+  // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1 frame
+  auto E = cv::findEssentialMat(points2, points1, K, cv::RANSAC);
+  cv::Mat R;
+  std::vector<double> t;
+  cv::recoverPose(E, points2, points1, K, R, t);
+
+  return KeyframeTransform(frame1, frame2, F, E, R, t, S_H, S_F, R_H);
 }
 
 std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const
