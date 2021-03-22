@@ -87,14 +87,14 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transforms[0].frame1->timestamp,
                                        keyframe_transforms[0].frame2->timestamp);
   gtsam::Vector3 init_velocity = imu_measurements_->predict(gtsam::NavState(), init_bias).velocity();
-  imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
+  imu_measurements_->resetIntegrationAndSetBias(init_bias);
 
   std::cout << "init velocity " << init_velocity << std::endl;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 3);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 1);
 
   inertial_graph.addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
   inertial_graph.addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
@@ -163,7 +163,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     {
       std::cout << "adding landmark with " << track->key_features.size() << " observations" << std::endl;
       smart_factors_[track->id] = smart_factor;
-      batch_graph.add(smart_factor);
+      //batch_graph.add(smart_factor);
     }
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
