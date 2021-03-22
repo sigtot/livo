@@ -38,10 +38,16 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
   imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;
   // imu_params->biasAccOmegaInt = gtsam::I_6x6 * 1e-5;  // error in the bias used for preintegration
-  imu_params->body_P_sensor = gtsam::Pose3(
+  /*
+  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
       gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
                               GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
       gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+  auto body_to_cam = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, M_PI / 2), gtsam::Point3::Zero());
+  auto cam_to_body = body_to_cam.inverse();
+  imu_params->body_P_sensor = (imu_to_cam * cam_to_body).inverse();
+  imu_params->body_P_sensor->print("imu body p sensor: ");
+   */
 
   auto imu_bias = gtsam::imuBias::ConstantBias();  // Initialize at zero bias
 
@@ -136,10 +142,15 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
+  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
+                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
+      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+  //auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_P_sensor, GetSmartProjectionParams()));
+    SmartFactor::shared_ptr smart_factor(
+        new SmartFactor(feature_noise, K, imu_to_cam.inverse(), GetSmartProjectionParams()));
     for (auto& feature : track->key_features)
     {
       if (frame_ids.count(feature->frame->id))
@@ -208,6 +219,11 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
         // std::cout << "Depth error is large! " << P(0, 0) << " (norm " << P.norm() << ")" << std::endl;
       }
     }
+
+    /* Debug backprojection
+    gtsam::Point3 point = smart_factor->cameras(gn_result).back().backproject(smart_factor->measured().back(), 10);
+    landmark_estimates.push_back(ToPoint(point));
+     */
   }
   graph_->add(inertial_graph);
   // isam2->update(*graph_, *values_);
