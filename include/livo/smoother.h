@@ -43,6 +43,8 @@ private:
   gtsam::NonlinearFactorGraph* graph_;
   gtsam::Values* values_;
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
+  std::map<int, double> added_frame_timestamps_; // Map for looking up timestamps of frames added to the optimization
+  int last_frame_id_added_ = -1;
   std::shared_ptr<IMUQueue> imu_queue_;
   std::shared_ptr<gtsam::PreintegrationType> imu_measurements_;
   BackendStatus status_ = kUninitialized;

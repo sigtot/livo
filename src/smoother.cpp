@@ -105,6 +105,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
+  added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
+
   std::map<int, bool> frame_ids;
   frame_ids[keyframe_transforms[0].frame1->id] = true;
 
@@ -116,6 +118,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   gtsam::NavState navstate(init_pose, init_velocity);
   for (auto& keyframe_transform : keyframe_transforms)
   {
+    added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
     while (
         !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
     {
@@ -257,6 +260,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   auto imu_bias = result.at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
   imu_bias.print("imu bias: ");
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
+  last_frame_id_added_ = keyframe_transforms.back().frame2->id;
+  status_ = kLandmarksInitialized;
 }
 
 Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
@@ -276,12 +281,17 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
-  auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(1, 1.0);
   auto prev_estimate = isam2->calculateEstimate();
-  prev_estimate.insert(*values_);
+
+  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
+                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
+      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+
   for (auto& track : tracks)
   {
+    assert(track->features.back()->frame->id == frame->id);
     if (smart_factors_.count(track->id))
     {
       auto pt = track->features.back()->pt;
@@ -290,39 +300,41 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     else
     {
       SmartFactor::shared_ptr smart_factor(
-          new SmartFactor(measurementNoise, K, body_P_sensor, GetSmartProjectionParams()));
+          new SmartFactor(measurementNoise, K, imu_to_cam.inverse(), GetSmartProjectionParams()));
       for (size_t i = 0; i < track->features.size() - 1; ++i)
       {
         auto feature = track->features[i];
-        smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
-      }
-      auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
-      if (triangulationResult.valid())
-      {
-        gtsam::Matrix E;
-        smart_factor->triangulateAndComputeE(E, prev_estimate);
-        auto P = smart_factor->PointCov(E);
-        if (track->features.size() > GlobalParams::MinTrackLengthForSmoothing() && P.norm() < 1)
+        if (added_frame_timestamps_.count(feature->frame->id) || feature->frame->id == frame->id)
         {
-          auto new_feature = track->features.back();
-          smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
-          std::cout << "initializing landmark " << track->id << " with " << track->features.size() << " observations"
-                    << std::endl;
-          smart_factors_[track->id] = smart_factor;
-          graph_->add(smart_factor);
+          smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
+        }
+      }
+      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
+      {
+        auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
+        if (triangulationResult.valid())
+        {
+          gtsam::Matrix E;
+          smart_factor->triangulateAndComputeE(E, prev_estimate);
+          auto P = smart_factor->PointCov(E);
+          if (P.norm() < 1)
+          {
+            auto new_feature = track->features.back();
+            smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+            std::cout << "initializing landmark " << track->id << " with " << track->features.size() << " observations"
+                      << std::endl;
+            smart_factors_[track->id] = smart_factor;
+            graph_->add(smart_factor);
+          }
+          else
+          {
+            std::cout << "Skipping landmark " << track->id << " with P norm " << P.norm() << std::endl;
+          }
         }
       }
     }
   }
   std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
-
-  auto prev_pose = ((frame->id % 5) == 1) ? isam2->calculateEstimate<gtsam::Pose3>(X(frame->id - 1)) :
-                                            values_->at<gtsam::Pose3>(X(frame->id - 1));
-  auto prev_prev_pose = (frame->id % 5 == 1 || frame->id % 5 == 2) ?
-                            isam2->calculateEstimate<gtsam::Pose3>(X(frame->id - 2)) :
-                            values_->at<gtsam::Pose3>(X(frame->id - 2));
-  auto motion_delta = prev_prev_pose.inverse().compose(prev_pose);
-  auto motion_predicted_pose = prev_pose.compose(motion_delta);
 
   // std::cout << "prev prev " << prev_prev_pose.rotation().ypr() << std::endl;
   // std::cout << "prev " << prev_pose.rotation().ypr() << std::endl;
@@ -331,56 +343,66 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
 
   // gtsam::Pose3 gt_pose = ToGtsamPose(NewerCollegeGroundTruth::At(frame->timestamp));
 
-  values_->insert(X(frame->id), motion_predicted_pose);
-
-  // auto between_noise = gtsam::noiseModel::Diagonal::Sigmas(
-  //    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.3), gtsam::Vector3::Constant(0.2)).finished());
-  // new_factors.add(gtsam::BetweenFactor<gtsam::Pose3>(frame->id - 1, frame->id, motion_delta, between_noise));
-
-  // auto prior_noise = gtsam::noiseModel::Diagonal::Sigmas(
-  //    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.1)).finished());
-  // new_factors.addPrior(frame->id, motion_predicted_pose, prior_noise);
-
-  if (frame->id % 5 == 0)
+  // TODO extract a method WaitForIMUAndIntegrate(timestamp1, timestamp2, imu_measurements)
+  while (!imu_queue_->hasMeasurementsInRange(added_frame_timestamps_[last_frame_id_added_], frame->timestamp))
   {
-    gtsam::ISAM2Result result;
-    try
-    {
-      result = isam2->update(*graph_, *values_);
-    }
-    catch (exception& e)
-    {
-      for (auto& track : tracks)
-      {
-        if (track->features.size() == GlobalParams::MinTrackLengthForSmoothing())  // the tracks that were added
-        {
-          std::cout << "track " << track->id << ":";
-          for (auto& feature : track->features)
-          {
-            std::cout << feature->pt << ", ";
-          }
-          std::cout << std::endl;
-        }
-      }
-      throw;
-    }
-    result.print("isam2 result");
-
-    for (const auto& smart_factor_pair : smart_factors_)
-    {
-      boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
-      if (point)
-      {  // ignore if boost::optional returns nullptr
-        landmark_estimates.push_back(ToPoint(*point));
-      }
-    }
-    graph_->resize(0);
-    values_->clear();
+    std::cout << "No IMU measurements in time range " << std::setprecision(17)
+              << added_frame_timestamps_[last_frame_id_added_] << " -> " << frame->timestamp << std::endl;
+    std::cout << "Waiting 1 ms" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
+  imu_queue_->integrateIMUMeasurements(imu_measurements_, added_frame_timestamps_[last_frame_id_added_],
+                                       frame->timestamp);
+  // TODO end extract
 
-  return Pose3Stamped{ .pose = frame->id % 5 == 0 ? ToPose(isam2->calculateEstimate<gtsam::Pose3>(X(frame->id))) :
-                                                    ToPose(motion_predicted_pose),
-                       .stamp = frame->timestamp };
+  auto prev_pose = isam2->calculateEstimate<gtsam::Pose3>(X(last_frame_id_added_));
+  auto prev_velocity = isam2->calculateEstimate<gtsam::Vector3>(V(last_frame_id_added_));
+  auto prev_bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(last_frame_id_added_));
+
+  auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
+
+  values_->insert(X(frame->id), predicted_navstate.pose());
+  values_->insert(V(frame->id), predicted_navstate.velocity());
+  values_->insert(B(frame->id), prev_bias);
+
+  auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
+  gtsam::CombinedImuFactor imu_factor(X(last_frame_id_added_), V(last_frame_id_added_), X(frame->id), V(frame->id),
+                                      B(last_frame_id_added_), B(frame->id), imu_combined);
+  graph_->add(imu_factor);
+
+  gtsam::ISAM2Result isam_result;
+  try
+  {
+    isam_result = isam2->update(*graph_, *values_);
+  }
+  catch (exception& e)
+  {
+    std::cout << "oopsie woopsie" << std::endl;
+    throw;
+  }
+  isam_result.print("isam2 result");
+
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
+    if (point)
+    {  // ignore if boost::optional returns nullptr
+      landmark_estimates.push_back(ToPoint(*point));
+    }
+  }
+  graph_->resize(0);
+  values_->clear();
+
+  imu_measurements_->resetIntegrationAndSetBias(isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame->id)));
+  std::cout << "got bias" << std::endl;
+
+  auto new_pose = isam2->calculateEstimate<gtsam::Pose3>(X(frame->id));
+  std::cout << "got new pose" << std::endl;
+
+  last_frame_id_added_ = frame->id;
+  added_frame_timestamps_[frame->id] = frame->timestamp;
+
+  return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = frame->timestamp };
 }
 void Smoother::InitIMUOnly(const vector<std::shared_ptr<Frame>>& frames, const vector<std::shared_ptr<Track>>& tracks,
                            vector<Pose3Stamped>& pose_estimates)

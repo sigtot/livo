@@ -118,10 +118,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       markerArray.markers.push_back(marker);
     }
     landmark_publisher_.publish(markerArray);
-    exit(0);
   }
-
-  else if (backend.GetStatus() == kLandmarksInitialized && false)
+  else if (backend.GetStatus() == kLandmarksInitialized)
   {
     std::vector<Point3> landmark_estimates;
     auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);
