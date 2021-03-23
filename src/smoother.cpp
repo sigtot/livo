@@ -71,8 +71,6 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                    std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
 {
   std::cout << "Let's initialize those landmarks!" << std::endl;
-  gtsam::NonlinearFactorGraph inertial_graph;
-  gtsam::NonlinearFactorGraph batch_graph;
 
   gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
   gtsam::imuBias::ConstantBias init_bias = imu_measurements_->biasHat();
@@ -99,9 +97,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 1);
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
-  inertial_graph.addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
-  inertial_graph.addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
-  inertial_graph.addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
+  graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
+  graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
   values_->insert(X(keyframe_transforms[0].frame1->id), init_pose);
   values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
@@ -154,11 +152,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     std::cout << "=========================================================" << std::endl;
 
-    if (GlobalParams::AddEssentialMatrixConstraints()) {
+    if (GlobalParams::AddEssentialMatrixConstraints())
+    {
       gtsam::EssentialMatrix E(R_i, t_i);
       gtsam::EssentialMatrixConstraint E_factor(X(keyframe_transform.frame1->id), X(keyframe_transform.frame2->id), E,
                                                 noise_E);
-      batch_graph.add(E_factor);
+      graph_->add(E_factor);  // Doing this invalidates assumption of independent measurements
     }
 
     values_->insert(X(keyframe_transform.frame2->id), gtsam::Pose3(R_i, t_i_scaled));
@@ -170,7 +169,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                         X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
                                         B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id),
                                         imu_combined);
-    inertial_graph.add(imu_factor);
+    graph_->add(imu_factor);
     imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
     frame_ids[keyframe_transform.frame2->id] = true;
   }
@@ -197,27 +196,21 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     {
       std::cout << "adding landmark with " << track->key_features.size() << " observations" << std::endl;
       smart_factors_[track->id] = smart_factor;
-      batch_graph.add(smart_factor);
+      graph_->add(smart_factor);
     }
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
-  // auto result = isam2->update(graph, init_values);
-  // result.print("result");
+  // gtsam::GaussNewtonOptimizer optimizer(batch_graph, *values_);
+  // auto result = optimizer.optimize();
+  isam2->update(*graph_, *values_);
+  auto result = isam2->calculateEstimate();
 
-  batch_graph.add(inertial_graph);
-
-  gtsam::GaussNewtonOptimizer optimizer(batch_graph, *values_);
-  auto gn_result = optimizer.optimize();
-
-  std::cout << "gn worked!" << std::endl;
-
-  pose_estimates.push_back(
-      Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
-                    .stamp = keyframe_transforms[0].frame1->timestamp });
+  pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
+                                         .stamp = keyframe_transforms[0].frame1->timestamp });
   for (auto& keyframe_transform : keyframe_transforms)
   {
-    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
                                            .stamp = keyframe_transform.frame2->timestamp });
   }
 
@@ -236,7 +229,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     if (smart_factor->isValid())
     {
       gtsam::Matrix E;
-      smart_factor->triangulateAndComputeE(E, gn_result);
+      smart_factor->triangulateAndComputeE(E, result);
       auto P = smart_factor->PointCov(E);
       // std::cout << "point covariance: " << std::endl << P << std::endl;
       if (P.norm() < 1)
@@ -245,12 +238,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
         if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't hurt
         {           // ignore if boost::optional returns nullptr
           landmark_estimates.push_back(ToPoint(*point));
-          graph_->add(smart_factor);
         }
       }
       else
       {
-        // std::cout << "Depth error is large! " << P(0, 0) << " (norm " << P.norm() << ")" << std::endl;
+        std::cout << "Depth error large for landmark " << smart_factor_pair.first << ": " << P(0, 0) << " (norm "
+                  << P.norm() << ")" << std::endl;
       }
     }
 
@@ -259,13 +252,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     landmark_estimates.push_back(ToPoint(point));
      */
   }
-  graph_->add(inertial_graph);
-  // isam2->update(*graph_, *values_);
-
   graph_->resize(0);
   values_->clear();
-  auto imu_bias = gn_result.at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
-  // auto imu_bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frames.back()->id));
+  auto imu_bias = result.at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
   imu_bias.print("imu bias: ");
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
 }

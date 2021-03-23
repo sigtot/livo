@@ -247,7 +247,5 @@ void KeyframeTracker::UpdateTrackInlierOutlierCounts(const std::vector<std::shar
     {
       tracks[i]->outlier_count++;
     }
-    std::cout << "track " << tracks[i]->id << " has " << tracks[i]->inlier_count << "/" << tracks[i]->outlier_count
-              << " inlier/outlier ratio (" << tracks[i]->InlierRatio() * 100 << "%)" << std::endl;
   }
 }
