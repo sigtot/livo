@@ -97,7 +97,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
 
-
     // Truncate the tracks because we're still stationary and the tracks contain no information
     if (new_frame->stationary)
     {
@@ -176,6 +175,16 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
           frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_);
     }
   }
+
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
+  {
+    if (active_tracks_[i]->key_features.size() >= GlobalParams::MinTrackLengthForSmoothing() &&
+        active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
+    {
+      active_tracks_.erase(active_tracks_.begin() + i);
+    }
+  }
+
   return new_frame;
 }
 
@@ -618,10 +627,10 @@ bool FeatureExtractor::ReadyForInitialization() const
 
 bool FeatureExtractor::CanPerformStationaryIMUInitialization() const
 {
-  bool perform_stationary_imu_update = !frames.back()->stationary; // Last frame is non-stationary...
+  bool perform_stationary_imu_update = !frames.back()->stationary;  // Last frame is non-stationary...
   for (size_t i = frames.size() - 7; perform_stationary_imu_update && i < frames.size() - 2; ++i)
   {
-    perform_stationary_imu_update = frames[i]->stationary; // ... and the preceding frames are stationary
+    perform_stationary_imu_update = frames[i]->stationary;  // ... and the preceding frames are stationary
   }
   return perform_stationary_imu_update;
 }

@@ -23,7 +23,8 @@ void GlobalParams::ReadVariable(const ros::NodeHandle& nh, const std::string& va
 }
 
 template <class T>
-void GlobalParams::ReadVectorVariable(const ros::NodeHandle& nh, const std::string& variable_name, std::vector<T>& variable)
+void GlobalParams::ReadVectorVariable(const ros::NodeHandle& nh, const std::string& variable_name,
+                                      std::vector<T>& variable)
 {
   if (!nh.getParam(variable_name, variable))
   {
@@ -31,7 +32,8 @@ void GlobalParams::ReadVectorVariable(const ros::NodeHandle& nh, const std::stri
                                                   << " from parameter server, so using "
                                                      "default value");
     std::cout << "Default value: ";
-    for (auto &x : variable) {
+    for (auto& x : variable)
+    {
       std::cout << x << " ";
     }
     std::cout << std::endl;
@@ -40,7 +42,8 @@ void GlobalParams::ReadVectorVariable(const ros::NodeHandle& nh, const std::stri
   {
     ROS_INFO_STREAM("Read param " << variable_name << " from parameter server: ");
     std::cout << "value ";
-    for (auto &x : variable) {
+    for (auto& x : variable)
+    {
       std::cout << x << " ";
     }
     std::cout << std::endl;
@@ -65,6 +68,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/num_good_keyframes_for_initialization",
                GetInstance().num_good_keyframes_for_initialization_);
   ReadVariable(nh, "/orb_test_node/add_essential_matrix_constraints", GetInstance().add_essential_matrix_constraints_);
+  ReadVariable(nh, "/orb_test_node/min_keyframe_feature_inlier_ratio",
+               GetInstance().min_keyframe_feature_inlier_ratio_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
@@ -231,4 +236,8 @@ double GlobalParams::ImageEdgePaddingPercent()
 bool GlobalParams::AddEssentialMatrixConstraints()
 {
   return GetInstance().add_essential_matrix_constraints_;
+}
+double GlobalParams::MinKeyframeFeatureInlierRatio()
+{
+  return GetInstance().min_keyframe_feature_inlier_ratio_;
 }

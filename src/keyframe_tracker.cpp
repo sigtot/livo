@@ -6,13 +6,17 @@
 void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
-  if (SafeToAddFrame(frame2, tracks))
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+  std::vector<uchar> inlier_mask;
+  if (SafeToAddFrame(frame2, valid_tracks))
   {
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
-    GetPoints(frame1, frame2, tracks, points1, points2);
+    GetPoints(frame1, frame2, valid_tracks, points1, points2);
 
-    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2));
+    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
+    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
   }
   else
   {
@@ -24,11 +28,18 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::
 KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                  const std::vector<std::shared_ptr<Track>>& tracks)
 {
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  GetPoints(frame1, frame2, tracks, points1, points2, true);
+  GetPoints(frame1, frame2, valid_tracks, points1, points2, true);
+  assert(valid_tracks.size() == points1.size());
 
-  keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2));
+  std::vector<uchar> inlier_mask;
+  keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
+
+  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
 }
 
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -37,10 +48,6 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
 {
   for (auto& track : tracks)
   {
-    if (track->features.empty())
-    {
-      continue;
-    }
     int num_features = static_cast<int>(track->features.size());
     std::shared_ptr<Feature> feat1 = nullptr;
     std::shared_ptr<Feature> feat2 = nullptr;
@@ -55,10 +62,8 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
         feat2 = track->features[i];
       }
     }
-    if (!feat1 || !feat2)
-    {
-      continue;
-    }
+    assert(feat1 != nullptr);
+    assert(feat2 != nullptr);
     if (init)
     {
       track->key_features.push_back(feat1);
@@ -107,10 +112,12 @@ void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const 
 KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::Point2f>& points1,
                                                          const std::vector<cv::Point2f>& points2,
                                                          const std::shared_ptr<Frame>& frame1,
-                                                         const std::shared_ptr<Frame>& frame2)
+                                                         const std::shared_ptr<Frame>& frame2,
+                                                         std::vector<uchar>& inlier_mask)
 {
-  std::vector<uchar> inlier_mask;
+  assert(points1.size() == points2.size());
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
+  assert(inlier_mask.size() == points1.size());
   auto H = cv::findHomography(points1, points2, cv::RANSAC, 3);
 
   std::vector<bool> F_check_inliers;
@@ -121,7 +128,11 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::P
 
   double R_H = S_H / (S_H + S_F);
 
-  std::cout << "R_H = " << R_H << ", S_H = " << S_H << ", S_F = " << S_F << std::endl;
+  // Update inlier_mask with inliers from F check
+  for (int i = 0; i < inlier_mask.size(); ++i)
+  {
+    inlier_mask[i] = inlier_mask[i] && F_check_inliers[i];
+  }
 
   cv::Mat K = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0., GlobalParams::CamFy(),
                GlobalParams::CamV0(), 0., 0., 1.);
@@ -181,8 +192,62 @@ bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame2,
 bool KeyframeTracker::SafeToInitialize(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                        const std::vector<std::shared_ptr<Track>>& tracks)
 {
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  GetPointsSafe(frame1, frame2, tracks, points1, points2);
+  GetPointsSafe(frame1, frame2, valid_tracks, points1, points2);
   return points1.size() >= 8 && points2.size() >= 8;
+}
+
+void KeyframeTracker::OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                                      const std::vector<std::shared_ptr<Track>>& tracks,
+                                      std::vector<std::shared_ptr<Track>>& valid_tracks)
+{
+  for (auto& track : tracks)
+  {
+    if (track->features.empty())
+    {
+      continue;
+    }
+    bool have_point1 = false;
+    bool have_point2 = false;
+    int num_features = static_cast<int>(track->features.size());
+    for (int i = num_features - 1; i >= 0 && !(have_point1 && have_point2); --i)
+    {
+      if (track->features[i]->frame->id == frame1->id)
+      {
+        have_point1 = true;
+      }
+      if (track->features[i]->frame->id == frame2->id)
+      {
+        have_point2 = true;
+      }
+    }
+    if (have_point1 && have_point2)
+    {
+      valid_tracks.push_back(track);
+    } else {
+    }
+  }
+}
+
+void KeyframeTracker::UpdateTrackInlierOutlierCounts(const std::vector<std::shared_ptr<Track>>& tracks,
+                                                     const std::vector<uchar>& inlier_mask)
+{
+  assert(tracks.size() == inlier_mask.size());
+  for (int i = 0; i < tracks.size(); ++i)
+  {
+    if (inlier_mask[i])
+    {
+      tracks[i]->inlier_count++;
+    }
+    else
+    {
+      tracks[i]->outlier_count++;
+    }
+    std::cout << "track " << tracks[i]->id << " has " << tracks[i]->inlier_count << "/" << tracks[i]->outlier_count
+              << " inlier/outlier ratio (" << tracks[i]->InlierRatio() * 100 << "%)" << std::endl;
+  }
 }

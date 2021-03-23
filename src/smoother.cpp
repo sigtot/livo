@@ -544,11 +544,13 @@ void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
   status_ = kIMUInitialized;
 
+  /*
   for (auto& frame : frames)
   {
     pose_estimates.push_back(
         Pose3Stamped{ .pose = ToPose(gn_result.at<gtsam::Pose3>(X(frame->id))), .stamp = frame->timestamp });
   }
+   */
 }
 
 BackendStatus Smoother::GetStatus()
