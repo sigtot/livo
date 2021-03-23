@@ -66,7 +66,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   if (backend.GetStatus() == kIMUInitialized && frontend.ReadyForInitialization())
   {
     std::vector<Pose3Stamped> pose_estimates;
-    std::vector<Point3> landmark_estimates;
+    std::map<int, Point3> landmark_estimates;
     auto tracks = frontend.GetActiveTracks();
     for (auto & track : frontend.GetOldTracks()) {
       if (!track->key_features.empty())
@@ -88,9 +88,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
     visualization_msgs::MarkerArray markerArray;
     std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
-    for (int i = 0; i < landmark_estimates.size(); ++i)
+    for (auto & landmark_pair : landmark_estimates)
     {
-      auto landmark = landmark_estimates[i];
+      auto landmark = landmark_pair.second;
 
       visualization_msgs::Marker marker;
       marker.pose.position = ToPointMsg(landmark);
@@ -111,7 +111,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
       marker.action = visualization_msgs::Marker::ADD;
       marker.type = visualization_msgs::Marker::CUBE;
-      marker.id = i;
+      marker.id = landmark_pair.first;
       marker.ns = "landmarks";
       marker.header.stamp = ros::Time(new_frame->timestamp);
       marker.header.frame_id = "world";
@@ -121,7 +121,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
   else if (backend.GetStatus() == kLandmarksInitialized)
   {
-    std::vector<Point3> landmark_estimates;
+    std::map<int, Point3> landmark_estimates;
     auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);
     nav_msgs::Odometry odometry_msg;
     odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -130,9 +130,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     pose_publisher_.publish(odometry_msg);
 
     visualization_msgs::MarkerArray markerArray;
-    for (int i = 0; i < landmark_estimates.size(); ++i)
+    for (auto & landmark_pair : landmark_estimates)
     {
-      auto landmark = landmark_estimates[i];
+      auto landmark = landmark_pair.second;
 
       visualization_msgs::Marker marker;
       marker.pose.position = ToPointMsg(landmark);
@@ -153,7 +153,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
       marker.action = visualization_msgs::Marker::ADD;
       marker.type = visualization_msgs::Marker::CUBE;
-      marker.id = i;
+      marker.id = landmark_pair.first;
       marker.ns = "landmarks";
       marker.header.stamp = ros::Time(new_frame->timestamp);
       marker.header.frame_id = "world";

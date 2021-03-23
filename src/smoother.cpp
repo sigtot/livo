@@ -68,7 +68,7 @@ gtsam::SmartProjectionParams GetSmartProjectionParams()
 
 void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms,
                                    const std::vector<shared_ptr<Track>>& tracks,
-                                   std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates)
+                                   std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   std::cout << "Let's initialize those landmarks!" << std::endl;
 
@@ -240,7 +240,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
         boost::optional<gtsam::Point3> point = smart_factor->point();
         if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't hurt
         {           // ignore if boost::optional returns nullptr
-          landmark_estimates.push_back(ToPoint(*point));
+          landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
         }
       }
       else
@@ -274,7 +274,7 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
 }
 
 Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<shared_ptr<Track>>& tracks,
-                              vector<Point3>& landmark_estimates)
+                              std::map<int, Point3>& landmark_estimates)
 {
   std::cout << "Performing isam update for frame " << frame->id << std::endl;
 
@@ -387,7 +387,10 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
     if (point)
     {  // ignore if boost::optional returns nullptr
-      landmark_estimates.push_back(ToPoint(*point));
+      landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
+    }
+    else {
+      landmark_estimates[smart_factor_pair.first] = Point3 {.x = 0, .y = 0, .z = 0};
     }
   }
   graph_->resize(0);

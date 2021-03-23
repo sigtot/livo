@@ -52,13 +52,13 @@ private:
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
   void InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms, const std::vector<std::shared_ptr<Track>>& tracks,
-                  std::vector<Pose3Stamped>& pose_estimates, std::vector<Point3>& landmark_estimates);
+                  std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
 
   void InitIMUOnly(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<std::shared_ptr<Track>>& tracks,
                    std::vector<Pose3Stamped>& pose_estimates);
 
   Pose3Stamped Update(const std::shared_ptr<Frame>& frame, const std::vector<std::shared_ptr<Track>>& tracks,
-                      std::vector<Point3>& landmark_estimates);
+                      std::map<int, Point3>& landmark_estimates);
   void InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose3Stamped>& pose_estimates);
 
   BackendStatus GetStatus();
