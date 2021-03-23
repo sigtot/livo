@@ -1,5 +1,6 @@
-#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <newer_college_ground_truth.h>
@@ -27,15 +28,12 @@ int main(int argc, char** argv)
 
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
-  auto pose_pub = nh.advertise<nav_msgs::Odometry>("/pose", 1000);
+  auto path_pub = nh.advertise<nav_msgs::Path>("/pose", 1000);
   auto gt_pub = nh.advertise<nav_msgs::Odometry>("/ground_truth", 1000);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor feature_extractor(matches_pub, tracks_pub, 20);
   Smoother smoother(imu_queue);
-  Controller controller(feature_extractor, smoother, pose_pub, landmarks_pub);
-  // san raf
-  // auto sub = nh.subscribe("/camera/image_mono", 1000,
-  // &Controller::imageCallback, &controller); newer college
+  Controller controller(feature_extractor, smoother, path_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);

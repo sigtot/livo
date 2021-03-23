@@ -3,18 +3,16 @@
 #include "ros_conversions.h"
 
 #include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 #include <pose3_stamped.h>
 
-#include <chrono>
-#include <thread>
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& posePublisher,
-                       ros::Publisher& landmarkPublisher)
-  : frontend(frontend), backend(backend), pose_publisher_(posePublisher), landmark_publisher_(landmarkPublisher)
+Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& path_publisher,
+                       ros::Publisher& landmark_publisher)
+  : frontend(frontend), backend(backend), path_publisher_(path_publisher), landmark_publisher_(landmark_publisher)
 {
 }
 
@@ -52,14 +50,18 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   if (frontend.CanPerformStationaryIMUInitialization()) {
     std::vector<Pose3Stamped> pose_estimates;
     backend.InitIMU(frontend.GetFrames(), pose_estimates);
-    for (auto& pose_stamped : pose_estimates)
-    {
-      nav_msgs::Odometry odometry_msg;
-      odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
-      odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
-      odometry_msg.header.frame_id = "world";
-      pose_publisher_.publish(odometry_msg);
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (!pose_estimates.empty()) {
+      nav_msgs::Path pathMsg;
+      for (auto& pose_stamped : pose_estimates) {
+        geometry_msgs::PoseStamped stampedPoseMsg;
+        stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
+        stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
+        stampedPoseMsg.header.frame_id = "world";
+        pathMsg.poses.push_back(stampedPoseMsg);
+      }
+      pathMsg.header.frame_id = "world";
+      pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
+      path_publisher_.publish(pathMsg);
     }
   }
 
@@ -76,15 +78,17 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     }
 
     backend.InitializeLandmarks(frontend.GetGoodKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
-    for (auto& pose_stamped : pose_estimates)
-    {
-      nav_msgs::Odometry odometry_msg;
-      odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
-      odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
-      odometry_msg.header.frame_id = "world";
-      pose_publisher_.publish(odometry_msg);
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    nav_msgs::Path pathMsg;
+    for (auto& pose_stamped : pose_estimates) {
+      geometry_msgs::PoseStamped stampedPoseMsg;
+      stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
+      stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
+      stampedPoseMsg.header.frame_id = "world";
+      pathMsg.poses.push_back(stampedPoseMsg);
     }
+    pathMsg.header.frame_id = "world";
+    pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
+    path_publisher_.publish(pathMsg);
 
     visualization_msgs::MarkerArray markerArray;
     std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
@@ -121,13 +125,20 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
   else if (backend.GetStatus() == kLandmarksInitialized)
   {
+    std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;
-    auto pose_stamped = backend.Update(new_frame, frontend.GetActiveTracks(), landmark_estimates);
-    nav_msgs::Odometry odometry_msg;
-    odometry_msg.header.stamp = ros::Time(pose_stamped.stamp);
-    odometry_msg.pose.pose = ToPoseMsg(pose_stamped.pose);
-    odometry_msg.header.frame_id = "world";
-    pose_publisher_.publish(odometry_msg);
+    backend.Update(new_frame, frontend.GetActiveTracks(), pose_estimates, landmark_estimates);
+    nav_msgs::Path pathMsg;
+    for (auto& pose_stamped : pose_estimates) {
+      geometry_msgs::PoseStamped stampedPoseMsg;
+      stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
+      stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
+      stampedPoseMsg.header.frame_id = "world";
+      pathMsg.poses.push_back(stampedPoseMsg);
+    }
+    pathMsg.header.frame_id = "world";
+    pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
+    path_publisher_.publish(pathMsg);
 
     visualization_msgs::MarkerArray markerArray;
     for (auto & landmark_pair : landmark_estimates)

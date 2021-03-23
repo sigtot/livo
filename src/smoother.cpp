@@ -209,6 +209,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   isam2->update(*graph_, *values_);
   auto result = isam2->calculateEstimate();
 
+  // TODO use an accessor method for this instead
   pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
                                          .stamp = keyframe_transforms[0].frame1->timestamp });
   for (auto& keyframe_transform : keyframe_transforms)
@@ -216,6 +217,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
                                            .stamp = keyframe_transform.frame2->timestamp });
   }
+  // TODO end
 
   for (const auto& smart_factor_pair : smart_factors_)
   {
@@ -274,7 +276,7 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
 }
 
 Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<shared_ptr<Track>>& tracks,
-                              std::map<int, Point3>& landmark_estimates)
+                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   std::cout << "Performing isam update for frame " << frame->id << std::endl;
 
@@ -389,8 +391,9 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     {  // ignore if boost::optional returns nullptr
       landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
     }
-    else {
-      landmark_estimates[smart_factor_pair.first] = Point3 {.x = 0, .y = 0, .z = 0};
+    else
+    {
+      landmark_estimates[smart_factor_pair.first] = Point3{ .x = 0, .y = 0, .z = 0 };
     }
   }
   graph_->resize(0);
@@ -404,6 +407,17 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
 
   last_frame_id_added_ = frame->id;
   added_frame_timestamps_[frame->id] = frame->timestamp;
+
+  // TODO use an accessor method for this
+  for (auto& f : added_frame_timestamps_)
+  {
+    auto id = f.first;
+    auto ts = f.second;
+
+    pose_estimates.push_back(
+        Pose3Stamped{ .pose = ToPose(isam2->calculateEstimate<gtsam::Pose3>(X(id))), .stamp = ts });
+  }
+  // TODO end
 
   return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = frame->timestamp };
 }
