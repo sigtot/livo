@@ -3,20 +3,12 @@
 #include <opencv2/calib3d.hpp>
 #include <Initializer.h>
 
-void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
+void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
-  std::vector<std::shared_ptr<Track>> valid_tracks;
-  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-  std::vector<uchar> inlier_mask;
-  if (SafeToAddFrame(frame1, frame2, valid_tracks))
+  if (SafeToAddFrame(frame1, frame2, tracks))
   {
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    GetPoints(frame1, frame2, valid_tracks, points1, points2);
-
-    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
-    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+    AddFrame(frame1, frame2, tracks);
   }
   else
   {
@@ -25,38 +17,29 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::
   }
 }
 
+void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                          const std::vector<std::shared_ptr<Track>>& tracks, bool init)
+{
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+
+  std::vector<cv::Point2f> points1;
+  std::vector<cv::Point2f> points2;
+  GetPoints(frame1, frame2, valid_tracks, points1, points2, init);
+  assert(valid_tracks.size() == points1.size());
+
+  std::vector<uchar> inlier_mask;
+  keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
+
+  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+}
+
 KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                  const std::shared_ptr<Frame>& frame3,
                                  const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  {
-    std::vector<std::shared_ptr<Track>> valid_tracks;
-    OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    GetPoints(frame1, frame2, valid_tracks, points1, points2, true);
-    assert(valid_tracks.size() == points1.size());
-
-    std::vector<uchar> inlier_mask;
-    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
-
-    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
-  }
-  {
-    std::vector<std::shared_ptr<Track>> valid_tracks;
-    OnlyValidTracks(frame2, frame3, tracks, valid_tracks);
-
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    GetPoints(frame2, frame3, valid_tracks, points1, points2, true);
-    assert(valid_tracks.size() == points1.size());
-
-    std::vector<uchar> inlier_mask;
-    keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame2, frame3, inlier_mask));
-
-    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
-  }
+  AddFrame(frame1, frame2, tracks, true);
+  AddFrame(frame2, frame3, tracks);
 }
 
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,

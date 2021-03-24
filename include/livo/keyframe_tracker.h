@@ -25,15 +25,17 @@ private:
                                                  const std::shared_ptr<Frame>& frame2, std::vector<uchar>& inlier_mask);
   static void UpdateTrackInlierOutlierCounts(const std::vector<std::shared_ptr<Track>>& tracks,
                                              const std::vector<uchar>& inlier_mask);
+  void AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                       const std::vector<std::shared_ptr<Track>>& tracks, bool init = false);
 
 public:
-  void AddFrame(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);
+  void AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);
   KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                   const std::shared_ptr<Frame>& frame3, const std::vector<std::shared_ptr<Track>>& tracks);
   std::vector<KeyframeTransform> GetGoodKeyframeTransforms() const;
   bool GoodForInitialization();
   static bool SafeToAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                      const std::vector<std::shared_ptr<Track>>& tracks);
+                             const std::vector<std::shared_ptr<Track>>& tracks);
   static bool SafeToInitialize(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                const std::shared_ptr<Frame>& frame3, const std::vector<std::shared_ptr<Track>>& tracks);
 };

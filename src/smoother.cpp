@@ -143,7 +143,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse());  // TODO swap inversions?
     gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
 
-    std::cout << "========================= Begin =========================" << std::endl;
+    std::cout << "==================== Frame " << keyframe_transform.frame1->id
+              << " -> " << keyframe_transform.frame2->id
+              << " ====================" << std::endl;
 
     std::cout << "R_c = " << R_cam_frame.ypr() << std::endl;
     t_unit_cam_frame.print("t_c = ");
@@ -217,8 +219,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
 
   // TODO use an accessor method for this instead
-  pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
-                                         .stamp = keyframe_transforms[0].frame1->timestamp });
+  pose_estimates.push_back(
+      Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
+                    .stamp = keyframe_transforms[0].frame1->timestamp });
   for (auto& keyframe_transform : keyframe_transforms)
   {
     pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),

@@ -170,7 +170,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       if (keyframe_tracker_)
       {
-        keyframe_tracker_->AddFrame(frame3, active_tracks_);
+        keyframe_tracker_->AddFrameSafe(frame3, active_tracks_);
       }
       else if (KeyframeTracker::SafeToInitialize(frame1, frame2, frame3, active_tracks_))
       {
