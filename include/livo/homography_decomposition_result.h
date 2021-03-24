@@ -23,8 +23,12 @@ struct HomographyDecompositionResult
 
   boost::optional<std::vector<double>> GetTranslation()
   {
-    // TODO convert t to a vector<double>. Current code will give runtime error
-    return selected_index ? boost::optional<std::vector<double>>(ts[*selected_index]) : boost::none;
+    if (selected_index)
+    {
+      return std::vector<double>{ ts[*selected_index].at<double>(0, 0), ts[*selected_index].at<double>(1, 0),
+                                  ts[*selected_index].at<double>(2, 0) };
+    }
+    return boost::none;
   }
 
   boost::optional<cv::Mat> GetNormal()

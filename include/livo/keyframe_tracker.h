@@ -40,6 +40,7 @@ public:
                              const std::vector<std::shared_ptr<Track>>& tracks);
   static bool SafeToInitialize(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                const std::shared_ptr<Frame>& frame3, const std::vector<std::shared_ptr<Track>>& tracks);
+  static void ChooseBestHomographyDecomposition(KeyframeTransform& transform, KeyframeTransform& reference_transform);
 };
 
 #endif  // ORB_TEST_SRC_KEYFRAME_TRACKER_H_

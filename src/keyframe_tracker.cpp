@@ -3,7 +3,8 @@
 #include <opencv2/calib3d.hpp>
 #include <Initializer.h>
 
-void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks)
+void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2,
+                                   const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
   if (SafeToAddFrame(frame1, frame2, tracks))
@@ -17,12 +18,19 @@ void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2, const s
 }
 
 void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                          const std::vector<std::shared_ptr<Track>>& tracks, bool init)
+                               const std::vector<std::shared_ptr<Track>>& tracks, bool init)
 {
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
   std::vector<uchar> inlier_mask;
-  keyframe_transforms_.push_back(MakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init));
+  auto transform = MakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init);
+  if (keyframe_transforms_.back().Valid())
+  {
+    ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
+    std::cout << "tf" << transform.frame2->id << " index: " << *transform.homography_decomposition_result->selected_index
+              << std::endl;
+  }
+  keyframe_transforms_.push_back(transform);
 
   UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
 }
@@ -44,10 +52,48 @@ KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std
   auto transform_2 = MakeKeyframeTransform(frame2, frame3, valid_tracks, inlier_mask);
   UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
 
-  // TODO Calculate R and t in case homography is best
+  ChooseBestHomographyDecomposition(transform_1, transform_2);
+
+  std::cout << "tf1 index: " << *transform_1.homography_decomposition_result->selected_index << std::endl;
+  std::cout << "tf2 index: " << *transform_2.homography_decomposition_result->selected_index << std::endl;
 
   keyframe_transforms_.push_back(transform_1);
   keyframe_transforms_.push_back(transform_2);
+}
+
+void KeyframeTracker::ChooseBestHomographyDecomposition(KeyframeTransform& transform,
+                                                        KeyframeTransform& reference_transform)
+{
+  assert(transform.homography_decomposition_result);
+  assert(reference_transform.homography_decomposition_result);
+  auto reference_selected_index = transform.homography_decomposition_result->selected_index;
+  std::vector<cv::Mat> reference_normals =
+      reference_selected_index ?
+          reference_transform.homography_decomposition_result->normals[*reference_selected_index] :
+          reference_transform.homography_decomposition_result->normals;
+  int best_idx = 0;
+  int best_reference_idx = 0;
+  double largest_dot_product = -1.;
+  for (int i = 0; i < transform.homography_decomposition_result->normals.size(); ++i)
+  {
+    for (int j = 0; j < reference_normals.size(); ++j)
+    {
+      cv::Mat dot_product_mat = transform.homography_decomposition_result->normals[i].t() *
+                                reference_transform.homography_decomposition_result->normals[j];
+      double dot_product = dot_product_mat.at<double>(0);
+      if (abs(dot_product) > abs(largest_dot_product))
+      {
+        largest_dot_product = dot_product;
+        best_idx = i;
+        best_reference_idx = j;
+      }
+    }
+  }
+  transform.homography_decomposition_result->selected_index = boost::optional<int>(best_idx);
+  if (!reference_selected_index)
+  {
+    reference_transform.homography_decomposition_result->selected_index = boost::optional<int>(best_reference_idx);
+  }
 }
 
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -120,8 +166,7 @@ void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const 
 KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<Frame>& frame1,
                                                          const std::shared_ptr<Frame>& frame2,
                                                          const std::vector<std::shared_ptr<Track>>& tracks,
-                                                         std::vector<uchar>& inlier_mask,
-                                                         bool init)
+                                                         std::vector<uchar>& inlier_mask, bool init)
 {
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
@@ -155,9 +200,11 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
 
   auto transform = KeyframeTransform(frame1, frame2, F, S_H, S_F, R_H);
 
-  if (transform.FundamentalMatGood()) {
+  if (transform.FundamentalMatGood())
+  {
     // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
-    // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1 frame
+    // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1
+    // frame
     auto E = cv::findEssentialMat(points2, points1, K, cv::RANSAC);
     cv::Mat R;
     std::vector<double> t;
@@ -174,19 +221,21 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
   std::cout << " ++++++++ tf " << transform.frame1->id << " -> " << transform.frame2->id << " ++++++++" << std::endl;
   for (int i = 0; i < Rs.size(); ++i)
   {
-    auto in_front = IsInFrontOfCamera(points1, normals[i], K.inv());
+    auto in_front = IsInFrontOfCamera(points2, normals[i], K.inv());
     std::cout << " R = " << Rs[i] << std::endl;
     std::cout << " t = " << ts[i] << std::endl;
     std::cout << " n = " << normals[i] << std::endl;
     std::cout << (in_front ? " IN FRONT! " : " not in front ") << std::endl;
     std::cout << "----------------------------" << std::endl;
-    if (in_front) {
+    if (in_front)
+    {
       valid_Rs.push_back(Rs[i]);
       valid_ts.push_back(ts[i]);
       valid_normals.push_back(normals[i]);
     }
   }
   assert(!valid_Rs.empty());
+  assert(valid_Rs.size() <= 2);
   HomographyDecompositionResult result(H, valid_Rs, valid_ts, valid_normals);
   transform.homography_decomposition_result = boost::optional<HomographyDecompositionResult>(result);
 
@@ -196,9 +245,9 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
 bool KeyframeTracker::IsInFrontOfCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv)
 {
   int num_invalid = 0;
-  for (const auto & point : points)
+  for (const auto& point : points)
   {
-    cv::Mat p = (cv::Mat_<double>(3,1) << point.x, point.y, 1.);
+    cv::Mat p = (cv::Mat_<double>(3, 1) << point.x, point.y, 1.);
     cv::Mat m = K_inv * p;
     cv::Mat res = m.t() * n;
     if (res.at<double>(0) <= 0)
