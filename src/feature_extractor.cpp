@@ -160,19 +160,22 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   frames.push_back(new_frame);
 
-  if (frames.size() > GlobalParams::InitKeyframeInterval() &&
-      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0 && !frames.back()->stationary &&
-      !frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()]->stationary)
+  if (frames.size() > 2 * GlobalParams::InitKeyframeInterval() &&
+      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0)
   {
-    if (keyframe_tracker_)
+    auto frame1 = frames[frames.size() - 1 - 2 * GlobalParams::InitKeyframeInterval()];
+    auto frame2 = frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()];
+    auto frame3 = frames.back();
+    if (!frame1->stationary && !frame2->stationary && !frame3->stationary)
     {
-      keyframe_tracker_->AddFrame(frames.back(), active_tracks_);
-    }
-    else if (KeyframeTracker::SafeToInitialize(
-                 frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_))
-    {
-      keyframe_tracker_ = std::make_shared<KeyframeTracker>(
-          frames.back(), frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()], active_tracks_);
+      if (keyframe_tracker_)
+      {
+        keyframe_tracker_->AddFrame(frame3, active_tracks_);
+      }
+      else if (KeyframeTracker::SafeToInitialize(frame1, frame2, frame3, active_tracks_))
+      {
+        keyframe_tracker_ = std::make_shared<KeyframeTracker>(frame1, frame2, frame3, active_tracks_);
+      }
     }
   }
 
