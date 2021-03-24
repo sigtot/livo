@@ -70,6 +70,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/add_essential_matrix_constraints", GetInstance().add_essential_matrix_constraints_);
   ReadVariable(nh, "/orb_test_node/min_keyframe_feature_inlier_ratio",
                GetInstance().min_keyframe_feature_inlier_ratio_);
+  ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
@@ -240,4 +241,8 @@ bool GlobalParams::AddEssentialMatrixConstraints()
 double GlobalParams::MinKeyframeFeatureInlierRatio()
 {
   return GetInstance().min_keyframe_feature_inlier_ratio_;
+}
+bool GlobalParams::UseIsam()
+{
+  return GetInstance().use_isam_;
 }

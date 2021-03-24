@@ -22,6 +22,7 @@
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/slam/EssentialMatrixConstraint.h>
+#include <gtsam/nonlinear/Marginals.h>
 #include <thread>
 #include <chrono>
 
@@ -94,7 +95,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 1);
+  auto noise_b = marginals_->marginalCovariance(B(last_frame_id_added_));
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
@@ -204,17 +205,23 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
-  // gtsam::GaussNewtonOptimizer optimizer(batch_graph, *values_);
-  // auto result = optimizer.optimize();
-  isam2->update(*graph_, *values_);
-  auto result = isam2->calculateEstimate();
+  if (GlobalParams::UseIsam())
+  {
+    isam2->update(*graph_, *values_);
+    *values_ = isam2->calculateEstimate();
+  }
+  else
+  {
+    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    *values_ = optimizer.optimize();
+  }
 
   // TODO use an accessor method for this instead
-  pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
+  pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
                                          .stamp = keyframe_transforms[0].frame1->timestamp });
   for (auto& keyframe_transform : keyframe_transforms)
   {
-    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(result.at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
                                            .stamp = keyframe_transform.frame2->timestamp });
   }
   // TODO end
@@ -234,7 +241,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     if (smart_factor->isValid())
     {
       gtsam::Matrix E;
-      smart_factor->triangulateAndComputeE(E, result);
+      smart_factor->triangulateAndComputeE(E, *values_);
       auto P = smart_factor->PointCov(E);
       // std::cout << "point covariance: " << std::endl << P << std::endl;
       if (P.norm() < 1)
@@ -257,12 +264,15 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     landmark_estimates.push_back(ToPoint(point));
      */
   }
-  graph_->resize(0);
-  values_->clear();
-  auto imu_bias = result.at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
+  auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
   imu_bias.print("imu bias: ");
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
   last_frame_id_added_ = keyframe_transforms.back().frame2->id;
+  if (GlobalParams::UseIsam())
+  {
+    graph_->resize(0);
+    values_->clear();
+  }
   status_ = kLandmarksInitialized;
 }
 
@@ -284,7 +294,7 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
   auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(1, 1.0);
-  auto prev_estimate = isam2->calculateEstimate();
+  auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
 
   gtsam::Pose3 imu_to_cam = gtsam::Pose3(
       gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
@@ -357,9 +367,11 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
                                        frame->timestamp);
   // TODO end extract
 
-  auto prev_pose = isam2->calculateEstimate<gtsam::Pose3>(X(last_frame_id_added_));
-  auto prev_velocity = isam2->calculateEstimate<gtsam::Vector3>(V(last_frame_id_added_));
-  auto prev_bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(last_frame_id_added_));
+  // TODO all these can also be extracted
+  auto prev_pose = prev_estimate.at<gtsam::Pose3>(X(last_frame_id_added_));
+  auto prev_velocity = prev_estimate.at<gtsam::Vector3>(V(last_frame_id_added_));
+  auto prev_bias = prev_estimate.at<gtsam::imuBias::ConstantBias>(B(last_frame_id_added_));
+  // TODO end
 
   auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
 
@@ -372,17 +384,25 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
                                       B(last_frame_id_added_), B(frame->id), imu_combined);
   graph_->add(imu_factor);
 
-  gtsam::ISAM2Result isam_result;
   try
   {
-    isam_result = isam2->update(*graph_, *values_);
+    if (GlobalParams::UseIsam())
+    {
+      auto isam_result = isam2->update(*graph_, *values_);
+      isam_result.print("isam result ");
+      *values_ = isam2->calculateEstimate();
+    }
+    else
+    {
+      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      *values_ = optimizer.optimize();
+    }
   }
   catch (exception& e)
   {
     std::cout << "oopsie woopsie" << std::endl;
     throw;
   }
-  isam_result.print("isam2 result");
 
   for (const auto& smart_factor_pair : smart_factors_)
   {
@@ -396,13 +416,11 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
       landmark_estimates[smart_factor_pair.first] = Point3{ .x = 0, .y = 0, .z = 0 };
     }
   }
-  graph_->resize(0);
-  values_->clear();
 
-  imu_measurements_->resetIntegrationAndSetBias(isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame->id)));
+  imu_measurements_->resetIntegrationAndSetBias(values_->at<gtsam::imuBias::ConstantBias>(B(frame->id)));
   std::cout << "got bias" << std::endl;
 
-  auto new_pose = isam2->calculateEstimate<gtsam::Pose3>(X(frame->id));
+  auto new_pose = values_->at<gtsam::Pose3>(X(frame->id));
   std::cout << "got new pose" << std::endl;
 
   last_frame_id_added_ = frame->id;
@@ -414,10 +432,21 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     auto id = f.first;
     auto ts = f.second;
 
-    pose_estimates.push_back(
-        Pose3Stamped{ .pose = ToPose(isam2->calculateEstimate<gtsam::Pose3>(X(id))), .stamp = ts });
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(id))), .stamp = ts });
   }
   // TODO end
+
+  for (auto& f : added_frame_timestamps_)
+  {
+    auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(f.first));
+    imu_bias.print("imu bias: ");
+  }
+
+  if (GlobalParams::UseIsam())
+  {
+    graph_->resize(0);
+    values_->clear();
+  }
 
   return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = frame->timestamp };
 }
@@ -493,6 +522,10 @@ void Smoother::InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose
   auto gn_result = optimizer.optimize();
   auto imu_bias = gn_result.at<gtsam::imuBias::ConstantBias>(B(frames.back()->id));
   imu_bias.print("imu bias: ");
+  marginals_ = new gtsam::Marginals(graph, gn_result);
+  std::cout << cout.precision(2) << marginals_->marginalCovariance(B(frames.back()->id)) << std::endl;
+  last_frame_id_added_ = frames.back()->id;
+
   imu_measurements_->resetIntegrationAndSetBias(imu_bias);
   status_ = kIMUInitialized;
 

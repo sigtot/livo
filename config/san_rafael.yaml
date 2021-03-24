@@ -9,6 +9,7 @@ track_nms_squared_dist_thresh: 500.
 
 init_keyframe_interval: 6
 num_good_keyframes_for_initialization: 20
+use_isam: false
 
 timeshift_cam_imu: 0
 imu_g: 9.91

@@ -20,6 +20,7 @@ class Cal3_S2;
 class ISAM2;
 class NonlinearFactorGraph;
 class Values;
+class Marginals;
 
 class TangentPreintegration;
 typedef TangentPreintegration PreintegrationType;
@@ -42,6 +43,7 @@ private:
   gtsam::ISAM2* isam2;
   gtsam::NonlinearFactorGraph* graph_;
   gtsam::Values* values_;
+  gtsam::Marginals* marginals_ = nullptr;
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
   std::map<int, double> added_frame_timestamps_; // Map for looking up timestamps of frames added to the optimization
   int last_frame_id_added_ = -1;

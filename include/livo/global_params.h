@@ -36,6 +36,7 @@ private:
   int num_good_keyframes_for_initialization_ = 20;
   bool add_essential_matrix_constraints_ = false;
   double min_keyframe_feature_inlier_ratio_ = .75;
+  bool use_isam_ = true;
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -77,6 +78,7 @@ public:
   static int NumGoodKeyframesForInitialization();
   static bool AddEssentialMatrixConstraints();
   static double MinKeyframeFeatureInlierRatio();
+  static bool UseIsam();
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();
