@@ -9,7 +9,7 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame2, const std::
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
   std::vector<uchar> inlier_mask;
-  if (SafeToAddFrame(frame2, valid_tracks))
+  if (SafeToAddFrame(frame1, frame2, valid_tracks))
   {
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
@@ -196,13 +196,15 @@ bool KeyframeTracker::GoodForInitialization()
   return true;
 }
 
-bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame2,
+bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                      const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  auto frame1 = keyframe_transforms_.back().frame2;
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  GetPointsSafe(frame1, frame2, tracks, points1, points2);
+  GetPointsSafe(frame1, frame2, valid_tracks, points1, points2);
   return points1.size() >= 8 && points2.size() >= 8;
 }
 
@@ -210,31 +212,7 @@ bool KeyframeTracker::SafeToInitialize(const std::shared_ptr<Frame>& frame1, con
                                        const std::shared_ptr<Frame>& frame3,
                                        const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  {
-    std::vector<std::shared_ptr<Track>> valid_tracks;
-    OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    GetPointsSafe(frame1, frame2, valid_tracks, points1, points2);
-    if (points1.size() < 8 || points2.size() < 8)
-    {
-      return false;
-    }
-  }
-  {
-    std::vector<std::shared_ptr<Track>> valid_tracks;
-    OnlyValidTracks(frame2, frame3, tracks, valid_tracks);
-
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    GetPointsSafe(frame2, frame3, valid_tracks, points1, points2);
-    if (points1.size() < 8 || points2.size() < 8)
-    {
-      return false;
-    }
-  }
-  return true;
+  return SafeToAddFrame(frame1, frame2, tracks) && SafeToAddFrame(frame2, frame3, tracks);
 }
 
 void KeyframeTracker::OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
