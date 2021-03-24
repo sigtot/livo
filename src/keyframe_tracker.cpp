@@ -167,7 +167,47 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
     transform.essential_matrix_decomposition_result = boost::optional<EssentialMatrixDecompositionResult>(result);
   }
 
+  // We compute the homography also if a fundamental matrix is a better fit, to compare normals with later frames
+  std::vector<cv::Mat> Rs, ts, normals;
+  cv::decomposeHomographyMat(H, K, Rs, ts, normals);
+  std::vector<cv::Mat> valid_Rs, valid_ts, valid_normals;
+  std::cout << " ++++++++ tf " << transform.frame1->id << " -> " << transform.frame2->id << " ++++++++" << std::endl;
+  for (int i = 0; i < Rs.size(); ++i)
+  {
+    auto in_front = IsInFrontOfCamera(points1, normals[i], K.inv());
+    std::cout << " R = " << Rs[i] << std::endl;
+    std::cout << " t = " << ts[i] << std::endl;
+    std::cout << " n = " << normals[i] << std::endl;
+    std::cout << (in_front ? " IN FRONT! " : " not in front ") << std::endl;
+    std::cout << "----------------------------" << std::endl;
+    if (in_front) {
+      valid_Rs.push_back(Rs[i]);
+      valid_ts.push_back(ts[i]);
+      valid_normals.push_back(normals[i]);
+    }
+  }
+  assert(!valid_Rs.empty());
+  HomographyDecompositionResult result(H, valid_Rs, valid_ts, valid_normals);
+  transform.homography_decomposition_result = boost::optional<HomographyDecompositionResult>(result);
+
   return transform;
+}
+
+bool KeyframeTracker::IsInFrontOfCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv)
+{
+  int num_invalid = 0;
+  for (const auto & point : points)
+  {
+    cv::Mat p = (cv::Mat_<double>(3,1) << point.x, point.y, 1.);
+    cv::Mat m = K_inv * p;
+    cv::Mat res = m.t() * n;
+    if (res.at<double>(0) <= 0)
+    {
+      num_invalid++;
+    }
+  }
+  std::cout << "num invalid: " << num_invalid << std::endl;
+  return num_invalid == 0;
 }
 
 std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const

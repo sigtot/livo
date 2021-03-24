@@ -27,6 +27,8 @@ private:
                                              const std::vector<uchar>& inlier_mask);
   void AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                 const std::vector<std::shared_ptr<Track>>& tracks, bool init = false);
+  // Check if plane with normal n is in from of the camera
+  static bool IsInFrontOfCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv);
 
 public:
   void AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);
