@@ -133,9 +133,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                          keyframe_transform.frame2->timestamp);
     navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
 
-    auto E_mat = ToMatrix3(keyframe_transform.GetEssentialMat());
-    auto R_mat = ToMatrix3(keyframe_transform.GetRotation());
-    auto t = keyframe_transform.GetTranslation();
+    auto E_mat = ToMatrix3(*keyframe_transform.GetEssentialMat());
+    auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
+    auto t = *keyframe_transform.GetTranslation();
     gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
     gtsam::Rot3 R_cam_frame(R_mat);
 

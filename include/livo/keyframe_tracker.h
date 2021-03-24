@@ -19,14 +19,14 @@ private:
   static void OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                               const std::vector<std::shared_ptr<Track>>& tracks,
                               std::vector<std::shared_ptr<Track>>& valid_tracks);
-  static KeyframeTransform MakeKeyframeTransform(const std::vector<cv::Point2f>& points1,
-                                                 const std::vector<cv::Point2f>& points2,
-                                                 const std::shared_ptr<Frame>& frame1,
-                                                 const std::shared_ptr<Frame>& frame2, std::vector<uchar>& inlier_mask);
+  static KeyframeTransform MakeKeyframeTransform(const std::shared_ptr<Frame>& frame1,
+                                                 const std::shared_ptr<Frame>& frame2,
+                                                 const std::vector<std::shared_ptr<Track>>& tracks,
+                                                 std::vector<uchar>& inlier_mask, bool init = false);
   static void UpdateTrackInlierOutlierCounts(const std::vector<std::shared_ptr<Track>>& tracks,
                                              const std::vector<uchar>& inlier_mask);
   void AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                       const std::vector<std::shared_ptr<Track>>& tracks, bool init = false);
+                const std::vector<std::shared_ptr<Track>>& tracks, bool init = false);
 
 public:
   void AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);

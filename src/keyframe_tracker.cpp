@@ -12,8 +12,7 @@ void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2, const s
   }
   else
   {
-    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), cv::Mat(), cv::Mat(), std::vector<double>{}, -1, -1,
-                                      -1);
+    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), -1, -1, -1);
   }
 }
 
@@ -22,14 +21,8 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::
 {
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-
-  std::vector<cv::Point2f> points1;
-  std::vector<cv::Point2f> points2;
-  GetPoints(frame1, frame2, valid_tracks, points1, points2, init);
-  assert(valid_tracks.size() == points1.size());
-
   std::vector<uchar> inlier_mask;
-  keyframe_transforms_.push_back(MakeKeyframeTransform(points1, points2, frame1, frame2, inlier_mask));
+  keyframe_transforms_.push_back(MakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init));
 
   UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
 }
@@ -38,8 +31,23 @@ KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std
                                  const std::shared_ptr<Frame>& frame3,
                                  const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  AddFrame(frame1, frame2, tracks, true);
-  AddFrame(frame2, frame3, tracks);
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+  std::vector<uchar> inlier_mask;
+  auto transform_1 = MakeKeyframeTransform(frame1, frame2, valid_tracks, inlier_mask, true);
+  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+
+  valid_tracks.clear();
+  inlier_mask.clear();
+
+  OnlyValidTracks(frame2, frame3, tracks, valid_tracks);
+  auto transform_2 = MakeKeyframeTransform(frame2, frame3, valid_tracks, inlier_mask);
+  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+
+  // TODO Calculate R and t in case homography is best
+
+  keyframe_transforms_.push_back(transform_1);
+  keyframe_transforms_.push_back(transform_2);
 }
 
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -109,12 +117,20 @@ void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const 
   }
 }
 
-KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::Point2f>& points1,
-                                                         const std::vector<cv::Point2f>& points2,
-                                                         const std::shared_ptr<Frame>& frame1,
+KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<Frame>& frame1,
                                                          const std::shared_ptr<Frame>& frame2,
-                                                         std::vector<uchar>& inlier_mask)
+                                                         const std::vector<std::shared_ptr<Track>>& tracks,
+                                                         std::vector<uchar>& inlier_mask,
+                                                         bool init)
 {
+  std::vector<std::shared_ptr<Track>> valid_tracks;
+  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+
+  std::vector<cv::Point2f> points1;
+  std::vector<cv::Point2f> points2;
+  GetPoints(frame1, frame2, valid_tracks, points1, points2, init);
+  assert(valid_tracks.size() == points1.size());
+
   assert(points1.size() == points2.size());
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
   assert(inlier_mask.size() == points1.size());
@@ -137,14 +153,21 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::vector<cv::P
   cv::Mat K = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0., GlobalParams::CamFy(),
                GlobalParams::CamV0(), 0., 0., 1.);
 
-  // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
-  // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1 frame
-  auto E = cv::findEssentialMat(points2, points1, K, cv::RANSAC);
-  cv::Mat R;
-  std::vector<double> t;
-  cv::recoverPose(E, points2, points1, K, R, t);
+  auto transform = KeyframeTransform(frame1, frame2, F, S_H, S_F, R_H);
 
-  return KeyframeTransform(frame1, frame2, F, E, R, t, S_H, S_F, R_H);
+  if (transform.FundamentalMatGood()) {
+    // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
+    // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1 frame
+    auto E = cv::findEssentialMat(points2, points1, K, cv::RANSAC);
+    cv::Mat R;
+    std::vector<double> t;
+    cv::recoverPose(E, points2, points1, K, R, t);
+
+    EssentialMatrixDecompositionResult result(E, R, t);
+    transform.essential_matrix_decomposition_result = boost::optional<EssentialMatrixDecompositionResult>(result);
+  }
+
+  return transform;
 }
 
 std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const

@@ -4,8 +4,11 @@
 #include <utility>
 #include <vector>
 #include <opencv2/core/core.hpp>
+#include <boost/optional.hpp>
 
 #include "frame.h"
+#include "essential_matrix_decomposition_result.h"
+#include "homography_decomposition_result.h"
 
 struct KeyframeTransform
 {
@@ -13,24 +16,15 @@ struct KeyframeTransform
   const std::shared_ptr<Frame> frame2;
 
   cv::Mat F;
-  cv::Mat E;
-  cv::Mat R;
-  std::vector<double> t;  // Scale is not observable, only direction.
   double S_H;
   double S_F;
   double R_H;
+  boost::optional<EssentialMatrixDecompositionResult> essential_matrix_decomposition_result;
+  boost::optional<HomographyDecompositionResult> homography_decomposition_result;
 
-  KeyframeTransform(std::shared_ptr<Frame> frame1, std::shared_ptr<Frame> frame2, cv::Mat F, cv::Mat E, cv::Mat R,
-                    std::vector<double>  t, double S_H, double S_F, double R_H)
-    : frame1(std::move(frame1))
-    , frame2(std::move(frame2))
-    , F(std::move(F))
-    , E(std::move(E))
-    , R(std::move(R))
-    , t(std::move(t))
-    , S_H(S_H)
-    , S_F(S_F)
-    , R_H(R_H)
+  KeyframeTransform(std::shared_ptr<Frame> frame1, std::shared_ptr<Frame> frame2, cv::Mat F, double S_H, double S_F,
+                    double R_H)
+    : frame1(std::move(frame1)), frame2(std::move(frame2)), F(std::move(F)), S_H(S_H), S_F(S_F), R_H(R_H)
   {
   }
 
@@ -44,19 +38,23 @@ struct KeyframeTransform
     return S_H != -1 && S_F != -1 && R_H != -1;
   }
 
-  cv::Mat GetEssentialMat() const
+  boost::optional<cv::Mat> GetEssentialMat() const
   {
-    return E;
+    return essential_matrix_decomposition_result ? boost::optional<cv::Mat>(essential_matrix_decomposition_result->E) :
+                                                   boost::none;
   }
 
-  cv::Mat GetRotation() const
+  boost::optional<cv::Mat> GetRotation() const
   {
-    return R;
+    return essential_matrix_decomposition_result ? boost::optional<cv::Mat>(essential_matrix_decomposition_result->R) :
+                                                   boost::none;
   }
 
-  std::vector<double> GetTranslation() const
+  boost::optional<std::vector<double>> GetTranslation() const
   {
-    return t;
+    return essential_matrix_decomposition_result ?
+               boost::optional<std::vector<double>>(essential_matrix_decomposition_result->t) :
+               boost::none;
   }
 };
 
