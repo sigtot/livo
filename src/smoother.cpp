@@ -73,7 +73,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 {
   std::cout << "Let's initialize those landmarks!" << std::endl;
 
-  gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
+  gtsam::Pose3 zero_pose(gtsam::Rot3(), gtsam::Point3::Zero());
+  gtsam::Vector3 zero_velocity(0, 0, 0);
   gtsam::imuBias::ConstantBias init_bias = imu_measurements_->biasHat();
 
   while (!imu_queue_->hasMeasurementsInRange(keyframe_transforms[0].frame1->timestamp,
@@ -94,16 +95,16 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.0001);
   auto noise_b = marginals_->marginalCovariance(B(last_frame_id_added_));
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
-  graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
-  graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
+  graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id), zero_velocity, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
-  values_->insert(X(keyframe_transforms[0].frame1->id), init_pose);
-  values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
+  values_->insert(X(keyframe_transforms[0].frame1->id), zero_pose);
+  values_->insert(V(keyframe_transforms[0].frame1->id), zero_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
   added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
@@ -116,7 +117,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                               GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
       gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
 
-  gtsam::NavState navstate(init_pose, init_velocity);
+  gtsam::NavState navstate(zero_pose, init_velocity);
   for (auto& keyframe_transform : keyframe_transforms)
   {
     added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
@@ -133,40 +134,46 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                          keyframe_transform.frame2->timestamp);
     navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
 
-    auto E_mat = ToMatrix3(*keyframe_transform.GetEssentialMat());
-    auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
-    auto t = *keyframe_transform.GetTranslation();
-    gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
-    gtsam::Rot3 R_cam_frame(R_mat);
-
-    gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
-    gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse());  // TODO swap inversions?
-    gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
+    gtsam::Pose3 init_pose = navstate.pose();
 
     std::cout << "==================== Frame " << keyframe_transform.frame1->id
               << " -> " << keyframe_transform.frame2->id
               << " ====================" << std::endl;
+    if (keyframe_transform.Valid()) {
+      auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
+      auto t = *keyframe_transform.GetTranslation();
+      gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
+      gtsam::Rot3 R_cam_frame(R_mat);
 
-    std::cout << "R_c = " << R_cam_frame.ypr() << std::endl;
-    t_unit_cam_frame.print("t_c = ");
-    std::cout << "R_i = " << R_i.ypr() << std::endl;
-    t_i.print("t_i = ");
-    t_i_scaled.print("t_i_scaled = ");
+      gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
+      gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse());  // TODO swap inversions?
+      gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
+
+      init_pose = gtsam::Pose3(R_i, t_i_scaled);
+
+      if (GlobalParams::AddEssentialMatrixConstraints())
+      {
+        gtsam::EssentialMatrix E(R_i, t_i);
+        gtsam::EssentialMatrixConstraint E_factor(X(keyframe_transform.frame1->id), X(keyframe_transform.frame2->id), E,
+                                                  noise_E);
+        graph_->add(E_factor);  // Doing this invalidates assumption of independent measurements
+      }
+
+      std::cout << "R_c = " << R_cam_frame.ypr() << std::endl;
+      t_unit_cam_frame.print("t_c = ");
+      std::cout << "R_i = " << R_i.ypr() << std::endl;
+      t_i.print("t_i = ");
+      t_i_scaled.print("t_i_scaled = ");
+    }
+
     std::cout << "navstate R_i = " << navstate.pose().rotation().ypr() << std::endl;
     std::cout << "navstate t_i = " << navstate.pose().translation() << std::endl;
     std::cout << "navstate v_i = " << navstate.velocity() << std::endl;
 
     std::cout << "=========================================================" << std::endl;
 
-    if (GlobalParams::AddEssentialMatrixConstraints())
-    {
-      gtsam::EssentialMatrix E(R_i, t_i);
-      gtsam::EssentialMatrixConstraint E_factor(X(keyframe_transform.frame1->id), X(keyframe_transform.frame2->id), E,
-                                                noise_E);
-      graph_->add(E_factor);  // Doing this invalidates assumption of independent measurements
-    }
 
-    values_->insert(X(keyframe_transform.frame2->id), gtsam::Pose3(R_i, t_i_scaled));
+    values_->insert(X(keyframe_transform.frame2->id), init_pose);
     values_->insert(V(keyframe_transform.frame2->id), navstate.velocity());
     values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
 
@@ -443,6 +450,12 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   {
     auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(f.first));
     imu_bias.print("imu bias: ");
+  }
+
+  for (auto& f : added_frame_timestamps_)
+  {
+    auto velocity = values_->at<gtsam::Vector3>(V(f.first));
+    std::cout << "velocity: " << velocity.norm() << std::endl;
   }
 
   if (GlobalParams::UseIsam())

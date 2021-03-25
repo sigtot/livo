@@ -16,12 +16,12 @@ struct HomographyDecompositionResult
   {
   }
 
-  boost::optional<cv::Mat> GetRotation()
+  boost::optional<cv::Mat> GetRotation() const
   {
     return selected_index ? boost::optional<cv::Mat>(Rs[*selected_index]) : boost::none;
   }
 
-  boost::optional<std::vector<double>> GetTranslation()
+  boost::optional<std::vector<double>> GetTranslation() const
   {
     if (selected_index)
     {
@@ -31,7 +31,7 @@ struct HomographyDecompositionResult
     return boost::none;
   }
 
-  boost::optional<cv::Mat> GetNormal()
+  boost::optional<cv::Mat> GetNormal() const
   {
     return selected_index ? boost::optional<cv::Mat>(normals[*selected_index]) : boost::none;
   }

@@ -27,8 +27,8 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::
   if (keyframe_transforms_.back().Valid())
   {
     ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
-    std::cout << "tf" << transform.frame2->id << " index: " << *transform.homography_decomposition_result->selected_index
-              << std::endl;
+    std::cout << "tf" << transform.frame2->id
+              << " index: " << *transform.homography_decomposition_result->selected_index << std::endl;
   }
   keyframe_transforms_.push_back(transform);
 
@@ -219,22 +219,39 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
   cv::decomposeHomographyMat(H, K, Rs, ts, normals);
   std::vector<cv::Mat> valid_Rs, valid_ts, valid_normals;
   std::cout << " ++++++++ tf " << transform.frame1->id << " -> " << transform.frame2->id << " ++++++++" << std::endl;
+  int least_invalids_idx = 0;
+  int least_invalids = 999999;
   for (int i = 0; i < Rs.size(); ++i)
   {
-    auto in_front = IsInFrontOfCamera(points2, normals[i], K.inv());
+    int invalids = NumPointsBehindCamera(points2, normals[i], K.inv());
     std::cout << " R = " << Rs[i] << std::endl;
     std::cout << " t = " << ts[i] << std::endl;
     std::cout << " n = " << normals[i] << std::endl;
-    std::cout << (in_front ? " IN FRONT! " : " not in front ") << std::endl;
+    std::cout << (invalids == 0 ? " IN FRONT! " : " not in front ") << std::endl;
     std::cout << "----------------------------" << std::endl;
-    if (in_front)
+    if (invalids == 0)
     {
       valid_Rs.push_back(Rs[i]);
       valid_ts.push_back(ts[i]);
       valid_normals.push_back(normals[i]);
+      least_invalids = invalids;
+      least_invalids_idx = i;
+    }
+    else if (invalids < least_invalids)
+    {
+      least_invalids = invalids;
+      least_invalids_idx = i;
     }
   }
-  assert(!valid_Rs.empty());
+  if (valid_Rs.empty())  //
+  {
+    std::cout << "WARN: May be using R and t decomposed from a degenerate homography!" << std::endl;
+    std::cout << "Some (" << least_invalids << "/" << points2.size() << ") points were projected to be behind camera "
+              << std::endl;
+    valid_Rs.push_back(Rs[least_invalids_idx]);
+    valid_ts.push_back(ts[least_invalids_idx]);
+    valid_normals.push_back(normals[least_invalids_idx]);
+  }
   assert(valid_Rs.size() <= 2);
   HomographyDecompositionResult result(H, valid_Rs, valid_ts, valid_normals);
   transform.homography_decomposition_result = boost::optional<HomographyDecompositionResult>(result);
@@ -242,7 +259,8 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
   return transform;
 }
 
-bool KeyframeTracker::IsInFrontOfCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv)
+int KeyframeTracker::NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n,
+                                           const cv::Mat& K_inv)
 {
   int num_invalid = 0;
   for (const auto& point : points)
@@ -256,21 +274,12 @@ bool KeyframeTracker::IsInFrontOfCamera(const std::vector<cv::Point2f>& points, 
     }
   }
   std::cout << "num invalid: " << num_invalid << std::endl;
-  return num_invalid == 0;
+  return num_invalid;
 }
 
-std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const
+std::vector<KeyframeTransform> KeyframeTracker::GetKeyframeTransforms() const
 {
-  std::vector<KeyframeTransform> transforms;
-  int i;
-  for (i = static_cast<int>(keyframe_transforms_.size()) - 1;
-       i > keyframe_transforms_.size() - GlobalParams::NumGoodKeyframesForInitialization() &&
-       keyframe_transforms_[i].FundamentalMatGood();
-       --i)
-  {
-  }
-  std::copy(keyframe_transforms_.begin() + i + 1, keyframe_transforms_.end(), std::back_inserter(transforms));
-  return transforms;
+  return keyframe_transforms_;
 }
 
 bool KeyframeTracker::GoodForInitialization()

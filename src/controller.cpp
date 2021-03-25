@@ -77,7 +77,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       }
     }
 
-    backend.InitializeLandmarks(frontend.GetGoodKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
+    backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
     nav_msgs::Path pathMsg;
     for (auto& pose_stamped : pose_estimates) {
       geometry_msgs::PoseStamped stampedPoseMsg;

@@ -46,15 +46,28 @@ struct KeyframeTransform
 
   boost::optional<cv::Mat> GetRotation() const
   {
-    return essential_matrix_decomposition_result ? boost::optional<cv::Mat>(essential_matrix_decomposition_result->R) :
-                                                   boost::none;
+    if (essential_matrix_decomposition_result)
+    {
+      return boost::optional<cv::Mat>(essential_matrix_decomposition_result->R);
+    }
+    else if (homography_decomposition_result)
+    {
+      return boost::optional<cv::Mat>(homography_decomposition_result->GetRotation());
+    }
+    return boost::none;
   }
 
   boost::optional<std::vector<double>> GetTranslation() const
   {
-    return essential_matrix_decomposition_result ?
-               boost::optional<std::vector<double>>(essential_matrix_decomposition_result->t) :
-               boost::none;
+    if (essential_matrix_decomposition_result)
+    {
+      return boost::optional<std::vector<double>>(essential_matrix_decomposition_result->t);
+    }
+    else if (homography_decomposition_result)
+    {
+      return boost::optional<std::vector<double>>(homography_decomposition_result->GetTranslation());
+    }
+    return boost::none;
   }
 };
 
