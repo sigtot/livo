@@ -53,6 +53,9 @@ private:
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
 
+  std::vector<double> body_p_imu_quat_ = { 0., 0., 0., 1. };
+  std::vector<double> body_p_imu_vec_ = { 0., 0., 0. };
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -99,6 +102,9 @@ public:
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();
+
+  static std::vector<double> BodyPImuQuat();
+  static std::vector<double> BodyPImuVec();
 
   static double CamFx();
   static double CamFy();

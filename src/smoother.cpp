@@ -52,6 +52,12 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
   imu_params->body_P_sensor->print("imu body p sensor: ");
    */
 
+  gtsam::Pose3 body_p_imu = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
+                              GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
+      gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2]));
+  imu_params->body_P_sensor = body_p_imu;
+
   auto imu_bias = gtsam::imuBias::ConstantBias();  // Initialize at zero bias
 
   auto imu_measurements = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(imu_params, imu_bias);
