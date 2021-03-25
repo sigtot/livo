@@ -7,14 +7,7 @@ void KeyframeTracker::AddFrameSafe(const std::shared_ptr<Frame>& frame2,
                                    const std::vector<std::shared_ptr<Track>>& tracks)
 {
   auto frame1 = keyframe_transforms_.back().frame2;
-  if (SafeToAddFrame(frame1, frame2, tracks))
-  {
-    AddFrame(frame1, frame2, tracks);
-  }
-  else
-  {
-    keyframe_transforms_.emplace_back(frame1, frame2, cv::Mat(), -1, -1, -1);
-  }
+  AddFrame(frame1, frame2, tracks);
 }
 
 void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -24,15 +17,15 @@ void KeyframeTracker::AddFrame(const std::shared_ptr<Frame>& frame1, const std::
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
   std::vector<uchar> inlier_mask;
   auto transform = MakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init);
-  if (keyframe_transforms_.back().Valid())
+  if (transform.Valid())
   {
-    ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
-    std::cout << "tf" << transform.frame2->id
-              << " index: " << *transform.homography_decomposition_result->selected_index << std::endl;
+    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+    if (keyframe_transforms_.back().Valid())
+    {
+      ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
+    }
   }
   keyframe_transforms_.push_back(transform);
-
-  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
 }
 
 KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
@@ -43,19 +36,22 @@ KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
   std::vector<uchar> inlier_mask;
   auto transform_1 = MakeKeyframeTransform(frame1, frame2, valid_tracks, inlier_mask, true);
-  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+  if (transform_1.Valid())
+  {
+    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+  }
 
   valid_tracks.clear();
   inlier_mask.clear();
 
   OnlyValidTracks(frame2, frame3, tracks, valid_tracks);
   auto transform_2 = MakeKeyframeTransform(frame2, frame3, valid_tracks, inlier_mask);
-  UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+  if (transform_2.Valid())
+  {
+    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+  }
 
   ChooseBestHomographyDecomposition(transform_1, transform_2);
-
-  std::cout << "tf1 index: " << *transform_1.homography_decomposition_result->selected_index << std::endl;
-  std::cout << "tf2 index: " << *transform_2.homography_decomposition_result->selected_index << std::endl;
 
   keyframe_transforms_.push_back(transform_1);
   keyframe_transforms_.push_back(transform_2);
@@ -64,8 +60,10 @@ KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std
 void KeyframeTracker::ChooseBestHomographyDecomposition(KeyframeTransform& transform,
                                                         KeyframeTransform& reference_transform)
 {
-  assert(transform.homography_decomposition_result);
-  assert(reference_transform.homography_decomposition_result);
+  if (!transform.homography_decomposition_result || !reference_transform.homography_decomposition_result)
+  {
+    return;  // Nothing to do
+  }
   auto reference_selected_index = transform.homography_decomposition_result->selected_index;
   std::vector<cv::Mat> reference_normals =
       reference_selected_index ?
@@ -168,6 +166,10 @@ KeyframeTransform KeyframeTracker::MakeKeyframeTransform(const std::shared_ptr<F
                                                          const std::vector<std::shared_ptr<Track>>& tracks,
                                                          std::vector<uchar>& inlier_mask, bool init)
 {
+  if ((frame1->stationary && frame2->stationary) || !SafeToComputeTransforms(frame1, frame2, tracks))
+  {
+    return KeyframeTransform(frame1, frame2, cv::Mat(), -1, -1, -1);
+  }
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
 
@@ -300,8 +302,9 @@ bool KeyframeTracker::GoodForInitialization()
   return true;
 }
 
-bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                     const std::vector<std::shared_ptr<Track>>& tracks)
+bool KeyframeTracker::SafeToComputeTransforms(const std::shared_ptr<Frame>& frame1,
+                                              const std::shared_ptr<Frame>& frame2,
+                                              const std::vector<std::shared_ptr<Track>>& tracks)
 {
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
@@ -310,13 +313,6 @@ bool KeyframeTracker::SafeToAddFrame(const std::shared_ptr<Frame>& frame1, const
   std::vector<cv::Point2f> points2;
   GetPointsSafe(frame1, frame2, valid_tracks, points1, points2);
   return points1.size() >= 8 && points2.size() >= 8;
-}
-
-bool KeyframeTracker::SafeToInitialize(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                       const std::shared_ptr<Frame>& frame3,
-                                       const std::vector<std::shared_ptr<Track>>& tracks)
-{
-  return SafeToAddFrame(frame1, frame2, tracks) && SafeToAddFrame(frame2, frame3, tracks);
 }
 
 void KeyframeTracker::OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,

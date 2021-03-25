@@ -88,23 +88,26 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
   imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transforms[0].frame1->timestamp,
                                        keyframe_transforms[0].frame2->timestamp);
-  gtsam::Vector3 init_velocity = imu_measurements_->predict(gtsam::NavState(), init_bias).velocity();
+  gtsam::Vector3 init_velocity_from_imu = imu_measurements_->predict(gtsam::NavState(), init_bias).velocity();
   imu_measurements_->resetIntegrationAndSetBias(init_bias);
 
-  std::cout << "init velocity " << init_velocity << std::endl;
+  std::cout << "init velocity " << init_velocity_from_imu << std::endl;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.0001);
+  auto noise_v = keyframe_transforms[0].stationary ? gtsam::noiseModel::Isotropic::Sigma(3, 0.0001) :
+                                                     gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
   auto noise_b = marginals_->marginalCovariance(B(last_frame_id_added_));
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
-  graph_->addPrior(V(keyframe_transforms[0].frame1->id), zero_velocity, noise_v);
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id),
+                   keyframe_transforms[0].stationary ? zero_velocity : init_velocity_from_imu, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
   values_->insert(X(keyframe_transforms[0].frame1->id), zero_pose);
-  values_->insert(V(keyframe_transforms[0].frame1->id), zero_velocity);
+  values_->insert(V(keyframe_transforms[0].frame1->id),
+                  keyframe_transforms[0].stationary ? zero_velocity : init_velocity_from_imu);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
   added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
@@ -117,7 +120,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                               GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
       gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
 
-  gtsam::NavState navstate(zero_pose, init_velocity);
+  gtsam::NavState navstate(zero_pose, init_velocity_from_imu);
   for (auto& keyframe_transform : keyframe_transforms)
   {
     added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
@@ -136,10 +139,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     gtsam::Pose3 init_pose = navstate.pose();
 
-    std::cout << "==================== Frame " << keyframe_transform.frame1->id
-              << " -> " << keyframe_transform.frame2->id
-              << " ====================" << std::endl;
-    if (keyframe_transform.Valid()) {
+    std::cout << "==================== Frame " << keyframe_transform.frame1->id << " -> "
+              << keyframe_transform.frame2->id << " ====================" << std::endl;
+    if (keyframe_transform.Valid() && !keyframe_transform.stationary)
+    {
       auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
       auto t = *keyframe_transform.GetTranslation();
       gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
@@ -172,10 +175,20 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     std::cout << "=========================================================" << std::endl;
 
-
     values_->insert(X(keyframe_transform.frame2->id), init_pose);
-    values_->insert(V(keyframe_transform.frame2->id), navstate.velocity());
+    values_->insert(V(keyframe_transform.frame2->id),
+                    keyframe_transform.stationary ? zero_velocity : navstate.velocity());
     values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
+
+    if (keyframe_transform.stationary)
+    {
+      graph_->addPrior(V(keyframe_transform.frame2->id), zero_velocity, noise_v);
+
+      auto between_noise = gtsam::noiseModel::Diagonal::Sigmas(
+          (gtsam::Vector(6) << 0.0001, 0.001, 0.001, 0.001, 0.001, 0.001).finished());
+      graph_->add(gtsam::BetweenFactor<gtsam::Pose3>(X(keyframe_transform.frame1->id), X(keyframe_transform.frame2->id),
+                                                     gtsam::Pose3(), between_noise));
+    }
 
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
     gtsam::CombinedImuFactor imu_factor(X(keyframe_transform.frame1->id), V(keyframe_transform.frame1->id),

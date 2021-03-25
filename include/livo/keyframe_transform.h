@@ -15,6 +15,8 @@ struct KeyframeTransform
   const std::shared_ptr<Frame> frame1;
   const std::shared_ptr<Frame> frame2;
 
+  bool stationary;
+
   cv::Mat F;
   double S_H;
   double S_F;
@@ -22,9 +24,15 @@ struct KeyframeTransform
   boost::optional<EssentialMatrixDecompositionResult> essential_matrix_decomposition_result;
   boost::optional<HomographyDecompositionResult> homography_decomposition_result;
 
-  KeyframeTransform(std::shared_ptr<Frame> frame1, std::shared_ptr<Frame> frame2, cv::Mat F, double S_H, double S_F,
+  KeyframeTransform(const std::shared_ptr<Frame> & frame1, const std::shared_ptr<Frame> & frame2, cv::Mat F, double S_H, double S_F,
                     double R_H)
-    : frame1(std::move(frame1)), frame2(std::move(frame2)), F(std::move(F)), S_H(S_H), S_F(S_F), R_H(R_H)
+    : frame1(frame1)
+    , frame2(frame2)
+    , F(std::move(F))
+    , S_H(S_H)
+    , S_F(S_F)
+    , R_H(R_H)
+    , stationary(frame1->stationary && frame2->stationary)
   {
   }
 
