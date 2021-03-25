@@ -50,8 +50,8 @@ private:
   double imu_accel_random_walk_ = 0.01;
   double imu_gyro_random_walk_ = 0.01;
 
-  std::vector<double> imu_cam_quat_ = { 0., 0., 0., 1. };
-  std::vector<double> imu_cam_vector_ = { 0., 0., 0. };
+  std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
+  std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
 
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
@@ -97,8 +97,8 @@ public:
   static double IMUAccelRandomWalk();
   static double IMUGyroRandomWalk();
 
-  static std::vector<double> IMUCamQuat();
-  static std::vector<double> IMUCamVector();
+  static std::vector<double> BodyPCamQuat();
+  static std::vector<double> BodyPCamVec();
 
   static double CamFx();
   static double CamFy();

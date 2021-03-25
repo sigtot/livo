@@ -115,10 +115,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   std::map<int, bool> frame_ids;
   frame_ids[keyframe_transforms[0].frame1->id] = true;
 
-  gtsam::Pose3 imu_to_cam = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
-                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
-      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+  gtsam::Pose3 body_p_cam = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
+                              GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
+      gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
   std::vector<gtsam::Pose3> poses = { zero_pose };
   gtsam::NavState navstate(zero_pose, init_velocity_from_imu);
@@ -150,8 +150,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
       gtsam::Rot3 R_cam_frame(R_mat);
 
-      gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
-      gtsam::Rot3 R_i(imu_to_cam.rotation().inverse() * R_cam_frame * imu_to_cam.rotation());  // TODO swapped.
+      gtsam::Unit3 t_i(body_p_cam * t_unit_cam_frame.point3());
+      gtsam::Rot3 R_i(body_p_cam.rotation() * R_cam_frame * body_p_cam.rotation().inverse());
       gtsam::Point3 t_i_scaled(imu_measurements_->deltaPij().norm() * t_i.point3());
       gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i_scaled);
 
@@ -219,7 +219,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(
-        new SmartFactor(feature_noise, K, imu_to_cam.inverse(), GetSmartProjectionParams()));
+        new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
     for (auto& feature : track->key_features)
     {
       if (frame_ids.count(feature->frame->id))
@@ -330,9 +330,9 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
 
   gtsam::Pose3 imu_to_cam = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::IMUCamQuat()[3], GlobalParams::IMUCamQuat()[0],
-                              GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
-      gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
+      gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
+                              GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
+      gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
   for (auto& track : tracks)
   {

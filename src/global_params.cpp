@@ -88,8 +88,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_gyro_noise_density", GetInstance().imu_gyro_noise_density_);
   ReadVariable(nh, "/orb_test_node/imu_accel_random_walk", GetInstance().imu_accel_random_walk_);
   ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
-  ReadVectorVariable(nh, "/orb_test_node/imu_cam_quat", GetInstance().imu_cam_quat_);
-  ReadVectorVariable(nh, "/orb_test_node/imu_cam_vector", GetInstance().imu_cam_vector_);
+  ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
+  ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -189,13 +189,13 @@ double GlobalParams::IMUNGravityZ()
   return GetInstance().imu_n_gravity_z_;
 }
 
-std::vector<double> GlobalParams::IMUCamQuat()
+std::vector<double> GlobalParams::BodyPCamQuat()
 {
-  return GetInstance().imu_cam_quat_;
+  return GetInstance().body_p_cam_quat_;
 }
-std::vector<double> GlobalParams::IMUCamVector()
+std::vector<double> GlobalParams::BodyPCamVec()
 {
-  return GetInstance().imu_cam_vector_;
+  return GetInstance().body_p_cam_vec_;
 }
 
 double GlobalParams::CamFx()
