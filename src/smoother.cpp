@@ -120,6 +120,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                               GlobalParams::IMUCamQuat()[1], GlobalParams::IMUCamQuat()[2]),
       gtsam::Point3(GlobalParams::IMUCamVector()[0], GlobalParams::IMUCamVector()[1], GlobalParams::IMUCamVector()[2]));
 
+  std::vector<gtsam::Pose3> poses = { zero_pose };
   gtsam::NavState navstate(zero_pose, init_velocity_from_imu);
   for (auto& keyframe_transform : keyframe_transforms)
   {
@@ -136,6 +137,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
                                          keyframe_transform.frame2->timestamp);
     navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
+    imu_measurements_->deltaPij();
 
     gtsam::Pose3 init_pose = navstate.pose();
 
@@ -149,10 +151,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       gtsam::Rot3 R_cam_frame(R_mat);
 
       gtsam::Unit3 t_i(imu_to_cam.inverse() * t_unit_cam_frame.point3());
-      gtsam::Rot3 R_i(imu_to_cam.rotation() * R_cam_frame * imu_to_cam.rotation().inverse());  // TODO swap inversions?
-      gtsam::Point3 t_i_scaled(navstate.pose().translation().norm() * t_i.point3());
+      gtsam::Rot3 R_i(imu_to_cam.rotation().inverse() * R_cam_frame * imu_to_cam.rotation());  // TODO swapped.
+      gtsam::Point3 t_i_scaled(imu_measurements_->deltaPij().norm() * t_i.point3());
+      gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i_scaled);
 
-      init_pose = gtsam::Pose3(R_i, t_i_scaled);
+      gtsam::Pose3 X_world = poses.back().compose(X_i);
+      poses.push_back(X_world);
 
       if (GlobalParams::AddEssentialMatrixConstraints())
       {
@@ -167,6 +171,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       std::cout << "R_i = " << R_i.ypr() << std::endl;
       t_i.print("t_i = ");
       t_i_scaled.print("t_i_scaled = ");
+      std::cout << "R_world = " << X_world.rotation().ypr() << std::endl;
+      std::cout << "t_world = " << X_world.translation().transpose() << std::endl;
+    }
+    else
+    {
+      poses.push_back(navstate.pose());
     }
 
     std::cout << "navstate R_i = " << navstate.pose().rotation().ypr() << std::endl;
@@ -175,7 +185,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     std::cout << "=========================================================" << std::endl;
 
-    values_->insert(X(keyframe_transform.frame2->id), init_pose);
+    values_->insert(X(keyframe_transform.frame2->id), poses.back());
     values_->insert(V(keyframe_transform.frame2->id),
                     keyframe_transform.stationary ? zero_velocity : navstate.velocity());
     values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
