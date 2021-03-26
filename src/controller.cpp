@@ -47,7 +47,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
    */
 
-  if (frontend.CanPerformStationaryIMUInitialization()) {
+  if (false && frontend.CanPerformStationaryIMUInitialization()) {
     std::vector<Pose3Stamped> pose_estimates;
     backend.InitIMU(frontend.GetFrames(), pose_estimates);
     if (!pose_estimates.empty()) {
@@ -65,7 +65,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     }
   }
 
-  if (backend.GetStatus() == kIMUInitialized && frontend.ReadyForInitialization())
+  if (backend.GetStatus() != kLandmarksInitialized && frontend.ReadyForInitialization())
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;

@@ -81,7 +81,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   gtsam::Pose3 zero_pose(gtsam::Rot3(), gtsam::Point3::Zero());
   gtsam::Vector3 zero_velocity(0, 0, 0);
-  gtsam::imuBias::ConstantBias init_bias = imu_measurements_->biasHat();
+  // Init bias on "random values" as this apparently helps convergence
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.01, 0.02, -0.01), gtsam::Vector3(-0.01, 0.01, 0.01));
 
   while (!imu_queue_->hasMeasurementsInRange(keyframe_transforms[0].frame1->timestamp,
                                              keyframe_transforms[0].frame2->timestamp))
@@ -103,7 +104,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
   auto noise_v = keyframe_transforms[0].stationary ? gtsam::noiseModel::Isotropic::Sigma(3, 0.0001) :
                                                      gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  auto noise_b = marginals_->marginalCovariance(B(last_frame_id_added_));
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.2);
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
@@ -280,21 +281,28 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     if (smart_factor->isValid())
     {
       gtsam::Matrix E;
-      smart_factor->triangulateAndComputeE(E, *values_);
-      auto P = smart_factor->PointCov(E);
-      // std::cout << "point covariance: " << std::endl << P << std::endl;
-      if (P.norm() < 1)
+      bool worked = smart_factor->triangulateAndComputeE(E, *values_);
+      if (worked)
       {
-        boost::optional<gtsam::Point3> point = smart_factor->point();
-        if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't hurt
-        {           // ignore if boost::optional returns nullptr
-          landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
+        auto P = smart_factor->PointCov(E);
+        // std::cout << "point covariance: " << std::endl << P << std::endl;
+        if (P.norm() < 1)
+        {
+          boost::optional<gtsam::Point3> point = smart_factor->point();
+          if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't hurt
+          {           // ignore if boost::optional returns nullptr
+            landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
+          }
+        }
+        else
+        {
+          std::cout << "Depth error large for landmark " << smart_factor_pair.first << ": " << P(0, 0) << " (norm "
+                    << P.norm() << ")" << std::endl;
         }
       }
       else
       {
-        std::cout << "Depth error large for landmark " << smart_factor_pair.first << ": " << P(0, 0) << " (norm "
-                  << P.norm() << ")" << std::endl;
+        std::cout << "Triangulation failed for landmark " << smart_factor_pair.first << std::endl;
       }
     }
 
