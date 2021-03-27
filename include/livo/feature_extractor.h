@@ -90,7 +90,7 @@ public:
   std::vector<shared_ptr<Track>> GetActiveTracks();
   std::vector<shared_ptr<Track>> GetOldTracks();
 
-  vector<KeyframeTransform> GetKeyframeTransforms() const;
+  vector<KeyframeTransform> GetValidKeyframeTransforms() const;
   bool ReadyForInitialization() const;
   bool CanPerformStationaryIMUInitialization() const;
 };

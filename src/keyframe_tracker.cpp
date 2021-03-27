@@ -279,18 +279,38 @@ int KeyframeTracker::NumPointsBehindCamera(const std::vector<cv::Point2f>& point
   return num_invalid;
 }
 
-std::vector<KeyframeTransform> KeyframeTracker::GetKeyframeTransforms() const
+int KeyframeTracker::GetMostRecentBadTransformIdx() const
 {
-  return keyframe_transforms_;
+  int i = static_cast<int>(keyframe_transforms_.size()) - 1;
+  for (; i >= 0 && keyframe_transforms_[i].FundamentalMatGood(); --i)
+  {
+  }
+  return i;
 }
 
-bool KeyframeTracker::GoodForInitialization()
+int KeyframeTracker::GetNumberOfGoodTransforms() const
 {
-  if (keyframe_transforms_.size() < GlobalParams::NumGoodKeyframesForInitialization())
+  return static_cast<int>(keyframe_transforms_.size()) - GetMostRecentBadTransformIdx() - 1;
+}
+
+std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const
+{
+  std::vector<KeyframeTransform> transforms;
+  if (GetNumberOfGoodTransforms() > 0) {
+    int i = GetMostRecentBadTransformIdx();
+    std::copy(keyframe_transforms_.begin() + i + 1, keyframe_transforms_.end(), std::back_inserter(transforms));
+  }
+  return transforms;
+}
+
+bool KeyframeTracker::GoodForInitialization() const
+{
+  if (GetNumberOfGoodTransforms() < GlobalParams::NumGoodKeyframesForInitialization())
   {
     return false;
   }
 
+  // The fundamental matrix should be good in the last few frames to enable proper triangulation
   for (int i = static_cast<int>(keyframe_transforms_.size()) - 1;
        i > keyframe_transforms_.size() - GlobalParams::NumGoodKeyframesForInitialization(); --i)
   {

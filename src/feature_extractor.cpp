@@ -166,7 +166,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     auto frame1 = frames[frames.size() - 1 - 2 * GlobalParams::InitKeyframeInterval()];
     auto frame2 = frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()];
     auto frame3 = frames.back();
-    if (frame1->stationary && frame2->stationary && !frame3->stationary && !keyframe_tracker_)
+    if (!frame3->stationary && !keyframe_tracker_)
     {
       keyframe_tracker_ = std::make_shared<KeyframeTracker>(frame1, frame2, frame3, active_tracks_);
     }
@@ -615,9 +615,9 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
   return old_tracks_;
 }
 
-std::vector<KeyframeTransform> FeatureExtractor::GetKeyframeTransforms() const
+std::vector<KeyframeTransform> FeatureExtractor::GetValidKeyframeTransforms() const
 {
-  return keyframe_tracker_ ? keyframe_tracker_->GetKeyframeTransforms() : std::vector<KeyframeTransform>{};
+  return keyframe_tracker_ ? keyframe_tracker_->GetGoodKeyframeTransforms() : std::vector<KeyframeTransform>{};
 }
 
 bool FeatureExtractor::ReadyForInitialization() const

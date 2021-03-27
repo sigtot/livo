@@ -77,7 +77,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       }
     }
 
-    backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
+    backend.InitializeLandmarks(frontend.GetValidKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
     nav_msgs::Path pathMsg;
     for (auto& pose_stamped : pose_estimates) {
       geometry_msgs::PoseStamped stampedPoseMsg;
@@ -123,7 +123,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     }
     landmark_publisher_.publish(markerArray);
   }
-  else if (backend.GetStatus() == kLandmarksInitialized)
+  else if (false && backend.GetStatus() == kLandmarksInitialized)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;

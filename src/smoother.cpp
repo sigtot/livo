@@ -77,10 +77,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
                                    const std::vector<shared_ptr<Track>>& tracks,
                                    std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
-  std::cout << "Let's initialize those landmarks!" << std::endl;
+  std::cout << "Let's initialize those landmarks" << std::endl;
 
   gtsam::Pose3 zero_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  gtsam::Vector3 zero_velocity(0, 0, 0);
+  gtsam::Vector3 init_velocity(0.01, 0.02, -0.01);
   // Init bias on "random values" as this apparently helps convergence
   gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.01, 0.02, -0.01), gtsam::Vector3(-0.01, 0.01, 0.01));
 
@@ -102,19 +102,16 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
-  auto noise_v = keyframe_transforms[0].stationary ? gtsam::noiseModel::Isotropic::Sigma(3, 0.0001) :
-                                                     gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.2);
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
-  graph_->addPrior(V(keyframe_transforms[0].frame1->id),
-                   keyframe_transforms[0].stationary ? zero_velocity : init_velocity_from_imu, noise_v);
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
   values_->insert(X(keyframe_transforms[0].frame1->id), zero_pose);
-  values_->insert(V(keyframe_transforms[0].frame1->id),
-                  keyframe_transforms[0].stationary ? zero_velocity : init_velocity_from_imu);
+  values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
   added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
@@ -183,6 +180,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     }
     else
     {
+      std::cout << " got invalid pose: don't do this " << std::endl;
       poses.push_back(navstate.pose());
     }
 
@@ -194,12 +192,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     values_->insert(X(keyframe_transform.frame2->id), poses.back());
     values_->insert(V(keyframe_transform.frame2->id),
-                    keyframe_transform.stationary ? zero_velocity : navstate.velocity());
+                    keyframe_transform.stationary ? init_velocity : navstate.velocity());
     values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
 
     if (keyframe_transform.stationary)
     {
-      graph_->addPrior(V(keyframe_transform.frame2->id), zero_velocity, noise_v);
+      graph_->addPrior(V(keyframe_transform.frame2->id), init_velocity, noise_v);
 
       auto between_noise = gtsam::noiseModel::Diagonal::Sigmas(
           (gtsam::Vector(6) << 0.0001, 0.001, 0.001, 0.001, 0.001, 0.001).finished());
@@ -306,9 +304,9 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       }
     }
 
-    /* Debug backprojection
-    gtsam::Point3 point = smart_factor->cameras(gn_result).back().backproject(smart_factor->measured().back(), 10);
-    landmark_estimates.push_back(ToPoint(point));
+    /* debug reprojection
+    gtsam::Point3 point = smart_factor->cameras(*values_).back().backproject(smart_factor->measured().back(), 10);
+    landmark_estimates[smart_factor_pair.first] = ToPoint(point);
      */
   }
   auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
