@@ -35,6 +35,7 @@ public:
   void AddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);
   KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                   const std::shared_ptr<Frame>& frame3, const std::vector<std::shared_ptr<Track>>& tracks);
+  std::vector<KeyframeTransform> GetKeyframeTransforms() const;
   std::vector<KeyframeTransform> GetGoodKeyframeTransforms() const;
   bool GoodForInitialization() const;
   static bool SafeToComputeTransforms(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,

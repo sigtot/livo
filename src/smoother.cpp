@@ -80,9 +80,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   std::cout << "Let's initialize those landmarks" << std::endl;
 
   gtsam::Pose3 zero_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  gtsam::Vector3 init_velocity(0.01, 0.02, -0.01);
+  gtsam::Vector3 init_velocity(0.000001, 0.000002, -0.000001);
   // Init bias on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.01, 0.02, -0.01), gtsam::Vector3(-0.01, 0.01, 0.01));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, -0.0001),
+                                         gtsam::Vector3(-0.0001, 0.0001, 0.0001));
 
   while (!imu_queue_->hasMeasurementsInRange(keyframe_transforms[0].frame1->timestamp,
                                              keyframe_transforms[0].frame2->timestamp))
@@ -102,8 +103,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.2);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.0001);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
   auto noise_E = gtsam::noiseModel::Isotropic::Sigma(5, 0.1);
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
@@ -125,7 +126,6 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
   std::vector<gtsam::Pose3> poses = { zero_pose };
-  gtsam::NavState navstate(zero_pose, init_velocity_from_imu);
   for (auto& keyframe_transform : keyframe_transforms)
   {
     added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
@@ -140,13 +140,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
     imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
                                          keyframe_transform.frame2->timestamp);
-    navstate = imu_measurements_->predict(navstate, imu_measurements_->biasHat());
-    imu_measurements_->deltaPij();
-
-    gtsam::Pose3 init_pose = navstate.pose();
 
     std::cout << "==================== Frame " << keyframe_transform.frame1->id << " -> "
               << keyframe_transform.frame2->id << " ====================" << std::endl;
+    std::cout << (keyframe_transform.stationary ? "stationary" : "moving") << std::endl;
     if (keyframe_transform.Valid() && !keyframe_transform.stationary)
     {
       auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
@@ -156,8 +153,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 
       gtsam::Unit3 t_i(body_p_cam * t_unit_cam_frame.point3());
       gtsam::Rot3 R_i(body_p_cam.rotation() * R_cam_frame * body_p_cam.rotation().inverse());
-      gtsam::Point3 t_i_scaled(imu_measurements_->deltaPij().norm() * t_i.point3());
-      gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i_scaled);
+      gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i.point3());
 
       gtsam::Pose3 X_world = poses.back().compose(X_i);
       poses.push_back(X_world);
@@ -174,26 +170,23 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       t_unit_cam_frame.print("t_c = ");
       std::cout << "R_i = " << R_i.ypr() << std::endl;
       t_i.print("t_i = ");
-      t_i_scaled.print("t_i_scaled = ");
       std::cout << "R_world = " << X_world.rotation().ypr() << std::endl;
       std::cout << "t_world = " << X_world.translation().transpose() << std::endl;
     }
     else
     {
-      std::cout << " got invalid pose: don't do this " << std::endl;
-      poses.push_back(navstate.pose());
+      // Assume invalid transform means low motion, so use previous pose
+      poses.push_back(poses.back());
     }
 
-    std::cout << "navstate R_i = " << navstate.pose().rotation().ypr() << std::endl;
-    std::cout << "navstate t_i = " << navstate.pose().translation() << std::endl;
-    std::cout << "navstate v_i = " << navstate.velocity() << std::endl;
+    std::cout << "pose R=" << poses.back().rotation().ypr().transpose() << std::endl;
+    std::cout << "pose t=" << poses.back().translation().transpose() << std::endl;
 
     std::cout << "=========================================================" << std::endl;
 
     values_->insert(X(keyframe_transform.frame2->id), poses.back());
-    values_->insert(V(keyframe_transform.frame2->id),
-                    keyframe_transform.stationary ? init_velocity : navstate.velocity());
-    values_->insert(B(keyframe_transform.frame2->id), imu_measurements_->biasHat());
+    values_->insert(V(keyframe_transform.frame2->id), init_velocity);
+    values_->insert(B(keyframe_transform.frame2->id), init_bias);
 
     if (keyframe_transform.stationary)
     {
@@ -223,8 +216,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   // auto body_P_sensor = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI / 2, 0, -M_PI / 2), gtsam::Point3::Zero());
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(
-        new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
     for (auto& feature : track->key_features)
     {
       if (frame_ids.count(feature->frame->id))
@@ -287,7 +279,8 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
         if (P.norm() < 1)
         {
           boost::optional<gtsam::Point3> point = smart_factor->point();
-          if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't hurt
+          if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't
+                      // hurt
           {           // ignore if boost::optional returns nullptr
             landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
           }

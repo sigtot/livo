@@ -282,7 +282,7 @@ int KeyframeTracker::NumPointsBehindCamera(const std::vector<cv::Point2f>& point
 int KeyframeTracker::GetMostRecentBadTransformIdx() const
 {
   int i = static_cast<int>(keyframe_transforms_.size()) - 1;
-  for (; i >= 0 && keyframe_transforms_[i].FundamentalMatGood(); --i)
+  for (; i >= 0 && keyframe_transforms_[i].Valid(); --i)
   {
   }
   return i;
@@ -291,6 +291,11 @@ int KeyframeTracker::GetMostRecentBadTransformIdx() const
 int KeyframeTracker::GetNumberOfGoodTransforms() const
 {
   return static_cast<int>(keyframe_transforms_.size()) - GetMostRecentBadTransformIdx() - 1;
+}
+
+std::vector<KeyframeTransform> KeyframeTracker::GetKeyframeTransforms() const
+{
+  return keyframe_transforms_;
 }
 
 std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const

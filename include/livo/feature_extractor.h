@@ -93,6 +93,7 @@ public:
   vector<KeyframeTransform> GetValidKeyframeTransforms() const;
   bool ReadyForInitialization() const;
   bool CanPerformStationaryIMUInitialization() const;
+  vector<KeyframeTransform> GetKeyframeTransforms() const;
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
