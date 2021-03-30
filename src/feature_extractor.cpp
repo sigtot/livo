@@ -119,7 +119,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     for (const auto& track : active_tracks_)
     {
-      double intensity = std::min(255., 255 * track->max_parallax / (2*GlobalParams::MinParallax()));
+      double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallax());
       auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, intensity, 0);
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
       {
@@ -613,6 +613,26 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveTracks()
 std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
 {
   return old_tracks_;
+}
+
+std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
+{
+  std::vector<shared_ptr<Track>> tracks;
+  for (auto & track : old_tracks_)
+  {
+    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    {
+      tracks.push_back(track);
+    }
+  }
+  for (auto & track : active_tracks_)
+  {
+    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    {
+      tracks.push_back(track);
+    }
+  }
+  return tracks;
 }
 
 std::vector<KeyframeTransform> FeatureExtractor::GetValidKeyframeTransforms() const

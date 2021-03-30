@@ -20,7 +20,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
-  if (frontend.ReadyForInitialization()) {
+  if (frontend.ReadyForInitialization())
+  {
     std::cout << "R_H good. Ready for initialization!" << std::endl;
   }
 
@@ -47,12 +48,15 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
    */
 
-  if (false && frontend.CanPerformStationaryIMUInitialization()) {
+  if (false && frontend.CanPerformStationaryIMUInitialization())
+  {
     std::vector<Pose3Stamped> pose_estimates;
     backend.InitIMU(frontend.GetFrames(), pose_estimates);
-    if (!pose_estimates.empty()) {
+    if (!pose_estimates.empty())
+    {
       nav_msgs::Path pathMsg;
-      for (auto& pose_stamped : pose_estimates) {
+      for (auto& pose_stamped : pose_estimates)
+      {
         geometry_msgs::PoseStamped stampedPoseMsg;
         stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
         stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -69,17 +73,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;
-    auto tracks = frontend.GetActiveTracks();
-    for (auto & track : frontend.GetOldTracks()) {
-      if (!track->key_features.empty())
-      {
-        tracks.push_back(track);
-      }
-    }
 
-    backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), tracks, pose_estimates, landmark_estimates);
+    backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), frontend.GetHighParallaxTracks(), pose_estimates,
+                                landmark_estimates);
     nav_msgs::Path pathMsg;
-    for (auto& pose_stamped : pose_estimates) {
+    for (auto& pose_stamped : pose_estimates)
+    {
       geometry_msgs::PoseStamped stampedPoseMsg;
       stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
       stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -92,7 +91,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
     visualization_msgs::MarkerArray markerArray;
     std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
-    for (auto & landmark_pair : landmark_estimates)
+    for (auto& landmark_pair : landmark_estimates)
     {
       auto landmark = landmark_pair.second;
 
@@ -129,7 +128,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     std::map<int, Point3> landmark_estimates;
     backend.Update(new_frame, frontend.GetActiveTracks(), pose_estimates, landmark_estimates);
     nav_msgs::Path pathMsg;
-    for (auto& pose_stamped : pose_estimates) {
+    for (auto& pose_stamped : pose_estimates)
+    {
       geometry_msgs::PoseStamped stampedPoseMsg;
       stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
       stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
@@ -141,7 +141,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     path_publisher_.publish(pathMsg);
 
     visualization_msgs::MarkerArray markerArray;
-    for (auto & landmark_pair : landmark_estimates)
+    for (auto& landmark_pair : landmark_estimates)
     {
       auto landmark = landmark_pair.second;
 

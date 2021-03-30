@@ -94,6 +94,7 @@ public:
   bool ReadyForInitialization() const;
   bool CanPerformStationaryIMUInitialization() const;
   vector<KeyframeTransform> GetKeyframeTransforms() const;
+  vector<shared_ptr<Track>> GetHighParallaxTracks();
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
