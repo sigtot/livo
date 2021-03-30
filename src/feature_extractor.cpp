@@ -116,11 +116,12 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
-    auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 255, 0);
 
     for (const auto& track : active_tracks_)
     {
-      for (int i = 1; i < track->features.size(); ++i)
+      double intensity = std::min(255., 255 * track->max_parallax / (2*GlobalParams::MinParallax()));
+      auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, intensity, 0);
+      for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
       {
         cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
       }
@@ -165,7 +166,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     auto frame1 = frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()];
     auto frame2 = frames.back();
-    if (frame1->stationary && !frame2->stationary && !keyframe_tracker_)
+    if (!keyframe_tracker_)
     {
       keyframe_tracker_ = std::make_shared<KeyframeTracker>(frame1, frame2, active_tracks_);
     }

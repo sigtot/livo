@@ -25,6 +25,8 @@ private:
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
   double match_max_distance_ = 20;
+  double min_parallax_ = 10.;
+  int num_high_parallax_points_for_keyframe_ = 20;
 
   int feature_extraction_interval_ = 5;
   int track_count_lower_thresh_ = 100;
@@ -81,6 +83,8 @@ public:
   static int NumGoodKeyframesForInitialization();
   static bool AddEssentialMatrixConstraints();
   static double MinKeyframeFeatureInlierRatio();
+  static double MinParallax();
+  static double NumHighParallaxPointsForKeyframe();
   static bool UseIsam();
 
   static int FeatureExtractionInterval();

@@ -7,6 +7,8 @@ init_keyframe_interval: 6
 num_good_keyframes_for_initialization: 20
 add_essential_matrix_constraints: false
 min_keyframe_feature_inlier_ratio: 0.75
+min_parallax: 20
+num_high_parallax_points_for_keyframe: 15
 use_isam: true
 
 imu_cam_quat: [0, 0, 0, 1]

@@ -30,6 +30,9 @@ private:
   // Check if plane with normal n is in from of the camera
   static int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv);
   static void ChooseBestHomographyDecomposition(KeyframeTransform& transform, KeyframeTransform& reference_transform);
+  static int ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
+                                    const cv::Mat& R12, const cv::Mat& K, double min_parallax,
+                                    std::vector<double>& parallaxes);
 
 public:
   void TryAddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);

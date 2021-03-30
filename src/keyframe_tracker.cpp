@@ -245,7 +245,57 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
   HomographyDecompositionResult homography_decomp_result(H, valid_Rs, valid_ts, valid_normals);
   transform.homography_decomposition_result = boost::optional<HomographyDecompositionResult>(homography_decomp_result);
 
-  return transform;
+  auto R12 = transform.GetRotation();
+  if (R12)
+  {
+    std::vector<double> parallaxes;
+    int num_high_parallax = ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallax(), parallaxes);
+    for (int i = 0; i < valid_tracks.size(); ++i)
+    {
+      if (inlier_mask[i])
+      {
+        valid_tracks[i]->max_parallax = std::max(valid_tracks[i]->max_parallax, parallaxes[i]);
+      }
+    }
+    if (num_high_parallax > GlobalParams::NumHighParallaxPointsForKeyframe())
+    {
+      return transform;
+    }
+  }
+
+  return KeyframeTransform::Invalid(frame1, frame2);
+}
+
+int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& points1,
+                                            const std::vector<cv::Point2f>& points2, const cv::Mat& R12,
+                                            const cv::Mat& K, double min_parallax, std::vector<double>& parallaxes)
+{
+  int num_high_parallax = 0;
+  parallaxes.resize(points1.size());
+  auto H_rot_only = R12.inv(); // Quite spooky that we need to invert this: Need to take a better look at this
+  cv::Mat K_inv = K.inv();
+  for (int i = 0; i < points1.size(); ++i)
+  {
+    cv::Mat point1 = (cv::Mat_<double>(3, 1) << points1[i].x, points1[i].y, 1.);
+    cv::Mat point2 = (cv::Mat_<double>(3, 1) << points2[i].x, points2[i].y, 1.);
+    cv::Mat point2_comp = K * H_rot_only * K_inv * point1;
+
+    std::cout << "point1: " << point1 << std::endl;
+    std::cout << "point2: " << point2 << std::endl;
+    std::cout << "point2 comp: " << point2_comp << std::endl;
+    point2_comp /= point2_comp.at<double>(2, 0);  // Normalize homogeneous coordinate
+    std::cout << "point2 comp (normalized): " << point2_comp << std::endl;
+    cv::Mat point2_delta = point2 - point2_comp;
+    std::cout << "point2 delta" << point2_delta << std::endl;
+    double dist = std::sqrt(point2_delta.dot(point2_delta));  // This works because last coordinate is zero
+    std::cout << "dist: " << dist << std::endl;
+    parallaxes[i] = dist;
+    if (dist > min_parallax)
+    {
+      num_high_parallax++;
+    }
+  }
+  return num_high_parallax;
 }
 
 int KeyframeTracker::NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n,

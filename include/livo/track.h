@@ -15,6 +15,8 @@ struct Track
   int inlier_count = 0;
   int outlier_count = 0;
 
+  double max_parallax = 0.;
+
   explicit Track(std::vector<std::shared_ptr<Feature>> features) : features(std::move(features))
   {
     static int counter = 0;
