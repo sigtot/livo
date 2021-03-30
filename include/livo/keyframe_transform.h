@@ -36,6 +36,11 @@ struct KeyframeTransform
   {
   }
 
+  static KeyframeTransform Invalid(const std::shared_ptr<Frame> & frame1, const std::shared_ptr<Frame> & frame2)
+  {
+    return KeyframeTransform(frame1, frame2, cv::Mat(), -1, -1, -1);
+  }
+
   bool FundamentalMatGood() const
   {
     return Valid() && R_H < 0.45;
