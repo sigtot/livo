@@ -17,8 +17,13 @@ imu_gyro_random_walk: 0.000004
 use_isam: false
 
 num_good_keyframes_for_initialization: 20
-track_nms_squared_dist_thresh: 700.
-track_count_lower_thresh: 80
+track_nms_squared_dist_thresh: 400.
+max_features_per_cell: 6
+track_count_lower_thresh: 150
+
+min_parallax: 10
+num_high_parallax_points_for_keyframe: 30
+min_track_length_for_smoothing: 3
 
 body_p_cam_quat: [-0.5, 0.5, -0.5, 0.5]
 body_p_cam_vec: [0, 0, 0]

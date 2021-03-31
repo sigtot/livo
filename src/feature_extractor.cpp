@@ -136,7 +136,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
-    FindGoodFeaturesToTrackGridded(img_resized, corners, 5, 4, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    FindGoodFeaturesToTrackGridded(img_resized, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
       active_tracks_.push_back(std::make_shared<Track>(
@@ -161,19 +161,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   frames.push_back(new_frame);
 
-  if (frames.size() > GlobalParams::InitKeyframeInterval() &&
-      (frames.size() - 1) % GlobalParams::InitKeyframeInterval() == 0)
+  if (keyframe_tracker_)
   {
-    auto frame1 = frames[frames.size() - 1 - GlobalParams::InitKeyframeInterval()];
-    auto frame2 = frames.back();
-    if (!keyframe_tracker_)
-    {
-      keyframe_tracker_ = std::make_shared<KeyframeTracker>(frame1, frame2, active_tracks_);
-    }
-    else if (keyframe_tracker_)
-    {
-      keyframe_tracker_->TryAddFrameSafe(frame2, active_tracks_);
-    }
+    keyframe_tracker_->TryAddFrameSafe(new_frame, active_tracks_);
+  }
+  else
+  {
+    keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
   }
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)

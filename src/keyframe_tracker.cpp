@@ -1,27 +1,34 @@
 #include "keyframe_tracker.h"
 #include "global_params.h"
 #include <opencv2/calib3d.hpp>
+#include <utility>
 #include <Initializer.h>
 
 void KeyframeTracker::TryAddFrameSafe(const std::shared_ptr<Frame>& frame2,
                                       const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  auto frame1 = keyframe_transforms_.back().frame2;
+  auto frame1 = keyframe_transforms_.empty() ? first_frame_ : keyframe_transforms_.back().frame2;
   TryAddFrame(frame1, frame2, tracks);
 }
 
 void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                   const std::vector<std::shared_ptr<Track>>& tracks, bool init)
 {
+  if (!HaveEnoughMatches(frame1, frame2, tracks))
+  {
+    std::cout << "Lost track: Reinitializing keyframe tracker on frame " << frame2->id << std::endl;
+    first_frame_ = frame2;
+    keyframe_transforms_.clear();
+  }
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
   std::vector<uchar> inlier_mask;
   auto transform = TryMakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init);
   if (transform.Valid())
   {
-    std::cout << "Making new keyframe transform " << frame1->id << " -> " << frame2->id << std::endl;
+    std::cout << "Adding new keyframe transform " << frame1->id << " -> " << frame2->id << std::endl;
     UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
-    if (keyframe_transforms_.back().Valid())
+    if (!keyframe_transforms_.empty() && keyframe_transforms_.back().Valid())
     {
       ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
     }
@@ -29,18 +36,9 @@ void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const st
   }
 }
 
-KeyframeTracker::KeyframeTracker(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                 const std::vector<std::shared_ptr<Track>>& tracks)
+KeyframeTracker::KeyframeTracker(std::shared_ptr<Frame> frame1)
+: first_frame_(std::move(frame1))
 {
-  std::vector<std::shared_ptr<Track>> valid_tracks;
-  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-  std::vector<uchar> inlier_mask;
-  auto transform_1 = TryMakeKeyframeTransform(frame1, frame2, valid_tracks, inlier_mask, true);
-  if (transform_1.Valid())
-  {
-    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
-  }
-  keyframe_transforms_.push_back(transform_1);
 }
 
 void KeyframeTracker::ChooseBestHomographyDecomposition(KeyframeTransform& transform,
@@ -152,7 +150,7 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
                                                             const std::vector<std::shared_ptr<Track>>& tracks,
                                                             std::vector<uchar>& inlier_mask, bool init)
 {
-  if ((frame1->stationary && frame2->stationary) || !SafeToComputeTransforms(frame1, frame2, tracks))
+  if (frame1->stationary && frame2->stationary)
   {
     return KeyframeTransform::Invalid(frame1, frame2);
   }
@@ -207,17 +205,11 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
   std::vector<cv::Mat> Rs, ts, normals;
   cv::decomposeHomographyMat(H, K, Rs, ts, normals);
   std::vector<cv::Mat> valid_Rs, valid_ts, valid_normals;
-  std::cout << " ++++++++ tf " << transform.frame1->id << " -> " << transform.frame2->id << " ++++++++" << std::endl;
   int least_invalids_idx = 0;
   int least_invalids = 999999;
   for (int i = 0; i < Rs.size(); ++i)
   {
     int invalids = NumPointsBehindCamera(points2, normals[i], K.inv());
-    std::cout << " R = " << Rs[i] << std::endl;
-    std::cout << " t = " << ts[i] << std::endl;
-    std::cout << " n = " << normals[i] << std::endl;
-    std::cout << (invalids == 0 ? " IN FRONT! " : " not in front ") << std::endl;
-    std::cout << "----------------------------" << std::endl;
     if (invalids == 0)
     {
       valid_Rs.push_back(Rs[i]);
@@ -280,15 +272,9 @@ int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& poin
     cv::Mat point2 = (cv::Mat_<double>(3, 1) << points2[i].x, points2[i].y, 1.);
     cv::Mat point2_comp = K * H_rot_only * K_inv * point1;
 
-    std::cout << "point1: " << point1 << std::endl;
-    std::cout << "point2: " << point2 << std::endl;
-    std::cout << "point2 comp: " << point2_comp << std::endl;
     point2_comp /= point2_comp.at<double>(2, 0);  // Normalize homogeneous coordinate
-    std::cout << "point2 comp (normalized): " << point2_comp << std::endl;
     cv::Mat point2_delta = point2 - point2_comp;
-    std::cout << "point2 delta" << point2_delta << std::endl;
     double dist = std::sqrt(point2_delta.dot(point2_delta));  // This works because last coordinate is zero
-    std::cout << "dist: " << dist << std::endl;
     parallaxes[i] = dist;
     if (dist > min_parallax)
     {
@@ -312,7 +298,6 @@ int KeyframeTracker::NumPointsBehindCamera(const std::vector<cv::Point2f>& point
       num_invalid++;
     }
   }
-  std::cout << "num invalid: " << num_invalid << std::endl;
   return num_invalid;
 }
 
@@ -365,7 +350,7 @@ bool KeyframeTracker::GoodForInitialization() const
   return true;
 }
 
-bool KeyframeTracker::SafeToComputeTransforms(const std::shared_ptr<Frame>& frame1,
+bool KeyframeTracker::HaveEnoughMatches(const std::shared_ptr<Frame>& frame1,
                                               const std::shared_ptr<Frame>& frame2,
                                               const std::vector<std::shared_ptr<Track>>& tracks)
 {
