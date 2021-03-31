@@ -71,56 +71,110 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
   if (backend.GetStatus() != kLandmarksInitialized && frontend.ReadyForInitialization())
   {
-    std::vector<Pose3Stamped> pose_estimates;
-    std::map<int, Point3> landmark_estimates;
-
-    backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), frontend.GetHighParallaxTracks(), pose_estimates,
-                                landmark_estimates);
-    nav_msgs::Path pathMsg;
-    for (auto& pose_stamped : pose_estimates)
     {
-      geometry_msgs::PoseStamped stampedPoseMsg;
-      stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
-      stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
-      stampedPoseMsg.header.frame_id = "world";
-      pathMsg.poses.push_back(stampedPoseMsg);
-    }
-    pathMsg.header.frame_id = "world";
-    pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
-    path_publisher_.publish(pathMsg);
+      std::vector<Pose3Stamped> pose_estimates;
+      std::map<int, Point3> landmark_estimates;
 
-    visualization_msgs::MarkerArray markerArray;
-    std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
-    for (auto& landmark_pair : landmark_estimates)
+      backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), frontend.GetHighParallaxTracks(), pose_estimates,
+                                  landmark_estimates);
+      nav_msgs::Path pathMsg;
+      for (auto& pose_stamped : pose_estimates)
+      {
+        geometry_msgs::PoseStamped stampedPoseMsg;
+        stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
+        stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
+        stampedPoseMsg.header.frame_id = "world";
+        pathMsg.poses.push_back(stampedPoseMsg);
+      }
+      pathMsg.header.frame_id = "world";
+      pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
+      path_publisher_.publish(pathMsg);
+
+      visualization_msgs::MarkerArray markerArray;
+      std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
+      for (auto& landmark_pair : landmark_estimates)
+      {
+        auto landmark = landmark_pair.second;
+
+        visualization_msgs::Marker marker;
+        marker.pose.position = ToPointMsg(landmark);
+
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = 0.1;
+        marker.scale.y = 0.1;
+        marker.scale.z = 0.1;
+
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.id = landmark_pair.first;
+        marker.ns = "landmarks";
+        marker.header.stamp = ros::Time(new_frame->timestamp);
+        marker.header.frame_id = "world";
+        markerArray.markers.push_back(marker);
+      }
+      landmark_publisher_.publish(markerArray);
+    }
     {
-      auto landmark = landmark_pair.second;
+      std::vector<Pose3Stamped> pose_estimates;
+      std::map<int, Point3> landmark_estimates;
 
-      visualization_msgs::Marker marker;
-      marker.pose.position = ToPointMsg(landmark);
+      backend.InitializeIMU(frontend.GetKeyframeTransforms(), pose_estimates, landmark_estimates);
 
-      marker.pose.orientation.x = 0.0;
-      marker.pose.orientation.y = 0.0;
-      marker.pose.orientation.z = 0.0;
-      marker.pose.orientation.w = 1.0;
+      nav_msgs::Path pathMsg;
+      for (auto& pose_stamped : pose_estimates)
+      {
+        geometry_msgs::PoseStamped stampedPoseMsg;
+        stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
+        stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
+        stampedPoseMsg.header.frame_id = "world";
+        pathMsg.poses.push_back(stampedPoseMsg);
+      }
+      pathMsg.header.frame_id = "world";
+      pathMsg.header.stamp = ros::Time(pose_estimates.back().stamp);
+      path_publisher_.publish(pathMsg);
 
-      marker.scale.x = 0.1;
-      marker.scale.y = 0.1;
-      marker.scale.z = 0.1;
+      visualization_msgs::MarkerArray markerArray;
+      std::cout << "got " << landmark_estimates.size() << " landmarks from smoother" << std::endl;
+      for (auto& landmark_pair : landmark_estimates)
+      {
+        auto landmark = landmark_pair.second;
 
-      marker.color.r = 0.0f;
-      marker.color.g = 1.0f;
-      marker.color.b = 0.0f;
-      marker.color.a = 1.0f;
+        visualization_msgs::Marker marker;
+        marker.pose.position = ToPointMsg(landmark);
 
-      marker.action = visualization_msgs::Marker::ADD;
-      marker.type = visualization_msgs::Marker::CUBE;
-      marker.id = landmark_pair.first;
-      marker.ns = "landmarks";
-      marker.header.stamp = ros::Time(new_frame->timestamp);
-      marker.header.frame_id = "world";
-      markerArray.markers.push_back(marker);
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = 0.1;
+        marker.scale.y = 0.1;
+        marker.scale.z = 0.1;
+
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.id = landmark_pair.first;
+        marker.ns = "landmarks";
+        marker.header.stamp = ros::Time(new_frame->timestamp);
+        marker.header.frame_id = "world";
+        markerArray.markers.push_back(marker);
+      }
+      landmark_publisher_.publish(markerArray);
     }
-    landmark_publisher_.publish(markerArray);
   }
   else if (false && backend.GetStatus() == kLandmarksInitialized)
   {

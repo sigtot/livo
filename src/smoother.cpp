@@ -219,17 +219,11 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
    */
 
-  for (auto v : *values_)
-  {
-    std::cout << v.key << ": ";
-    v.value.print();
-  }
-
   auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1);
-  auto range_factor = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(X(keyframe_transforms[0].frame1->id),
-                                                                     X(keyframe_transforms.back().frame2->id),
-                                                                     poses.back().translation().norm(), range_noise);
-  graph_->add(range_factor);
+  range_factor_ = gtsam::make_shared<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>>(
+      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), poses.back().translation().norm(),
+      range_noise);
+  graph_->add(range_factor_);
 
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
@@ -269,29 +263,35 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     *values_ = optimizer.optimize();
   }
 
-  // TODO use an accessor method for this instead
-  pose_estimates.push_back(
-      Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transforms[0].frame1->id))),
-                    .stamp = keyframe_transforms[0].frame1->timestamp });
-  for (auto& keyframe_transform : keyframe_transforms)
-  {
-    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id))),
-                                           .stamp = keyframe_transform.frame2->timestamp });
-  }
-  // TODO end
+  GetPoseEstimates(pose_estimates);
+  GetLandmarkEstimates(landmark_estimates);
 
+  // auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
+  // imu_bias.print("imu bias: ");
+  // imu_measurements_->resetIntegrationAndSetBias(imu_bias);
+  last_frame_id_added_ = keyframe_transforms.back().frame2->id;
+  if (GlobalParams::UseIsam())
+  {
+    graph_->resize(0);
+    values_->clear();
+  }
+  status_ = kLandmarksInitialized;
+}
+
+void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
+{
+  for (auto& frame_pair : added_frame_timestamps_)
+  {
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(frame_pair.first))),
+        .stamp = frame_pair.second });
+  }
+}
+
+void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
+{
   for (const auto& smart_factor_pair : smart_factors_)
   {
     auto smart_factor = smart_factor_pair.second;
-    /*
-    std::cout << "reproj error: " << smart_factor->reprojectionErrorAfterTriangulation(gn_result)
-              << std::endl;
-    std::cout << "error: " << smart_factor->error(gn_result) << std::endl;
-    std::cout << "outlier: " << smart_factor->isOutlier() << std::endl;
-    std::cout << "degenerate: " << smart_factor->isDegenerate() << std::endl;
-    std::cout << "far point: " << smart_factor->isFarPoint() << std::endl;
-    std::cout << "last feature: " << smart_factor->measured().back() << std::endl;
-     */
     if (smart_factor->isValid())
     {
       gtsam::Matrix E;
@@ -304,7 +304,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
         {
           boost::optional<gtsam::Point3> point = smart_factor->point();
           if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't
-                      // hurt
+            // hurt
           {           // ignore if boost::optional returns nullptr
             landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
           }
@@ -326,16 +326,69 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     landmark_estimates[smart_factor_pair.first] = ToPoint(point);
      */
   }
-  // auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transforms.back().frame2->id));
-  // imu_bias.print("imu bias: ");
-  // imu_measurements_->resetIntegrationAndSetBias(imu_bias);
-  last_frame_id_added_ = keyframe_transforms.back().frame2->id;
+}
+
+void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_transforms,
+                             std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
+{
+  // Init on "random values" as this apparently helps convergence
+  gtsam::Vector3 zero_velocity(0.000001, 0.000002, -0.000001);
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, -0.0001),
+                                         gtsam::Vector3(-0.0001, 0.0001, 0.0001));
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
+
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id), zero_velocity, noise_v);
+  graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
+
+  values_->insert(V(keyframe_transforms[0].frame1->id), zero_velocity);
+  values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
+
+  for (auto& keyframe_transform : keyframe_transforms)
+  {
+    while (
+        !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
+    {
+      std::cout << "No IMU measurements in time range " << std::setprecision(17) << keyframe_transform.frame1->timestamp
+                << " -> " << keyframe_transform.frame2->timestamp << std::endl;
+      std::cout << "Waiting 1 ms" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
+                                         keyframe_transform.frame2->timestamp);
+
+    auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
+    gtsam::CombinedImuFactor imu_factor(X(keyframe_transform.frame1->id), V(keyframe_transform.frame1->id),
+                                        X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
+                                        B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id),
+                                        imu_combined);
+    graph_->add(imu_factor);
+    imu_measurements_->resetIntegrationAndSetBias(imu_measurements_->biasHat());
+
+    values_->insert(V(keyframe_transform.frame2->id), zero_velocity);
+    values_->insert(B(keyframe_transform.frame2->id), init_bias);
+  }
+
+  auto high_range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 15);
+  auto high_noise_range_factor = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(
+      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), range_factor_->measured(),
+      high_range_noise);
+  *range_factor_ = high_noise_range_factor;
+
   if (GlobalParams::UseIsam())
   {
-    graph_->resize(0);
-    values_->clear();
+    isam2->update(*graph_, *values_);
+    *values_ = isam2->calculateEstimate();
   }
-  status_ = kLandmarksInitialized;
+  else
+  {
+    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    *values_ = optimizer.optimize();
+  }
+
+  GetPoseEstimates(pose_estimates);
+  GetLandmarkEstimates(landmark_estimates);
 }
 
 Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
