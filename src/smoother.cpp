@@ -370,11 +370,14 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
 
+  /*
   auto high_range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 15);
   auto high_noise_range_factor = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(
       X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), range_factor_->measured(),
       high_range_noise);
   *range_factor_ = high_noise_range_factor;
+  */
+  range_factor_ = nullptr;
 
   if (GlobalParams::UseIsam())
   {
