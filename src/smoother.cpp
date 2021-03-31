@@ -70,7 +70,7 @@ gtsam::SmartProjectionParams GetSmartProjectionParams()
 {
   gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
   // smart_projection_params.setDynamicOutlierRejectionThreshold(10.);
-  smart_projection_params.setLandmarkDistanceThreshold(30.);
+  // smart_projection_params.setLandmarkDistanceThreshold(30.);
   return smart_projection_params;
 }
 
@@ -204,6 +204,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
 
   // Add between factor on first valid keyframe transformation to define the scale
+  /*
   for (int i = 0; i < keyframe_transforms.size(); ++i)
   {
     if (keyframe_transforms[i].Valid())
@@ -216,6 +217,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       break;
     }
   }
+   */
 
   for (auto v : *values_)
   {
@@ -223,12 +225,11 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
     v.value.print();
   }
 
-  /*
-  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1.);
+  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1);
   auto range_factor = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(X(keyframe_transforms[0].frame1->id),
-                                                                     X(keyframe_transforms[5].frame2->id),
-                                                                     5., range_noise);
-                                                                     */
+                                                                     X(keyframe_transforms.back().frame2->id),
+                                                                     poses.back().translation().norm(), range_noise);
+  graph_->add(range_factor);
 
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
