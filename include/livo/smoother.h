@@ -70,6 +70,7 @@ public:
   BackendStatus GetStatus();
   void InitializeIMU(const std::vector<KeyframeTransform>& keyframe_transforms,
                      std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
+  void Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
 };

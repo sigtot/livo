@@ -282,8 +282,8 @@ void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
 {
   for (auto& frame_pair : added_frame_timestamps_)
   {
-    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(frame_pair.first))),
-        .stamp = frame_pair.second });
+    pose_estimates.push_back(
+        Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(frame_pair.first))), .stamp = frame_pair.second });
   }
 }
 
@@ -304,9 +304,10 @@ void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
         {
           boost::optional<gtsam::Point3> point = smart_factor->point();
           if (point)  // I think this check is redundant because we already check if the factor is valid, but doesn't
-            // hurt
-          {           // ignore if boost::optional returns nullptr
+                      // hurt
+          {  // ignore if boost::optional returns nullptr
             landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
+            continue;
           }
         }
         else
@@ -320,6 +321,7 @@ void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
         std::cout << "Triangulation failed for landmark " << smart_factor_pair.first << std::endl;
       }
     }
+    landmark_estimates[smart_factor_pair.first] = Point3{ .x = 0, .y = 0, .z = 0 };
 
     /* debug reprojection
     gtsam::Point3 point = smart_factor->cameras(*values_).back().backproject(smart_factor->measured().back(), 10);
@@ -401,6 +403,14 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
   , imu_queue_(std::move(imu_queue))
   , imu_measurements_(MakeIMUIntegrator())
 {
+}
+
+void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
+{
+  gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+  *values_ = optimizer.optimize();
+  GetPoseEstimates(pose_estimates);
+  GetLandmarkEstimates(landmark_estimates);
 }
 
 Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<shared_ptr<Track>>& tracks,
@@ -493,8 +503,8 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
 
   auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
 
-  values_->insert(X(frame->id), predicted_navstate.pose());
-  values_->insert(V(frame->id), predicted_navstate.velocity());
+  values_->insert(X(frame->id), prev_pose);
+  values_->insert(V(frame->id), prev_velocity);
   values_->insert(B(frame->id), prev_bias);
 
   auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
@@ -525,7 +535,8 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 
-  imu_measurements_->resetIntegrationAndSetBias(values_->at<gtsam::imuBias::ConstantBias>(B(frame->id)));
+  //imu_measurements_->resetIntegrationAndSetBias(values_->at<gtsam::imuBias::ConstantBias>(B(frame->id)));
+  imu_measurements_->resetIntegration();
 
   auto new_pose = values_->at<gtsam::Pose3>(X(frame->id));
 
