@@ -440,7 +440,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     else
     {
       SmartFactor::shared_ptr smart_factor(
-          new SmartFactor(measurementNoise, K, body_p_cam.inverse(), GetSmartProjectionParams()));
+          new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
       for (size_t i = 0; i < track->features.size() - 1; ++i)
       {
         auto feature = track->features[i];
