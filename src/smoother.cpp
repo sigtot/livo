@@ -522,37 +522,15 @@ Pose3Stamped Smoother::Update(const shared_ptr<Frame>& frame, const std::vector<
     throw;
   }
 
-  for (const auto& smart_factor_pair : smart_factors_)
-  {
-    boost::optional<gtsam::Point3> point = smart_factor_pair.second->point();
-    if (point)
-    {  // ignore if boost::optional returns nullptr
-      landmark_estimates[smart_factor_pair.first] = ToPoint(*point);
-    }
-    else
-    {
-      landmark_estimates[smart_factor_pair.first] = Point3{ .x = 0, .y = 0, .z = 0 };
-    }
-  }
+  GetPoseEstimates(pose_estimates);
+  GetLandmarkEstimates(landmark_estimates);
 
   imu_measurements_->resetIntegrationAndSetBias(values_->at<gtsam::imuBias::ConstantBias>(B(frame->id)));
-  std::cout << "got bias" << std::endl;
 
   auto new_pose = values_->at<gtsam::Pose3>(X(frame->id));
-  std::cout << "got new pose" << std::endl;
 
   last_frame_id_added_ = frame->id;
   added_frame_timestamps_[frame->id] = frame->timestamp;
-
-  // TODO use an accessor method for this
-  for (auto& f : added_frame_timestamps_)
-  {
-    auto id = f.first;
-    auto ts = f.second;
-
-    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(id))), .stamp = ts });
-  }
-  // TODO end
 
   for (auto& f : added_frame_timestamps_)
   {

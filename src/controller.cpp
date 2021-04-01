@@ -176,11 +176,11 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       landmark_publisher_.publish(markerArray);
     }
   }
-  else if (false && backend.GetStatus() == kLandmarksInitialized)
+  else if (backend.GetStatus() == kLandmarksInitialized && (new_frame->id % 30) == 0)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;
-    backend.Update(new_frame, frontend.GetActiveTracks(), pose_estimates, landmark_estimates);
+    backend.Update(new_frame, frontend.GetActiveHighParallaxTracks(), pose_estimates, landmark_estimates);
     nav_msgs::Path pathMsg;
     for (auto& pose_stamped : pose_estimates)
     {

@@ -609,6 +609,19 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
   return old_tracks_;
 }
 
+std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
+{
+  std::vector<shared_ptr<Track>> tracks;
+  for (auto & track : active_tracks_)
+  {
+    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    {
+      tracks.push_back(track);
+    }
+  }
+  return tracks;
+}
+
 std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
 {
   std::vector<shared_ptr<Track>> tracks;
