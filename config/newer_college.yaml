@@ -5,7 +5,7 @@ resize_factor: 1.0
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
 
 timeshift_cam_imu: 0.01379378638037798
-imu_g: 9.81
+imu_g: 9.81206
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
@@ -26,7 +26,7 @@ num_high_parallax_points_for_keyframe: 30
 min_track_length_for_smoothing: 3
 
 body_p_cam_quat: [-0.5, 0.5, -0.5, 0.5]
-body_p_cam_vec: [0, 0, 0]
+body_p_cam_vec: [-0.0442, 0.0173, -0.0158]
 
 body_p_imu_quat: [-0.5, 0.5, -0.5, 0.5]
 body_p_imu_vec: [0, 0, 0]
