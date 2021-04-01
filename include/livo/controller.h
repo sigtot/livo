@@ -4,6 +4,8 @@
 #include <ros/ros.h>
 #include "feature_extractor.h"
 #include "smoother.h"
+#include "point3.h"
+#include "pose3_stamped.h"
 
 class Controller
 {
@@ -18,6 +20,8 @@ public:
                       ros::Publisher& landmark_publisher);
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
+  void PublishPoses(const std::vector<Pose3Stamped>& poses);
+  void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp);
 };
 
 #endif
