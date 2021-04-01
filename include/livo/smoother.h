@@ -63,7 +63,7 @@ public:
                            const std::vector<std::shared_ptr<Track>>& tracks, std::vector<Pose3Stamped>& pose_estimates,
                            std::map<int, Point3>& landmark_estimates);
 
-  Pose3Stamped Update(const std::shared_ptr<Frame>& frame, const std::vector<std::shared_ptr<Track>>& tracks,
+  Pose3Stamped Update(const KeyframeTransform& keyframe_transform, const std::vector<std::shared_ptr<Track>>& tracks,
                       std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
   void InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose3Stamped>& pose_estimates);
 
@@ -73,6 +73,7 @@ public:
   void Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
+  int GetLastFrameId() const;
 };
 
 #endif

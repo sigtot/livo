@@ -96,6 +96,7 @@ public:
   vector<KeyframeTransform> GetKeyframeTransforms() const;
   vector<shared_ptr<Track>> GetHighParallaxTracks();
   vector<shared_ptr<Track>> GetActiveHighParallaxTracks();
+  KeyframeTransform GetNewestKeyframeTransform() const;
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

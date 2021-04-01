@@ -666,3 +666,7 @@ bool FeatureExtractor::CanPerformStationaryIMUInitialization() const
   }
   return perform_stationary_imu_update;
 }
+KeyframeTransform FeatureExtractor::GetNewestKeyframeTransform() const
+{
+  return keyframe_tracker_->GetNewestKeyframeTransform();
+}

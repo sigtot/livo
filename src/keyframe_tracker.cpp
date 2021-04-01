@@ -410,3 +410,8 @@ void KeyframeTracker::UpdateTrackInlierOutlierCounts(const std::vector<std::shar
     }
   }
 }
+
+KeyframeTransform KeyframeTracker::GetNewestKeyframeTransform() const
+{
+  return keyframe_transforms_.back();
+}
