@@ -502,10 +502,10 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   auto prev_bias = prev_estimate.at<gtsam::imuBias::ConstantBias>(B(last_frame_id_added_));
   // TODO end
 
-  // auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
+  auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
 
-  values_->insert(X(keyframe_transform.frame2->id), prev_pose);
-  values_->insert(V(keyframe_transform.frame2->id), prev_velocity);
+  values_->insert(X(keyframe_transform.frame2->id), predicted_navstate.pose());
+  values_->insert(V(keyframe_transform.frame2->id), predicted_navstate.velocity());
   values_->insert(B(keyframe_transform.frame2->id), prev_bias);
 
   auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
