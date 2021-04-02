@@ -57,6 +57,8 @@ private:
   std::shared_ptr<gtsam::PreintegrationType> imu_measurements_;
   BackendStatus status_ = kUninitialized;
 
+  void WaitForAndIntegrateIMU(double timestamp1, double timestamp2);
+
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
   void InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms,

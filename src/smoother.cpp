@@ -340,17 +340,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   for (auto& keyframe_transform : keyframe_transforms)
   {
-    while (
-        !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
-    {
-      std::cout << "No IMU measurements in time range " << std::setprecision(17) << keyframe_transform.frame1->timestamp
-                << " -> " << keyframe_transform.frame2->timestamp << std::endl;
-      std::cout << "Waiting 1 ms" << std::endl;
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-
-    imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
-                                         keyframe_transform.frame2->timestamp);
+    WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
 
     auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
     gtsam::CombinedImuFactor imu_factor(X(keyframe_transform.frame1->id), V(keyframe_transform.frame1->id),
@@ -364,13 +354,6 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
 
-  /*
-  auto high_range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 15);
-  auto high_noise_range_factor = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(
-      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), range_factor_->measured(),
-      high_range_noise);
-  *range_factor_ = high_noise_range_factor;
-  */
   range_factor_ = nullptr;
 
   if (GlobalParams::UseIsam())
@@ -476,25 +459,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   }
   std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
 
-  // std::cout << "prev prev " << prev_prev_pose.rotation().ypr() << std::endl;
-  // std::cout << "prev " << prev_pose.rotation().ypr() << std::endl;
-  // std::cout << "motion delta " << motion_delta.rotation().ypr() << std::endl;
-  // std::cout << "motion predicted pose " << motion_predicted_pose.rotation().ypr() << std::endl;
-
-  // gtsam::Pose3 gt_pose = ToGtsamPose(NewerCollegeGroundTruth::At(frame->timestamp));
-
-  // TODO extract a method WaitForIMUAndIntegrate(timestamp1, timestamp2, imu_measurements)
-  while (
-      !imu_queue_->hasMeasurementsInRange(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp))
-  {
-    std::cout << "No IMU measurements in time range " << std::setprecision(17) << keyframe_transform.frame1->timestamp
-              << " -> " << keyframe_transform.frame2->timestamp << std::endl;
-    std::cout << "Waiting 1 ms" << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-  imu_queue_->integrateIMUMeasurements(imu_measurements_, keyframe_transform.frame1->timestamp,
-                                       keyframe_transform.frame2->timestamp);
-  // TODO end extract
+  WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
 
   // TODO all these can also be extracted
   auto prev_pose = prev_estimate.at<gtsam::Pose3>(X(last_frame_id_added_));
@@ -564,6 +529,18 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   }
 
   return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = keyframe_transform.frame2->timestamp };
+}
+
+void Smoother::WaitForAndIntegrateIMU(double timestamp1, double timestamp2)
+{
+  while (!imu_queue_->hasMeasurementsInRange(timestamp1, timestamp2))
+  {
+    std::cout << "No IMU measurements in time range " << std::setprecision(17) << timestamp1 << " -> " << timestamp2
+              << std::endl;
+    std::cout << "Waiting 1 ms" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  imu_queue_->integrateIMUMeasurements(imu_measurements_, timestamp1, timestamp2);
 }
 
 int Smoother::GetLastFrameId() const
