@@ -93,14 +93,15 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
 {
   std::cout << "Let's initialize those landmarks" << std::endl;
 
-  gtsam::Pose3 zero_pose(gtsam::Rot3(), gtsam::Point3::Zero());
+  // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
+  gtsam::Pose3 init_pose = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp));
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
 
-  graph_->addPrior(X(keyframe_transforms[0].frame1->id), zero_pose, noise_x);
+  graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
 
-  values_->insert(X(keyframe_transforms[0].frame1->id), zero_pose);
+  values_->insert(X(keyframe_transforms[0].frame1->id), init_pose);
 
   added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
 
@@ -113,7 +114,7 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
       gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
   // Initialize values on R and t from essential matrix
-  std::vector<gtsam::Pose3> poses = { zero_pose };
+  std::vector<gtsam::Pose3> poses = { init_pose };
   for (auto& keyframe_transform : keyframe_transforms)
   {
     added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
@@ -159,9 +160,10 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   }
 
   // The SfM-only problem has scale ambiguity, so we add a range factor to define scale
+  auto pose_delta = poses[0].inverse().compose(poses.back());
   auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1);
   range_factor_ = gtsam::make_shared<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>>(
-      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), poses.back().translation().norm(),
+      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), pose_delta.translation().norm(),
       range_noise);
   graph_->add(range_factor_);
 
