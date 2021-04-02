@@ -65,7 +65,6 @@ public:
 
   Pose3Stamped Update(const KeyframeTransform& keyframe_transform, const std::vector<std::shared_ptr<Track>>& tracks,
                       std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
-  void InitIMU(const vector<shared_ptr<Frame>>& frames, std::vector<Pose3Stamped>& pose_estimates);
 
   BackendStatus GetStatus();
   void InitializeIMU(const std::vector<KeyframeTransform>& keyframe_transforms,
