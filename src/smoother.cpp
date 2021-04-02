@@ -176,7 +176,6 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   if (GlobalParams::UseIsam())
   {
     isam2->update(*graph_, *values_);
-    *values_ = isam2->calculateEstimate();
   }
   else
   {
@@ -200,20 +199,22 @@ void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
 {
   for (auto& frame_pair : added_frame_timestamps_)
   {
-    pose_estimates.push_back(
-        Pose3Stamped{ .pose = ToPose(values_->at<gtsam::Pose3>(X(frame_pair.first))), .stamp = frame_pair.second });
+    auto gtsam_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_pair.first)) :
+                                                values_->at<gtsam::Pose3>(X(frame_pair.first));
+    pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(gtsam_pose), .stamp = frame_pair.second });
   }
 }
 
 void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
 {
+  auto values = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
   for (const auto& smart_factor_pair : smart_factors_)
   {
     auto smart_factor = smart_factor_pair.second;
     if (smart_factor->isValid())
     {
       gtsam::Matrix E;
-      bool worked = smart_factor->triangulateAndComputeE(E, *values_);
+      bool worked = smart_factor->triangulateAndComputeE(E, values);
       if (worked)
       {
         auto P = smart_factor->PointCov(E);
@@ -280,12 +281,12 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
 
+  // The IMU factors will now be defining the scale, so the range factor should be removed.
   range_factor_ = nullptr;
 
   if (GlobalParams::UseIsam())
   {
     isam2->update(*graph_, *values_);
-    *values_ = isam2->calculateEstimate();
   }
   else
   {
@@ -295,6 +296,12 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
+
+  if (GlobalParams::UseIsam())
+  {
+    graph_->resize(0);
+    values_->clear();
+  }
 }
 
 Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
@@ -308,8 +315,15 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
 
 void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
-  gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-  *values_ = optimizer.optimize();
+  if (GlobalParams::UseIsam())
+  {
+    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    *values_ = optimizer.optimize();
+  }
+  else
+  {
+    isam2->update();
+  }
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 }
@@ -409,8 +423,6 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     if (GlobalParams::UseIsam())
     {
       auto isam_result = isam2->update(*graph_, *values_);
-      isam_result.print("isam result ");
-      *values_ = isam2->calculateEstimate();
     }
     else
     {
@@ -429,22 +441,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
 
   imu_measurements_->resetIntegration();
 
-  auto new_pose = values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
-
   last_frame_id_added_ = keyframe_transform.frame2->id;
   added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
 
-  for (auto& f : added_frame_timestamps_)
-  {
-    auto imu_bias = values_->at<gtsam::imuBias::ConstantBias>(B(f.first));
-    imu_bias.print("imu bias: ");
-  }
-
-  for (auto& f : added_frame_timestamps_)
-  {
-    auto velocity = values_->at<gtsam::Vector3>(V(f.first));
-    std::cout << "velocity: " << velocity.norm() << std::endl;
-  }
+  auto new_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(keyframe_transform.frame2->id)) :
+                  values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
 
   if (GlobalParams::UseIsam())
   {
