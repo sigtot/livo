@@ -38,9 +38,6 @@ double CheckFundamental(const cv::Mat& F21, std::vector<bool>& vbMatchesInliers,
   const double f31 = F21.at<double>(2, 0);
   const double f32 = F21.at<double>(2, 1);
   const double f33 = F21.at<double>(2, 2);
-  std::cout << f11 << ", " << f12 << ", " << f13 << std::endl;
-  std::cout << f21 << ", " << f22 << ", " << f23 << std::endl;
-  std::cout << f31 << ", " << f32 << ", " << f33 << std::endl;
 
   vbMatchesInliers.resize(N);
 

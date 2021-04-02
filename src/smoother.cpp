@@ -275,7 +275,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   gtsam::Vector3 zero_velocity(0.000001, 0.000002, -0.000001);
   gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, -0.0001),
                                          gtsam::Vector3(-0.0001, 0.0001, 0.0001));
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
 
   graph_->addPrior(V(keyframe_transforms[0].frame1->id), zero_velocity, noise_v);
