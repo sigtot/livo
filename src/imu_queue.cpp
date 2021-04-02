@@ -10,6 +10,17 @@ void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
   auto stampCorrectedMeasurement = measurement;
   stampCorrectedMeasurement.header.stamp = measurement.header.stamp - ros::Duration(GlobalParams::TimeshiftCamImu());
   imuMap[stampCorrectedMeasurement.header.stamp.toSec()] = stampCorrectedMeasurement;
+
+  /* Debug IMU orientation
+  gtsam::Rot3 body_R_imu = gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
+                                                   GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]);
+
+  auto acc =
+      gtsam::Vector3(stampCorrectedMeasurement.linear_acceleration.x, stampCorrectedMeasurement.linear_acceleration.y,
+                     stampCorrectedMeasurement.linear_acceleration.z);
+  std::cout << "acc: " << acc.transpose() << std::endl;
+  std::cout << "acc corrected: " << (body_R_imu * acc).transpose() << std::endl;
+   */
 }
 
 bool IMUQueue::hasMeasurementsInRange(ros::Time start, ros::Time end)
