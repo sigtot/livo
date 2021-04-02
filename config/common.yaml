@@ -9,7 +9,9 @@ add_essential_matrix_constraints: false
 min_keyframe_feature_inlier_ratio: 0.75
 min_parallax: 20
 num_high_parallax_points_for_keyframe: 15
+
 use_isam: true
+isam_relinearize_thresh: 0.1
 
 imu_cam_quat: [0, 0, 0, 1]
 imu_cam_vector: [0, 0, 0]

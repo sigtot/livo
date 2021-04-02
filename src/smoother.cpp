@@ -27,6 +27,14 @@ using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
 
+gtsam::ISAM2Params MakeIsam2Params()
+{
+  gtsam::ISAM2Params params;
+  params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
+  params.relinearizeSkip = 1;
+  return params;
+}
+
 shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
 {
   auto imu_params = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU(GlobalParams::IMUG());
@@ -68,6 +76,15 @@ gtsam::SmartProjectionParams GetSmartProjectionParams()
   // smart_projection_params.setDynamicOutlierRejectionThreshold(10.);
   // smart_projection_params.setLandmarkDistanceThreshold(30.);
   return smart_projection_params;
+}
+
+Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
+  : isam2(new gtsam::ISAM2(MakeIsam2Params()))
+  , graph_(new gtsam::NonlinearFactorGraph())
+  , values_(new gtsam::Values())
+  , imu_queue_(std::move(imu_queue))
+  , imu_measurements_(MakeIMUIntegrator())
+{
 }
 
 void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms,
@@ -304,15 +321,6 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   }
 }
 
-Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
-  : isam2(new gtsam::ISAM2())
-  , graph_(new gtsam::NonlinearFactorGraph())
-  , values_(new gtsam::Values())
-  , imu_queue_(std::move(imu_queue))
-  , imu_measurements_(MakeIMUIntegrator())
-{
-}
-
 void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   if (GlobalParams::UseIsam())
@@ -445,7 +453,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
 
   auto new_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(keyframe_transform.frame2->id)) :
-                  values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
+                                            values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
 
   if (GlobalParams::UseIsam())
   {
