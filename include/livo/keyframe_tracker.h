@@ -44,7 +44,7 @@ public:
   KeyframeTransform GetNewestKeyframeTransform() const;
   bool GoodForInitialization() const;
   static bool HaveEnoughMatches(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                      const std::vector<std::shared_ptr<Track>>& tracks);
+                                const std::vector<std::shared_ptr<Track>>& tracks);
   int GetMostRecentBadTransformIdx() const;
   int GetNumberOfGoodTransforms() const;
 };

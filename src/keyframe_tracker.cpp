@@ -36,8 +36,7 @@ void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const st
   }
 }
 
-KeyframeTracker::KeyframeTracker(std::shared_ptr<Frame> frame1)
-: first_frame_(std::move(frame1))
+KeyframeTracker::KeyframeTracker(std::shared_ptr<Frame> frame1) : first_frame_(std::move(frame1))
 {
 }
 
@@ -264,7 +263,7 @@ int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& poin
 {
   int num_high_parallax = 0;
   parallaxes.resize(points1.size());
-  auto H_rot_only = R12.inv(); // Quite spooky that we need to invert this: Need to take a better look at this
+  auto H_rot_only = R12.inv();  // Quite spooky that we need to invert this: Need to take a better look at this
   cv::Mat K_inv = K.inv();
   for (int i = 0; i < points1.size(); ++i)
   {
@@ -350,9 +349,8 @@ bool KeyframeTracker::GoodForInitialization() const
   return true;
 }
 
-bool KeyframeTracker::HaveEnoughMatches(const std::shared_ptr<Frame>& frame1,
-                                              const std::shared_ptr<Frame>& frame2,
-                                              const std::vector<std::shared_ptr<Track>>& tracks)
+bool KeyframeTracker::HaveEnoughMatches(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
+                                        const std::vector<std::shared_ptr<Track>>& tracks)
 {
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);

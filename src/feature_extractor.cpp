@@ -116,7 +116,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.header.seq = frames.back()->id;
     cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
 
-
     for (const auto& track : active_tracks_)
     {
       double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallax());
@@ -612,9 +611,9 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
 std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
 {
   std::vector<shared_ptr<Track>> tracks;
-  for (auto & track : active_tracks_)
+  for (auto& track : active_tracks_)
   {
-    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
     {
       tracks.push_back(track);
     }
@@ -625,16 +624,16 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
 std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
 {
   std::vector<shared_ptr<Track>> tracks;
-  for (auto & track : old_tracks_)
+  for (auto& track : old_tracks_)
   {
-    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
     {
       tracks.push_back(track);
     }
   }
-  for (auto & track : active_tracks_)
+  for (auto& track : active_tracks_)
   {
-    if(track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
     {
       tracks.push_back(track);
     }

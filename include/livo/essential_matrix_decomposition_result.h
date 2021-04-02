@@ -8,7 +8,7 @@ struct EssentialMatrixDecompositionResult
 {
   cv::Mat E;
   cv::Mat R;
-  EssentialMatrixDecompositionResult(cv::Mat E, cv::Mat  R, std::vector<double>  t)
+  EssentialMatrixDecompositionResult(cv::Mat E, cv::Mat R, std::vector<double> t)
     : E(std::move(E)), R(std::move(R)), t(std::move(t))
   {
   }

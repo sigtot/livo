@@ -1,6 +1,5 @@
 #include "smoother.h"
 #include "key_point_observation.h"
-#include "frame.h"
 #include "gtsam_conversions.h"
 #include "pose3_stamped.h"
 #include "global_params.h"
@@ -17,11 +16,8 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
-#include <gtsam/geometry/triangulation.h>
-#include <gtsam/geometry/EssentialMatrix.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
-#include <gtsam/slam/EssentialMatrixConstraint.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <thread>
 #include <chrono>
@@ -347,7 +343,6 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                             ->get();
 
       assert(feat->frame->id == keyframe_transform.frame2->id);
-      auto pt = track->features.back()->pt;
       smart_factors_[track->id]->add(gtsam::Point2(feat->pt.x, feat->pt.y), X(keyframe_transform.frame2->id));
     }
     else

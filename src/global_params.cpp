@@ -71,7 +71,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_keyframe_feature_inlier_ratio",
                GetInstance().min_keyframe_feature_inlier_ratio_);
   ReadVariable(nh, "/orb_test_node/min_parallax", GetInstance().min_parallax_);
-  ReadVariable(nh, "/orb_test_node/num_high_parallax_points_for_keyframe", GetInstance().num_high_parallax_points_for_keyframe_);
+  ReadVariable(nh, "/orb_test_node/num_high_parallax_points_for_keyframe",
+               GetInstance().num_high_parallax_points_for_keyframe_);
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);

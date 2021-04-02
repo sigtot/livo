@@ -6,7 +6,7 @@
 #include "frame.h"
 struct Feature
 {
-  Feature(std::shared_ptr<Frame>  frame, const cv::Point2f& pt) : frame(std::move(frame)), pt(pt)
+  Feature(std::shared_ptr<Frame> frame, const cv::Point2f& pt) : frame(std::move(frame)), pt(pt)
   {
   }
   std::shared_ptr<Frame> frame;
