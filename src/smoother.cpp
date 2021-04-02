@@ -355,17 +355,16 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
 
   for (auto& track : tracks)
   {
+    auto feat_it = track->features.rbegin();
+    const auto new_feature =
+        std::find_if(feat_it, track->features.rend(), [keyframe_transform](const std::shared_ptr<Feature>& f) -> bool {
+          return f->frame->id == keyframe_transform.frame2->id;
+        })->get();
+
     if (smart_factors_.count(track->id))
     {
-      auto feat_it = track->features.rbegin();
-      const auto feat = std::find_if(feat_it, track->features.rend(),
-                                     [keyframe_transform](const std::shared_ptr<Feature>& f) -> bool {
-                                       return f->frame->id == keyframe_transform.frame2->id;
-                                     })
-                            ->get();
-
-      assert(feat->frame->id == keyframe_transform.frame2->id);
-      smart_factors_[track->id]->add(gtsam::Point2(feat->pt.x, feat->pt.y), X(keyframe_transform.frame2->id));
+      assert(new_feature->frame->id == keyframe_transform.frame2->id);
+      smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
     }
     else
     {
@@ -374,12 +373,12 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       for (size_t i = 0; i < track->features.size() - 1; ++i)
       {
         auto feature = track->features[i];
-        if (added_frame_timestamps_.count(feature->frame->id) || feature->frame->id == keyframe_transform.frame2->id)
+        if (added_frame_timestamps_.count(feature->frame->id))
         {
           smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
         }
       }
-      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
+      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing() && smart_factor->size() <= 5)
       {
         auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
         if (triangulationResult.valid())
@@ -387,11 +386,10 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
           gtsam::Matrix E;
           smart_factor->triangulateAndComputeE(E, prev_estimate);
           auto P = smart_factor->PointCov(E);
-          if (P.norm() < 1)
+          if (P.norm() < 3)
           {
-            auto new_feature = track->features.back();
             smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
-            std::cout << "initializing landmark " << track->id << " with " << track->features.size() << " observations"
+            std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
                       << std::endl;
             smart_factors_[track->id] = smart_factor;
             graph_->add(smart_factor);
@@ -426,6 +424,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                                       B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id), imu_combined);
   graph_->add(imu_factor);
 
+  std::cout << "Performing optimization" << std::endl;
   try
   {
     if (GlobalParams::UseIsam())
