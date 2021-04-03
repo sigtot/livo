@@ -12,6 +12,7 @@ num_high_parallax_points_for_keyframe: 15
 
 use_isam: true
 isam_relinearize_thresh: 0.1
+save_factor_graphs_to_file: false
 
 imu_cam_quat: [0, 0, 0, 1]
 imu_cam_vector: [0, 0, 0]

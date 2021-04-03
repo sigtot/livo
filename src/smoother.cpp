@@ -4,6 +4,7 @@
 #include "pose3_stamped.h"
 #include "global_params.h"
 #include "newer_college_ground_truth.h"
+#include "gtsam_helpers.h"
 
 #include <iostream>
 #include <utility>
@@ -206,6 +207,12 @@ void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_trans
   GetLandmarkEstimates(landmark_estimates);
 
   last_frame_id_added_ = keyframe_transforms.back().frame2->id;
+
+  if (GlobalParams::SaveFactorGraphsToFile())
+  {
+    SaveGraphToFile("/tmp/landmarks-graph.dot", *graph_, *values_);
+  }
+
   if (GlobalParams::UseIsam())
   {
     graph_->resize(0);
@@ -315,6 +322,11 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
+
+  if (GlobalParams::SaveFactorGraphsToFile())
+  {
+    SaveGraphToFile("/tmp/imu-graph.dot", *graph_, *values_);
+  }
 
   if (GlobalParams::UseIsam())
   {
@@ -444,6 +456,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     std::cout << "oopsie woopsie" << std::endl;
     throw;
   }
+  std::cout << "Optimization done" << std::endl;
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
@@ -455,6 +468,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
 
   auto new_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(keyframe_transform.frame2->id)) :
                                             values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
+
+  if (GlobalParams::SaveFactorGraphsToFile())
+  {
+    SaveGraphToFile("/tmp/update-graph.dot", *graph_, *values_);
+  }
 
   if (GlobalParams::UseIsam())
   {

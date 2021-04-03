@@ -76,6 +76,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
 
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
   ReadVariable(nh, "/orb_test_node/isam_relinearize_thresh", GetInstance().isam_relinearize_thresh_);
+  ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
@@ -273,4 +274,8 @@ bool GlobalParams::UseIsam()
 double GlobalParams::IsamRelinearizeThresh()
 {
   return GetInstance().isam_relinearize_thresh_;
+}
+bool GlobalParams::SaveFactorGraphsToFile()
+{
+  return GetInstance().save_factor_graphs_to_file_;
 }
