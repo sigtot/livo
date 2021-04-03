@@ -88,14 +88,21 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
 {
 }
 
-void Smoother::InitializeLandmarks(std::vector<KeyframeTransform> keyframe_transforms,
-                                   const std::vector<shared_ptr<Track>>& tracks,
-                                   std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
+void Smoother::InitializeLandmarks(
+    std::vector<KeyframeTransform> keyframe_transforms, const std::vector<shared_ptr<Track>>& tracks,
+    const boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>& frames_for_imu_init,
+    std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   std::cout << "Let's initialize those landmarks" << std::endl;
 
+  auto gt_pose = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp));
   // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  gtsam::Pose3 init_pose = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp));
+  auto init_pose = frames_for_imu_init ?
+                       gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(frames_for_imu_init->first->timestamp,
+                                                                                 frames_for_imu_init->second->timestamp,
+                                                                                 ToRot(gt_pose.rotation()))),
+                                    gt_pose.translation()) :
+                       gt_pose;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());

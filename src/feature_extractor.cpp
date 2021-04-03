@@ -669,3 +669,35 @@ KeyframeTransform FeatureExtractor::GetNewestKeyframeTransform() const
 {
   return keyframe_tracker_->GetNewestKeyframeTransform();
 }
+
+boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
+FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
+{
+  auto target_it = frames.begin();
+  for (; target_it != frames.end() && (*target_it)->id != stationary_frame_id; ++target_it)
+    ;
+
+  assert(target_it->get()->id == stationary_frame_id);  // Don't give a non-existent id
+
+  std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>> result;
+
+  // Move backward until first non-stationary frame
+  auto backward_it = target_it;
+  for (; backward_it != frames.begin() && (*(backward_it - 1))->stationary; --backward_it)
+    ;
+  result.first = *backward_it;
+
+  // Move forward until first non-stationary frame
+  auto forward_it = target_it;
+  for (; forward_it + 1 != frames.end() && (*(forward_it + 1))->stationary; ++forward_it)
+    ;
+  result.second = *forward_it;
+
+  if (result.first->stationary && result.second->stationary)
+  {
+    return boost::make_optional(result);
+  }
+  else {
+    return boost::none;
+  }
+}

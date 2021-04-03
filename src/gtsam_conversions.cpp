@@ -1,11 +1,6 @@
 #include "gtsam_conversions.h"
 
 #include <opencv2/core/eigen.hpp>
-gtsam::Pose3 ToGtsamPose(Pose3 pose)
-{
-  return gtsam::Pose3(gtsam::Rot3::Quaternion(pose.rot.w, pose.rot.x, pose.rot.y, pose.rot.z),
-                      gtsam::Point3(pose.point.x, pose.point.y, pose.point.z));
-}
 Pose3 ToPose(const gtsam::Pose3& gtsam_pose)
 {
   return Pose3{
@@ -19,6 +14,32 @@ Pose3 ToPose(const gtsam::Pose3& gtsam_pose)
         },
   };
 }
+
+gtsam::Rot3 ToGtsamRot(Rot3 rot)
+{
+  return gtsam::Rot3::Quaternion(rot.w, rot.x, rot.y, rot.z);
+}
+
+gtsam::Point3 ToGtsamPoint(Point3 point)
+{
+  return { point.x, point.y, point.z };
+}
+
+gtsam::Pose3 ToGtsamPose(Pose3 pose)
+{
+  return gtsam::Pose3(ToGtsamRot(pose.rot), ToGtsamPoint(pose.point));
+}
+
+Rot3 ToRot(const gtsam::Rot3& gtsam_rot)
+{
+  return Rot3{
+      .x = gtsam_rot.toQuaternion().x(),
+      .y = gtsam_rot.toQuaternion().y(),
+      .z = gtsam_rot.toQuaternion().z(),
+      .w = gtsam_rot.toQuaternion().w(),
+  };
+}
+
 Point3 ToPoint(const gtsam::Point3& gtsam_point)
 {
   return Point3{ .x = gtsam_point.x(), .y = gtsam_point.y(), .z = gtsam_point.z() };

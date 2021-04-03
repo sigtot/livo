@@ -28,8 +28,14 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       std::vector<Pose3Stamped> pose_estimates;
       std::map<int, Point3> landmark_estimates;
 
-      backend.InitializeLandmarks(frontend.GetKeyframeTransforms(), frontend.GetHighParallaxTracks(), pose_estimates,
-                                  landmark_estimates);
+      auto keyframe_transforms = frontend.GetKeyframeTransforms();
+      auto frames_for_imu_init = frontend.GetFramesForIMUAttitudeInitialization(keyframe_transforms.front().frame1->id);
+      if (frames_for_imu_init)
+      {
+        std::cout << frames_for_imu_init->first->id << " -> " << frames_for_imu_init->second->id << " imu" << std::endl;
+      }
+      backend.InitializeLandmarks(keyframe_transforms, frontend.GetHighParallaxTracks(), frames_for_imu_init,
+                                  pose_estimates, landmark_estimates);
 
       PublishPoses(pose_estimates);
       PublishLandmarks(landmark_estimates, new_frame->timestamp);

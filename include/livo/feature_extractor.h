@@ -97,6 +97,8 @@ public:
   vector<shared_ptr<Track>> GetHighParallaxTracks();
   vector<shared_ptr<Track>> GetActiveHighParallaxTracks();
   KeyframeTransform GetNewestKeyframeTransform() const;
+  boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
+  GetFramesForIMUAttitudeInitialization(int stationary_frame_id);
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

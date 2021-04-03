@@ -14,7 +14,7 @@ imu_gyro_noise_density: 0.000208
 imu_accel_random_walk: 0.000106
 imu_gyro_random_walk: 0.000004
 
-use_isam: true
+use_isam: false
 isam_relinearize_thresh: 0.1
 
 num_good_keyframes_for_initialization: 20

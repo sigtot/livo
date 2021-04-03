@@ -6,6 +6,8 @@
 #include <sensor_msgs/Imu.h>
 #include <memory>
 
+#include "rot3.h"
+
 using namespace std;
 
 // Forward declarations for gtsam
@@ -23,6 +25,9 @@ private:
 
 public:
   void addMeasurement(const sensor_msgs::Imu& measurement);
+
+  Rot3 RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3& init_rot);
+  Rot3 RefineInitialAttitude(double start, double end, const Rot3& init_rot);
 
   bool hasMeasurementsInRange(ros::Time start, ros::Time end);
   bool hasMeasurementsInRange(double start, double end);

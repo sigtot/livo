@@ -11,7 +11,13 @@ gtsam::Pose3 ToGtsamPose(Pose3 pose);
 
 Pose3 ToPose(const gtsam::Pose3& gtsam_pose);
 
+gtsam::Rot3 ToGtsamRot(Rot3 rot);
+
+gtsam::Point3 ToGtsamPoint(Point3 point);
+
 Point3 ToPoint(const gtsam::Point3& gtsam_point);
+
+Rot3 ToRot(const gtsam::Rot3& gtsam_rot);
 
 gtsam::Matrix3 ToMatrix3(const cv::Mat& mat);
 
