@@ -259,7 +259,7 @@ void Smoother::InitializeLandmarks(
 
     if (GlobalParams::UseIsam())
     {
-      *isam2 = gtsam::ISAM2(MakeIsam2Params()); // Reinitialize isam
+      *isam2 = gtsam::ISAM2(MakeIsam2Params());  // Reinitialize isam
       auto isam_result = isam2->update(*graph_, *values_);
       isam_result.print("isam result: ");
       if (isam_result.errorBefore && isam_result.errorAfter)
@@ -549,7 +549,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 
-  imu_measurements_->resetIntegration();
+  auto new_bias = GlobalParams::UseIsam() ?
+                      isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id)) :
+                      values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id));
+
+  imu_measurements_->resetIntegrationAndSetBias(new_bias);
 
   last_frame_id_added_ = keyframe_transform.frame2->id;
   added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
