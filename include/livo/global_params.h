@@ -42,6 +42,7 @@ private:
   bool use_isam_ = true;
   double isam_relinearize_thresh_ = 0.1;
   bool save_factor_graphs_to_file_ = false;
+  double init_range_factor_length_ = 10.; // Give negative value to use value calculate from estimate
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -92,6 +93,7 @@ public:
   static bool UseIsam();
   static double IsamRelinearizeThresh();
   static bool SaveFactorGraphsToFile();
+  static double InitRangeFactorLength();
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();

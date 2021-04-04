@@ -170,11 +170,10 @@ void Smoother::InitializeLandmarks(
   }
 
   // The SfM-only problem has scale ambiguity, so we add a range factor to define scale
-  auto pose_delta = poses[0].inverse().compose(poses.back());
-  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1);
+  auto pose_delta_range = poses[0].inverse().compose(poses.back()).translation().norm();
+  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
   range_factor_ = gtsam::make_shared<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>>(
-      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), 17.,
-      range_noise);
+      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), pose_delta_range, range_noise);
   graph_->add(range_factor_);
 
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
@@ -196,8 +195,7 @@ void Smoother::InitializeLandmarks(
     if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
       std::cout << "adding landmark " << track->id << " with " << smart_factor->size() << " observations and parallax "
-                << track->max_parallax
-                << " and inlier ratio " << track->InlierRatio() << std::endl;
+                << track->max_parallax << " and inlier ratio " << track->InlierRatio() << std::endl;
       smart_factors_[track->id] = smart_factor;
       graph_->add(smart_factor);
     }
@@ -217,6 +215,64 @@ void Smoother::InitializeLandmarks(
   {
     gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
     *values_ = optimizer.optimize();
+  }
+
+  // If an initial range factor length is provided, we scale the solution to account for it and redo the optimization
+  if (GlobalParams::InitRangeFactorLength() > 0)
+  {
+    double scale_ratio = GlobalParams::InitRangeFactorLength() / pose_delta_range;
+    auto frame_it = added_frame_timestamps_.begin();
+    std::vector<std::pair<std::pair<int, int>, gtsam::Pose3>> scaled_between_poses;
+    std::vector<std::pair<int, gtsam::Pose3>> scaled_poses{
+      { frame_it->first, GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
+                                                   values_->at<gtsam::Pose3>(X(frame_it->first)) }
+    };
+    while (true)
+    {
+      auto pose1_id = frame_it->first;
+      auto pose1 = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
+                                             values_->at<gtsam::Pose3>(X(frame_it->first));
+      ++frame_it;
+      if (frame_it == added_frame_timestamps_.end())
+      {
+        break;
+      }
+      auto pose2 = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
+                                             values_->at<gtsam::Pose3>(X(frame_it->first));
+      auto between_pose = pose1.between(pose2);
+      auto scaled_between_pose = gtsam::Pose3(between_pose.rotation(), scale_ratio * between_pose.translation());
+      auto scaled_pose2 = scaled_poses.back().second.compose(scaled_between_pose);
+      scaled_poses.emplace_back(frame_it->first, scaled_pose2);
+      scaled_between_poses.emplace_back(std::pair<int, int>{ pose1_id, frame_it->first }, scaled_between_pose);
+    }
+
+    values_->clear();
+    for (const auto& scaled_pose : scaled_poses)
+    {
+      values_->insert(X(scaled_pose.first), scaled_pose.second);
+    }
+
+    // Range factor is already added as a shared pointer in the graph, we update the pointer value here.
+    *range_factor_ = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(X(keyframe_transforms[0].frame1->id),
+                                                                    X(keyframe_transforms.back().frame2->id),
+                                                                    GlobalParams::InitRangeFactorLength(), range_noise);
+
+    if (GlobalParams::UseIsam())
+    {
+      *isam2 = gtsam::ISAM2(MakeIsam2Params()); // Reinitialize isam
+      auto isam_result = isam2->update(*graph_, *values_);
+      isam_result.print("isam result: ");
+      if (isam_result.errorBefore && isam_result.errorAfter)
+      {
+        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
+                  << std::endl;
+      }
+    }
+    else
+    {
+      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      *values_ = optimizer.optimize();
+    }
   }
 
   GetPoseEstimates(pose_estimates);
@@ -324,7 +380,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   }
 
   // The IMU factors will now be defining the scale, so the range factor should be removed.
-  range_factor_ = nullptr;
+  // range_factor_ = nullptr;
 
   if (GlobalParams::UseIsam())
   {
@@ -473,7 +529,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       isam_result.print("isam result: ");
       if (isam_result.errorBefore && isam_result.errorAfter)
       {
-        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
+                  << std::endl;
       }
     }
     else
