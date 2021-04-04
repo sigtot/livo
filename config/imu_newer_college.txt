@@ -1,0 +1,10 @@
+accel noise:
+  150 micro g / sqrt(Hz)
+  = 1471.5 micro m / (s^2 sqrt(Hz))
+  = 0.0014715 m / (s^2 sqrt(Hz))
+
+gyro noise:
+  0.1 degrees / s
+  = 0.00174528 rad / s
+
+

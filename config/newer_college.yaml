@@ -9,10 +9,10 @@ imu_g: 9.81206
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
-imu_accel_noise_density: 0.001249
-imu_gyro_noise_density: 0.000208
-imu_accel_random_walk: 0.000106
-imu_gyro_random_walk: 0.000004
+imu_accel_noise_density: 0.0014715 # m / (s^2 sqrt(Hz))
+imu_gyro_noise_density: 0.00174528 # rad / s
+imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
+imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
 
 use_isam: true
 isam_relinearize_thresh: 0.1
