@@ -33,6 +33,8 @@ gtsam::ISAM2Params MakeIsam2Params()
   gtsam::ISAM2Params params;
   params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
   params.relinearizeSkip = 1;
+  params.evaluateNonlinearError = true;
+  params.optimizationParams = gtsam::ISAM2GaussNewtonParams();
   return params;
 }
 
@@ -171,7 +173,7 @@ void Smoother::InitializeLandmarks(
   auto pose_delta = poses[0].inverse().compose(poses.back());
   auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 1);
   range_factor_ = gtsam::make_shared<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>>(
-      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), pose_delta.translation().norm(),
+      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), 17.,
       range_noise);
   graph_->add(range_factor_);
 
@@ -193,7 +195,9 @@ void Smoother::InitializeLandmarks(
     }
     if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
-      std::cout << "adding landmark with " << smart_factor->size() << " observations" << std::endl;
+      std::cout << "adding landmark " << track->id << " with " << smart_factor->size() << " observations and parallax "
+                << track->max_parallax
+                << " and inlier ratio " << track->InlierRatio() << std::endl;
       smart_factors_[track->id] = smart_factor;
       graph_->add(smart_factor);
     }
@@ -202,7 +206,12 @@ void Smoother::InitializeLandmarks(
 
   if (GlobalParams::UseIsam())
   {
-    isam2->update(*graph_, *values_);
+    auto isam_result = isam2->update(*graph_, *values_);
+    isam_result.print("isam result: ");
+    if (isam_result.errorBefore && isam_result.errorAfter)
+    {
+      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+    }
   }
   else
   {
@@ -319,7 +328,12 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   if (GlobalParams::UseIsam())
   {
-    isam2->update(*graph_, *values_);
+    auto isam_result = isam2->update(*graph_, *values_);
+    isam_result.print("isam result: ");
+    if (isam_result.errorBefore && isam_result.errorAfter)
+    {
+      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+    }
   }
   else
   {
@@ -351,7 +365,12 @@ void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<in
   }
   else
   {
-    isam2->update();
+    auto isam_result = isam2->update();
+    isam_result.print("isam result: ");
+    if (isam_result.errorBefore && isam_result.errorAfter)
+    {
+      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+    }
   }
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
@@ -451,6 +470,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     if (GlobalParams::UseIsam())
     {
       auto isam_result = isam2->update(*graph_, *values_);
+      isam_result.print("isam result: ");
+      if (isam_result.errorBefore && isam_result.errorAfter)
+      {
+        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      }
     }
     else
     {
