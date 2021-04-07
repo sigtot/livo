@@ -221,7 +221,12 @@ void Smoother::InitializeLandmarks(
   // If an initial range factor length is provided, we scale the solution to account for it and redo the optimization
   if (GlobalParams::InitRangeFactorLength() > 0)
   {
-    double scale_ratio = GlobalParams::InitRangeFactorLength() / pose_delta_range;
+    auto gt_range = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp))
+                        .between(ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms.back().frame2->timestamp)))
+                        .translation()
+                        .norm();
+    std::cout << " Gt range: " << gt_range << std::endl;
+    double scale_ratio = gt_range / pose_delta_range;
     auto frame_it = added_frame_timestamps_.begin();
     std::vector<std::pair<std::pair<int, int>, gtsam::Pose3>> scaled_between_poses;
     std::vector<std::pair<int, gtsam::Pose3>> scaled_poses{
@@ -256,7 +261,7 @@ void Smoother::InitializeLandmarks(
     // Range factor is already added as a shared pointer in the graph, we update the pointer value here.
     *range_factor_ = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(X(keyframe_transforms[0].frame1->id),
                                                                     X(keyframe_transforms.back().frame2->id),
-                                                                    GlobalParams::InitRangeFactorLength(), range_noise);
+                                                                    gt_range, range_noise);
 
     if (GlobalParams::UseIsam())
     {
