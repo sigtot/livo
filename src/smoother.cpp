@@ -5,6 +5,7 @@
 #include "global_params.h"
 #include "newer_college_ground_truth.h"
 #include "gtsam_helpers.h"
+#include "debug_image_publisher.h"
 
 #include <iostream>
 #include <utility>
@@ -449,6 +450,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                               GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
       gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
+  std::vector<std::vector<cv::Point2f>> initialized_landmarks;
   for (auto& track : tracks)
   {
     auto feat_it = track->features.rbegin();
@@ -466,15 +468,17 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     {
       SmartFactor::shared_ptr smart_factor(
           new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
-      for (size_t i = 0; i < track->features.size() - 1; ++i)
+      std::vector<cv::Point2f> added_features;
+      for (int i = static_cast<int>(track->features.size()) - 1; i > 0 && added_features.size() < 15; --i)
       {
         auto feature = track->features[i];
         if (added_frame_timestamps_.count(feature->frame->id))
         {
           smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
+          added_features.push_back(feature->pt);
         }
       }
-      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing() && smart_factor->size() <= 5)
+      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
       {
         auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
         if (triangulationResult.valid())
@@ -489,6 +493,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                       << std::endl;
             smart_factors_[track->id] = smart_factor;
             graph_->add(smart_factor);
+            initialized_landmarks.push_back(added_features);
           }
           else
           {
@@ -498,6 +503,10 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       }
     }
   }
+
+  DebugImagePublisher::PublishNewLandmarksImage(keyframe_transform.frame2->image, initialized_landmarks,
+                                                keyframe_transform.frame2->timestamp);
+
   std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
 
   WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
