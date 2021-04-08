@@ -108,7 +108,7 @@ void Smoother::InitializeLandmarks(
                        gt_pose;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.0001)).finished());
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
 
@@ -170,12 +170,12 @@ void Smoother::InitializeLandmarks(
     frame_ids[keyframe_transform.frame2->id] = true;
   }
 
-  // The SfM-only problem has scale ambiguity, so we add a range factor to define scale
-  auto pose_delta_range = poses[0].inverse().compose(poses.back()).translation().norm();
-  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
-  range_factor_ = gtsam::make_shared<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>>(
-      X(keyframe_transforms[0].frame1->id), X(keyframe_transforms.back().frame2->id), pose_delta_range, range_noise);
-  graph_->add(range_factor_);
+  // The SfM-only problem has scale ambiguity, so we add a second prior
+  auto noise_x_second_prior = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.2), gtsam::Vector3::Constant(0.2)).finished());
+  auto second_prior = gtsam::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(X(keyframe_transforms.back().frame2->id),
+                                                                           poses.back(), noise_x_second_prior);
+  graph_->add(second_prior);
 
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
@@ -221,12 +221,14 @@ void Smoother::InitializeLandmarks(
   // If an initial range factor length is provided, we scale the solution to account for it and redo the optimization
   if (GlobalParams::InitRangeFactorLength() > 0)
   {
+    auto pose_delta_range = poses[0].inverse().compose(poses.back()).translation().norm();
     auto gt_range = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp))
                         .between(ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms.back().frame2->timestamp)))
                         .translation()
                         .norm();
-    std::cout << " Gt range: " << gt_range << std::endl;
     double scale_ratio = gt_range / pose_delta_range;
+    std::cout << "Gt range: " << gt_range << " old range: " << pose_delta_range << " scale_ratio: " << scale_ratio
+              << std::endl;
     auto frame_it = added_frame_timestamps_.begin();
     std::vector<std::pair<std::pair<int, int>, gtsam::Pose3>> scaled_between_poses;
     std::vector<std::pair<int, gtsam::Pose3>> scaled_poses{
@@ -258,10 +260,9 @@ void Smoother::InitializeLandmarks(
       values_->insert(X(scaled_pose.first), scaled_pose.second);
     }
 
-    // Range factor is already added as a shared pointer in the graph, we update the pointer value here.
-    *range_factor_ = gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3>(X(keyframe_transforms[0].frame1->id),
-                                                                    X(keyframe_transforms.back().frame2->id),
-                                                                    gt_range, range_noise);
+    // The second prior is already added as a shared pointer in the graph, we update the pointer value here.
+    *second_prior = gtsam::PriorFactor<gtsam::Pose3>(X(scaled_poses.back().first), scaled_poses.back().second,
+                                                     noise_x_second_prior);
 
     if (GlobalParams::UseIsam())
     {
@@ -306,6 +307,39 @@ void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
     auto gtsam_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_pair.first)) :
                                                 values_->at<gtsam::Pose3>(X(frame_pair.first));
     pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(gtsam_pose), .stamp = frame_pair.second });
+  }
+}
+
+void Smoother::RemoveBadLandmarks()
+{
+  auto values = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
+  for (auto it = smart_factors_.cbegin(); it != smart_factors_.cend();)
+  {
+    auto smart_factor = it->second;
+    if (smart_factor->isValid())
+    {
+      gtsam::Matrix E;
+      bool worked = smart_factor->triangulateAndComputeE(E, values);
+      if (worked)
+      {
+        auto P = smart_factor->PointCov(E);
+        if (P.norm() > 1)
+        {
+          std::cout << "Removing landmark with large P norm " << P.norm() << ")" << std::endl;
+          smart_factor.reset();
+          smart_factors_.erase(it++);
+          continue;
+        }
+      }
+      else
+      {
+        std::cout << "Triangulation failed for landmark " << it->first << ". Removing it." << std::endl;
+        smart_factor.reset();
+        smart_factors_.erase(it++);
+        continue;
+      }
+    }
+    ++it;
   }
 }
 
@@ -357,18 +391,10 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   // Init on "random values" as this apparently helps convergence
-  gtsam::Vector3 zero_velocity(0.000001, 0.000002, -0.000001);
   gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, -0.0001),
                                          gtsam::Vector3(-0.0001, 0.0001, 0.0001));
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
-
-  graph_->addPrior(V(keyframe_transforms[0].frame1->id), zero_velocity, noise_v);
-  graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
-
-  values_->insert(V(keyframe_transforms[0].frame1->id), zero_velocity);
-  values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
-
+  std::vector<gtsam::Vector3> velocity_estimates;
+  auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
   for (auto& keyframe_transform : keyframe_transforms)
   {
     WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
@@ -381,12 +407,30 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     graph_->add(imu_factor);
     imu_measurements_->resetIntegration();
 
-    values_->insert(V(keyframe_transform.frame2->id), zero_velocity);
+    auto translation_delta =
+        prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame1->id))
+            .translation()
+            .between(prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame2->id)).translation());
+    auto time_delta =
+        added_frame_timestamps_[keyframe_transform.frame2->id] - added_frame_timestamps_[keyframe_transform.frame1->id];
+
+    gtsam::Vector3 velocity_estimate = (translation_delta / time_delta);
+    velocity_estimates.push_back(velocity_estimate);
+    std::cout << "v" << keyframe_transform.frame2->id << " = " << velocity_estimate << std::endl;
+
+    values_->insert(V(keyframe_transform.frame2->id), velocity_estimate);
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
 
-  // The IMU factors will now be defining the scale, so the range factor should be removed.
-  // range_factor_ = nullptr;
+  auto init_velocity = velocity_estimates.front();  // assume v1 == v2
+
+  graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
+  graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
+
+  values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
+  values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
   if (GlobalParams::UseIsam())
   {
@@ -474,7 +518,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       SmartFactor::shared_ptr smart_factor(
           new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
       std::vector<cv::Point2f> added_features;
-      for (int i = static_cast<int>(track->features.size()) - 1; i > 0 && added_features.size() < 15; --i)
+      for (int i = static_cast<int>(track->features.size()) - 1; i > 0 && added_features.size() < 20; --i)
       {
         auto feature = track->features[i];
         if (added_frame_timestamps_.count(feature->frame->id))
@@ -592,6 +636,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   }
   std::cout << "Optimization done" << std::endl;
 
+  RemoveBadLandmarks();
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 

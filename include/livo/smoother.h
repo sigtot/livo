@@ -76,6 +76,7 @@ public:
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
+  void RemoveBadLandmarks();
 };
 
 #endif
