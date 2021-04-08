@@ -35,7 +35,15 @@ gtsam::ISAM2Params MakeIsam2Params()
   params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
   params.relinearizeSkip = 1;
   params.evaluateNonlinearError = true;
-  params.optimizationParams = gtsam::ISAM2GaussNewtonParams();
+  if (GlobalParams::UseDogLeg())
+  {
+    params.optimizationParams =
+        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::SEARCH_EACH_ITERATION, true);
+  }
+  else
+  {
+    params.optimizationParams = gtsam::ISAM2GaussNewtonParams();
+  }
   return params;
 }
 
@@ -323,7 +331,7 @@ void Smoother::RemoveBadLandmarks()
       if (worked)
       {
         auto P = smart_factor->PointCov(E);
-        if (P.norm() > 1)
+        if (P.norm() > 5)
         {
           std::cout << "Removing landmark with large P norm " << P.norm() << ")" << std::endl;
           smart_factor.reset();
@@ -421,7 +429,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(V(keyframe_transform.frame2->id), velocity_estimate);
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
 
   auto init_velocity = velocity_estimates.front();  // assume v1 == v2
@@ -499,6 +507,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                               GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
       gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
+  gtsam::Pose3 body_p_imu = gtsam::Pose3(
+      gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
+                              GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
+      gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2]));
+
   std::vector<std::vector<cv::Point2f>> initialized_landmarks;
   for (auto& track : tracks)
   {
@@ -511,10 +524,30 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     if (smart_factors_.count(track->id))
     {
       assert(new_feature->frame->id == keyframe_transform.frame2->id);
-      smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+      if (GlobalParams::UseDogLeg())
+      {
+        /*
+         * Workaround for using the dogleg solver:
+         *
+         * Completely remove the smart factor and re-add an identical one with the one added measurement.
+         *
+         * See issue https://github.com/borglab/gtsam/issues/301
+         * and the one that recommended this fix:
+         *   https://bitbucket.org/gtborg/gtsam/issues/367/isam2-with-smart-factors-null-ptr-segfault
+         */
+        auto smart_factor = *smart_factors_[track->id];
+        smart_factor.add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+        smart_factors_[track->id].reset();
+        smart_factors_[track->id] = gtsam::make_shared<SmartFactor>(smart_factor);
+      }
+      else
+      {
+        smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+      }
     }
     else
     {
+      // TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(
           new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
       std::vector<cv::Point2f> added_features;
@@ -572,7 +605,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   values_->insert(V(keyframe_transform.frame2->id), predicted_navstate.velocity());
   values_->insert(B(keyframe_transform.frame2->id), prev_bias);
 
-  auto imu_delta = imu_measurements_->deltaXij();
+  auto imu_delta = imu_measurements_->deltaXij();  // body_P_sensor is accounted for in integration
 
   auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
   auto t = *keyframe_transform.GetTranslation();
@@ -588,8 +621,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   std::cout << "----- Rotation: ----" << std::endl;
   std::cout << "Prev: " << prev_pose.rotation().ypr().transpose() << std::endl;
   std::cout << "IMU pred: " << predicted_navstate.pose().rotation().ypr().transpose() << std::endl;
-  std::cout << "IMU delta: " << imu_delta.pose().rotation().ypr().transpose() << std::endl;
-  std::cout << "SfM delta: " << X_i.rotation().ypr().transpose() << std::endl;
+  std::cout << "IMU delta: " << imu_delta.pose().rotation().toQuaternion().coeffs().transpose() << std::endl;
+  std::cout << "SfM delta: " << X_i.rotation().toQuaternion().coeffs().transpose() << std::endl;
   std::cout << "--------------------" << std::endl;
 
   std::cout << "--- Translation: ---" << std::endl;
@@ -600,8 +633,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   std::cout << "--------------------" << std::endl;
 
   std::cout << "----- Velocity: ----" << std::endl;
-  std::cout << "prev -> IMU delta v: " << prev_velocity.transpose() << " -> " << imu_delta.velocity().transpose()
-            << std::endl;
+  std::cout << "prev -> IMU delta v -> IMU navstate v: " << prev_velocity.transpose() << " -> " << imu_delta.velocity()
+            << " -> " << predicted_navstate.velocity().transpose() << std::endl;
   std::cout << "--------------------" << std::endl;
 
   auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);

@@ -75,6 +75,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().num_high_parallax_points_for_keyframe_);
 
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
+  ReadVariable(nh, "/orb_test_node/use_dogleg", GetInstance().use_dogleg_);
   ReadVariable(nh, "/orb_test_node/isam_relinearize_thresh", GetInstance().isam_relinearize_thresh_);
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
@@ -283,4 +284,8 @@ bool GlobalParams::SaveFactorGraphsToFile()
 double GlobalParams::InitRangeFactorLength()
 {
   return GetInstance().init_range_factor_length_;
+}
+bool GlobalParams::UseDogLeg()
+{
+  return GetInstance().use_dogleg_;
 }

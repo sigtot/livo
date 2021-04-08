@@ -40,6 +40,7 @@ private:
   double min_keyframe_feature_inlier_ratio_ = .75;
 
   bool use_isam_ = true;
+  bool use_dogleg_ = false; // Only applies when using ISAM2. true = DogLeg, false = GN
   double isam_relinearize_thresh_ = 0.1;
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.; // Give negative value to use value calculate from estimate
@@ -91,6 +92,7 @@ public:
   static double NumHighParallaxPointsForKeyframe();
 
   static bool UseIsam();
+  static bool UseDogLeg();
   static double IsamRelinearizeThresh();
   static bool SaveFactorGraphsToFile();
   static double InitRangeFactorLength();

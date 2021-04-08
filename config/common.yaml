@@ -11,6 +11,7 @@ min_parallax: 20
 num_high_parallax_points_for_keyframe: 15
 
 use_isam: true
+use_dogleg: false
 isam_relinearize_thresh: 0.1
 save_factor_graphs_to_file: false
 init_range_factor_length_: -1.

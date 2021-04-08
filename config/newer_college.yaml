@@ -15,6 +15,7 @@ imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
 imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
 
 use_isam: true
+use_dogleg: false
 isam_relinearize_thresh: 0.1
 init_range_factor_length: 8.2
 
