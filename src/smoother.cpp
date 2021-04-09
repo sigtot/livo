@@ -6,6 +6,7 @@
 #include "newer_college_ground_truth.h"
 #include "gtsam_helpers.h"
 #include "debug_image_publisher.h"
+#include "debug_value_publisher.h"
 
 #include <iostream>
 #include <utility>
@@ -188,6 +189,7 @@ void Smoother::InitializeLandmarks(
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
+  // TODO: Switch to robust noise model
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   for (auto& track : tracks)
@@ -218,7 +220,10 @@ void Smoother::InitializeLandmarks(
     if (isam_result.errorBefore && isam_result.errorAfter)
     {
       std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
+    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   }
   else
   {
@@ -281,7 +286,10 @@ void Smoother::InitializeLandmarks(
       {
         std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
                   << std::endl;
+        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
       }
+      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
     }
     else
     {
@@ -447,7 +455,10 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     if (isam_result.errorBefore && isam_result.errorAfter)
     {
       std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
+    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   }
   else
   {
@@ -484,7 +495,10 @@ void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<in
     if (isam_result.errorBefore && isam_result.errorAfter)
     {
       std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
+    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   }
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
@@ -654,7 +668,10 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       {
         std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
                   << std::endl;
+        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
       }
+      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
     }
     else
     {

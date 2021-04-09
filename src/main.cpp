@@ -12,7 +12,7 @@
 #include "queued_measurement_processor.h"
 #include "ros_helpers.h"
 #include "debug_image_publisher.h"
-
+#include "debug_value_publisher.h"
 
 #include <memory>
 
@@ -28,6 +28,8 @@ int main(int argc, char** argv)
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
   DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub);
+  
+  DebugValuePublisher::SetPublishers(nh);
 
   std::shared_ptr<IMUQueue> imu_queue = std::make_shared<IMUQueue>();
   auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
