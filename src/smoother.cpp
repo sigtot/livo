@@ -407,7 +407,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   // Init on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, -0.0001),
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.25),
                                          gtsam::Vector3(-0.0001, 0.0001, 0.0001));
   std::vector<gtsam::Vector3> velocity_estimates;
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
@@ -694,6 +694,11 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                       isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id)) :
                       values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id));
 
+  std::vector<double> bias_acc = { new_bias.accelerometer().x(), new_bias.accelerometer().y(),
+                                   new_bias.accelerometer().z() };
+  std::vector<double> bias_gyro = { new_bias.gyroscope().x(), new_bias.gyroscope().y(), new_bias.gyroscope().z() };
+  DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
+
   imu_measurements_->resetIntegrationAndSetBias(new_bias);
 
   last_frame_id_added_ = keyframe_transform.frame2->id;
@@ -706,6 +711,19 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   {
     SaveGraphToFile("/tmp/update-graph.dot", *graph_, *values_);
   }
+
+  /* Print imu biases in csv format
+  std::cout << "acc_bias_x" << "," << "acc_bias_y" << "," << "acc_bias_z" << ",";
+  std::cout << "gyro_bias_x" << "," << "gyro_bias_y" << "," << "gyro_bias_z" << std::endl;
+  for (auto frame_pair : added_frame_timestamps_)
+  {
+    auto bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_pair.first));
+    auto acc_bias = bias.accelerometer();
+    auto gyro_bias = bias.gyroscope();
+    std::cout << acc_bias.x() << "," << acc_bias.y() << "," << acc_bias.z() << ",";
+    std::cout << gyro_bias.x() << "," << gyro_bias.y() << "," << gyro_bias.z() << std::endl;
+  }
+   */
 
   if (GlobalParams::UseIsam())
   {
