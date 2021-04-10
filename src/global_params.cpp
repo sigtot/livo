@@ -63,6 +63,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().landmark_culling_observation_percentage_);
   ReadVariable(nh, "/orb_test_node/landmark_matching_window", GetInstance().landmark_matching_window_);
   ReadVariable(nh, "/orb_test_node/ground_truth_file", GetInstance().ground_truth_file_);
+  ReadVariable(nh, "/orb_test_node/init_on_ground_truth", GetInstance().init_on_ground_truth_);
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
   ReadVariable(nh, "/orb_test_node/init_keyframe_interval", GetInstance().init_keyframe_interval_);
   ReadVariable(nh, "/orb_test_node/num_good_keyframes_for_initialization",
@@ -140,6 +141,10 @@ int GlobalParams::LandmarkMatchingWindow()
 std::string GlobalParams::GroundTruthFile()
 {
   return GetInstance().ground_truth_file_;
+}
+bool GlobalParams::InitOnGroundTruth()
+{
+  return GetInstance().init_on_ground_truth_;
 }
 
 int GlobalParams::FeatureExtractionInterval()

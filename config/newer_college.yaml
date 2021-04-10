@@ -3,6 +3,7 @@ cam_sub_topic: /camera/infra1/image_rect_raw
 
 resize_factor: 1.0
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
+init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
 imu_g: 9.81206

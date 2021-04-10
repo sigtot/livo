@@ -107,14 +107,18 @@ void Smoother::InitializeLandmarks(
 {
   std::cout << "Let's initialize those landmarks" << std::endl;
 
-  auto gt_pose = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp));
+  auto unrefined_init_pose =
+      GlobalParams::InitOnGroundTruth() ?
+          ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp)) :
+          gtsam::Pose3(gtsam::Rot3::ypr(0.0001, 0.0001, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
+
   // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
   auto init_pose = frames_for_imu_init ?
-                       gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(frames_for_imu_init->first->timestamp,
-                                                                                 frames_for_imu_init->second->timestamp,
-                                                                                 ToRot(gt_pose.rotation()))),
-                                    gt_pose.translation()) :
-                       gt_pose;
+                       gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(
+                                        frames_for_imu_init->first->timestamp, frames_for_imu_init->second->timestamp,
+                                        ToRot(unrefined_init_pose.rotation()))),
+                                    unrefined_init_pose.translation()) :
+                       unrefined_init_pose;
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());

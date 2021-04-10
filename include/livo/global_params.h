@@ -24,6 +24,7 @@ private:
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
+  bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
   double min_parallax_ = 10.;
   int num_high_parallax_points_for_keyframe_ = 20;
@@ -83,6 +84,7 @@ public:
   static double LandmarkCullingObservationPercentage();
   static int LandmarkMatchingWindow();
   static std::string GroundTruthFile();
+  static bool InitOnGroundTruth();
   static double MatchMaxDistance();
   static int InitKeyframeInterval();
   static int NumGoodKeyframesForInitialization();

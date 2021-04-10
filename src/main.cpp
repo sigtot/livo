@@ -24,11 +24,14 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
 
   GlobalParams::LoadParams(nh);
-  NewerCollegeGroundTruth::LoadFromFile(GlobalParams::GroundTruthFile());
+  if (!GlobalParams::GroundTruthFile().empty())
+  {
+    NewerCollegeGroundTruth::LoadFromFile(GlobalParams::GroundTruthFile());
+  }
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
   DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub);
-  
+
   DebugValuePublisher::SetPublishers(nh);
 
   std::shared_ptr<IMUQueue> imu_queue = std::make_shared<IMUQueue>();
@@ -50,19 +53,21 @@ int main(int argc, char** argv)
                           &queued_measurement_processor);
 
   ROS_INFO("Starting up");
-
-  auto gt_poses_map = NewerCollegeGroundTruth::GetAllPoses();
-  std::vector<Pose3Stamped> gt_poses_vec;
-  for (auto& pose_pair : gt_poses_map)
+  if (!GlobalParams::GroundTruthFile().empty())
   {
-    Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
-    gt_poses_vec.push_back(stamped);
+    auto gt_poses_map = NewerCollegeGroundTruth::GetAllPoses();
+    std::vector<Pose3Stamped> gt_poses_vec;
+    for (auto& pose_pair : gt_poses_map)
+    {
+      Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
+      gt_poses_vec.push_back(stamped);
+    }
+    while (gt_pub.getNumSubscribers() == 0)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    ros_helpers::PublishPoses(gt_poses_vec, gt_pub);
   }
-  while (gt_pub.getNumSubscribers() == 0)
-  {
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  }
-  ros_helpers::PublishPoses(gt_poses_vec, gt_pub);
 
   ros::spin();
   return 0;

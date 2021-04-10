@@ -3,6 +3,7 @@ cam_sub_topic: /camera/image_mono
 
 resize_factor: 0.5
 ground_truth_file: ""
+init_on_ground_truth: false
 
 track_count_lower_thresh: 50
 track_nms_squared_dist_thresh: 500.
