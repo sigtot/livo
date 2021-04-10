@@ -563,8 +563,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       // TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(
           new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
-      std::vector<cv::Point2f> added_features;
-      for (int i = static_cast<int>(track->features.size()) - 1; i > 0 && added_features.size() < 20; --i)
+      std::vector<cv::Point2f> added_features = { new_feature->pt };
+      for (int i = static_cast<int>(track->features.size()) - 1; i >= 0 && added_features.size() <= 5; --i)
       {
         auto feature = track->features[i];
         if (added_frame_timestamps_.count(feature->frame->id))
