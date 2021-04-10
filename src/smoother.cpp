@@ -109,7 +109,7 @@ void Smoother::InitializeLandmarks(
 
   auto unrefined_init_pose =
       GlobalParams::InitOnGroundTruth() ?
-          ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp)) :
+          ToGtsamPose(GroundTruth::At(keyframe_transforms[0].frame1->timestamp)) :
           gtsam::Pose3(gtsam::Rot3::ypr(M_PI, -M_PI_2, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
 
   // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
@@ -239,8 +239,8 @@ void Smoother::InitializeLandmarks(
   if (GlobalParams::InitRangeFactorLength() > 0)
   {
     auto pose_delta_range = poses[0].inverse().compose(poses.back()).translation().norm();
-    auto gt_range = ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp))
-                        .between(ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms.back().frame2->timestamp)))
+    auto gt_range = ToGtsamPose(GroundTruth::At(keyframe_transforms[0].frame1->timestamp))
+                        .between(ToGtsamPose(GroundTruth::At(keyframe_transforms.back().frame2->timestamp)))
                         .translation()
                         .norm();
     double scale_ratio = gt_range / pose_delta_range;

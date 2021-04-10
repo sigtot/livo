@@ -22,7 +22,7 @@ void TryProjectDebug(const std::vector<std::shared_ptr<Landmark>>& landmarks, do
 
   int i = 99999;
   visualization_msgs::MarkerArray marker_array;
-  auto pose = NewerCollegeGroundTruth::At(timestamp);
+  auto pose = GroundTruth::At(timestamp);
   auto gtsam_pose = ToGtsamPose(pose);
   Camera camera(gtsam_pose, K);
   for (const auto& landmark : landmarks)

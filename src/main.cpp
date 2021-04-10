@@ -26,7 +26,8 @@ int main(int argc, char** argv)
   GlobalParams::LoadParams(nh);
   if (!GlobalParams::GroundTruthFile().empty())
   {
-    NewerCollegeGroundTruth::LoadFromFile(GlobalParams::GroundTruthFile());
+    auto ground_truth_provider = NewerCollegeGroundTruth(GlobalParams::GroundTruthFile());
+    GroundTruth::Load(ground_truth_provider);
   }
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
@@ -55,7 +56,7 @@ int main(int argc, char** argv)
   ROS_INFO("Starting up");
   if (!GlobalParams::GroundTruthFile().empty())
   {
-    auto gt_poses_map = NewerCollegeGroundTruth::GetAllPoses();
+    auto gt_poses_map = GroundTruth::GetAllPoses();
     std::vector<Pose3Stamped> gt_poses_vec;
     for (auto& pose_pair : gt_poses_map)
     {
