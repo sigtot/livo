@@ -407,8 +407,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   // Init on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.25),
-                                         gtsam::Vector3(-0.0001, 0.0001, 0.0001));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.25), gtsam::Vector3(-0.0001, 0.0001, 0.0001));
   std::vector<gtsam::Vector3> velocity_estimates;
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
   for (auto& keyframe_transform : keyframe_transforms)
@@ -535,7 +534,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
           return f->frame->id == keyframe_transform.frame2->id;
         })->get();
 
-    if (smart_factors_.count(track->id))
+    if (smart_factors_.count(track->id) && smart_factors_[track->id]->size() < 30)
     {
       assert(new_feature->frame->id == keyframe_transform.frame2->id);
       if (GlobalParams::UseDogLeg())
