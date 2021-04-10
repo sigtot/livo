@@ -1,0 +1,38 @@
+imu_sub_topic: /imu0
+cam_sub_topic: /output/image
+
+resize_factor: 1.0
+ground_truth_file: ""
+init_on_ground_truth: false
+
+timeshift_cam_imu: 0.000
+imu_g: 9.8100
+imu_accel_noise_density: 0.002
+imu_gyro_noise_density: 0.00016968
+imu_accel_random_walk: 0.003
+imu_gyro_random_walk: 0.000019393
+
+use_isam: true
+use_dogleg: false
+isam_relinearize_thresh: 0.1
+init_range_factor_length: -1.0
+
+num_good_keyframes_for_initialization: 60
+track_nms_squared_dist_thresh: 400.
+max_features_per_cell: 6
+track_count_lower_thresh: 150
+
+min_parallax: 15
+num_high_parallax_points_for_keyframe: 40
+min_track_length_for_smoothing: 3
+
+body_p_cam_quat: [ -0.0077072, 0.0104993, 0.7017528, 0.7123015 ]
+body_p_cam_vec: [ -0.0216401454975, -0.064676986768, 0.00981073058949 ]
+
+body_p_imu_quat: [ 0.0, 0.0, 0.0, 1.0 ]
+body_p_imu_vec: [ 0.0, 0.0, 0.0 ]
+
+cam_fx: 458.654
+cam_fy: 457.296
+cam_u0: 367.215
+cam_v0: 248.375

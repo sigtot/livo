@@ -110,7 +110,7 @@ void Smoother::InitializeLandmarks(
   auto unrefined_init_pose =
       GlobalParams::InitOnGroundTruth() ?
           ToGtsamPose(NewerCollegeGroundTruth::At(keyframe_transforms[0].frame1->timestamp)) :
-          gtsam::Pose3(gtsam::Rot3::ypr(0.0001, 0.0001, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
+          gtsam::Pose3(gtsam::Rot3::ypr(M_PI, -M_PI_2, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
 
   // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
   auto init_pose = frames_for_imu_init ?
@@ -411,7 +411,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   // Init on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.25), gtsam::Vector3(-0.0001, 0.0001, 0.0001));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.0001), gtsam::Vector3(-0.0001, 0.0001, 0.0001));
   std::vector<gtsam::Vector3> velocity_estimates;
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
   for (auto& keyframe_transform : keyframe_transforms)
