@@ -21,6 +21,8 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().bias_gyro_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/gyro_x", 1000);
   GetInstance().bias_gyro_y_pub_ = nh.advertise<std_msgs::Float64>("/bias/gyro_y", 1000);
   GetInstance().bias_gyro_z_pub_ = nh.advertise<std_msgs::Float64>("/bias/gyro_z", 1000);
+
+  GetInstance().velocity_norm_average_pub_ = nh.advertise<std_msgs::Float64>("/velocity_norm_average", 1000);
 }
 
 void DebugValuePublisher::PublishNonlinearError(double nonlinear_error)
@@ -61,4 +63,8 @@ void DebugValuePublisher::PublishBias(const std::vector<double>& acc_bias, const
   DebugValuePublisher::PublishDoubleValue(gyro_bias[0], GetInstance().bias_gyro_x_pub_);
   DebugValuePublisher::PublishDoubleValue(gyro_bias[1], GetInstance().bias_gyro_y_pub_);
   DebugValuePublisher::PublishDoubleValue(gyro_bias[2], GetInstance().bias_gyro_z_pub_);
+}
+void DebugValuePublisher::PublishVelocityNormAverage(double velocity_norm_average)
+{
+  DebugValuePublisher::PublishDoubleValue(velocity_norm_average, GetInstance().velocity_norm_average_pub_);
 }

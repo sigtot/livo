@@ -18,6 +18,8 @@ private:
   ros::Publisher bias_gyro_y_pub_;
   ros::Publisher bias_gyro_z_pub_;
 
+  ros::Publisher velocity_norm_average_pub_;
+
   DebugValuePublisher() = default;
   static DebugValuePublisher& GetInstance();
 
@@ -34,6 +36,7 @@ public:
   static void PublishRelinearizedCliques(int relinearized_cliques);
   static void PublishTotalCliques(int total_cliques);
   static void PublishBias(const std::vector<double>& acc_bias, const std::vector<double>& gyro_bias);
+  static void PublishVelocityNormAverage(double velocity_norm_average);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEBUG_VALUE_PUBLISHER_H_

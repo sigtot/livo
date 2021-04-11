@@ -25,6 +25,7 @@
 #include <thread>
 #include <chrono>
 #include <gtsam/sam/RangeFactor.h>
+#include <numeric>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
@@ -704,6 +705,16 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                                    new_bias.accelerometer().z() };
   std::vector<double> bias_gyro = { new_bias.gyroscope().x(), new_bias.gyroscope().y(), new_bias.gyroscope().z() };
   DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
+
+  std::vector<double> v_norms;
+  for (auto frame : added_frame_timestamps_)
+  {
+    auto velocity = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Vector3>(V(frame.first)) :
+                                              values_->at<gtsam::Vector3>(V(frame.first));
+    v_norms.push_back(velocity.norm());
+  }
+  auto v_average = std::accumulate(v_norms.begin(), v_norms.end(), 0.0) / static_cast<double>(v_norms.size());
+  DebugValuePublisher::PublishVelocityNormAverage(v_average);
 
   imu_measurements_->resetIntegrationAndSetBias(new_bias);
 
