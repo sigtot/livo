@@ -411,7 +411,8 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
   // Init on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.0001, 0.0002, 0.0001), gtsam::Vector3(-0.0001, 0.0001, 0.0001));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.003172, 0.021267, 0.078502),
+                                         gtsam::Vector3(-0.025266, 0.136696, 0.075593));
   std::vector<gtsam::Vector3> velocity_estimates;
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
   for (auto& keyframe_transform : keyframe_transforms)
@@ -440,10 +441,12 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(V(keyframe_transform.frame2->id), velocity_estimate);
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.02);
 
-  auto init_velocity = velocity_estimates.front();  // assume v1 == v2
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, keyframe_transforms[0].frame1->stationary ? 0.0001 : 0.1);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.001);
+
+  auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :
+                                                                   velocity_estimates.front();  // assume v1 == v2
 
   graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
