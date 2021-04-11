@@ -2,8 +2,9 @@ imu_sub_topic: /imu0
 cam_sub_topic: /output/image
 
 resize_factor: 1.0
-ground_truth_file: ""
-init_on_ground_truth: false
+ground_truth_file: "/home/sigtot/Downloads/data/euroc/MH_01_easy/asl/mav0/state_groundtruth_estimate0/data.csv"
+ground_truth_provider: euroc
+init_on_ground_truth: true
 
 timeshift_cam_imu: 0.000
 imu_g: 9.8100
@@ -15,7 +16,7 @@ imu_gyro_random_walk: 0.000019393
 use_isam: true
 use_dogleg: false
 isam_relinearize_thresh: 0.1
-init_range_factor_length: -1.0
+init_range_factor_length: 8.1
 
 num_good_keyframes_for_initialization: 60
 track_nms_squared_dist_thresh: 400.

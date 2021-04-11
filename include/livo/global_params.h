@@ -24,6 +24,7 @@ private:
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
+  std::string ground_truth_provider_ = "newer_college"; // Possible values: newer_college, euroc
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
   double min_parallax_ = 10.;
@@ -84,6 +85,7 @@ public:
   static double LandmarkCullingObservationPercentage();
   static int LandmarkMatchingWindow();
   static std::string GroundTruthFile();
+  static std::string GroundTruthProvider();
   static bool InitOnGroundTruth();
   static double MatchMaxDistance();
   static int InitKeyframeInterval();

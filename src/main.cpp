@@ -3,6 +3,7 @@
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <newer_college_ground_truth.h>
+#include <euroc_ground_truth_provider.h>
 #include <thread>
 #include <chrono>
 #include <imu_queue.h>
@@ -26,8 +27,16 @@ int main(int argc, char** argv)
   GlobalParams::LoadParams(nh);
   if (!GlobalParams::GroundTruthFile().empty())
   {
-    auto ground_truth_provider = NewerCollegeGroundTruth(GlobalParams::GroundTruthFile());
-    GroundTruth::Load(ground_truth_provider);
+    if(GlobalParams::GroundTruthProvider() == "newer_college")
+    {
+      auto ground_truth_provider = NewerCollegeGroundTruth(GlobalParams::GroundTruthFile());
+      GroundTruth::Load(ground_truth_provider);
+    }
+    else if (GlobalParams::GroundTruthProvider() == "euroc")
+    {
+      auto ground_truth_provider = EurocGroundTruthProvider(GlobalParams::GroundTruthFile());
+      GroundTruth::Load(ground_truth_provider);
+    }
   }
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
@@ -58,10 +67,15 @@ int main(int argc, char** argv)
   {
     auto gt_poses_map = GroundTruth::GetAllPoses();
     std::vector<Pose3Stamped> gt_poses_vec;
+    int i = 0;
     for (auto& pose_pair : gt_poses_map)
     {
-      Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
-      gt_poses_vec.push_back(stamped);
+      if (i % 50 == 0)
+      {
+        Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
+        gt_poses_vec.push_back(stamped);
+      }
+      i++;
     }
     while (gt_pub.getNumSubscribers() == 0)
     {

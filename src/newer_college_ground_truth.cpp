@@ -7,8 +7,6 @@
 #include <sstream>
 #include <utility>
 
-#include <gtsam/base/Lie.h>
-
 void NewerCollegeGroundTruth::LoadFromFile(std::multimap<double, Pose3>& gt) const
 {
   std::ifstream f;

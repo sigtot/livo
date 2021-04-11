@@ -42,8 +42,8 @@ Pose3 GroundTruth::Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, d
                                            double target_ts)
 {
   assert(from_ts < to_ts);
-  assert(from_ts < target_ts);
-  assert(target_ts < to_ts);
+  assert(from_ts <= target_ts);
+  assert(target_ts <= to_ts);
   gtsam::Pose3 gtsam_from_pose = ToGtsamPose(from_pose);
   gtsam::Pose3 gtsam_to_pose = ToGtsamPose(to_pose);
   double t = (target_ts - from_ts) / (to_ts - from_ts);
