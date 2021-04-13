@@ -24,7 +24,7 @@ private:
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
   std::string ground_truth_file_ = "/path/to/registered_poses.csv";
-  std::string ground_truth_provider_ = "newer_college"; // Possible values: newer_college, euroc
+  std::string ground_truth_provider_ = "newer_college";  // Possible values: newer_college, euroc
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
   double min_parallax_ = 10.;
@@ -42,10 +42,10 @@ private:
   double min_keyframe_feature_inlier_ratio_ = .75;
 
   bool use_isam_ = true;
-  bool use_dogleg_ = false; // Only applies when using ISAM2. true = DogLeg, false = GN
+  bool use_dogleg_ = false;  // Only applies when using ISAM2. true = DogLeg, false = GN
   double isam_relinearize_thresh_ = 0.1;
   bool save_factor_graphs_to_file_ = false;
-  double init_range_factor_length_ = 10.; // Give negative value to use value calculate from estimate
+  double init_range_factor_length_ = 10.;  // Give negative value to use value calculate from estimate
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -69,6 +69,9 @@ private:
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
   double cam_v0_ = 238.52694868;
+
+  std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
+  std::string distortion_model_ = "radtan";
 
 public:
   static void LoadParams(const ros::NodeHandle& nh);
@@ -128,6 +131,9 @@ public:
   static double CamFy();
   static double CamU0();
   static double CamV0();
+  
+  static std::vector<double> DistortionCoefficients();
+  static std::string DistortionModel();
 };
 
 #endif

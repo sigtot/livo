@@ -30,13 +30,17 @@ min_parallax: 15
 num_high_parallax_points_for_keyframe: 30
 min_track_length_for_smoothing: 3
 
-body_p_cam_quat: [-0.5, 0.5, -0.5, 0.5]
-body_p_cam_vec: [-0.0442, 0.0173, -0.0158]
+body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
+body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]
 
-body_p_imu_quat: [-0.5, 0.5, -0.5, 0.5]
-body_p_imu_vec: [0, 0, 0]
+body_p_imu_quat: [ -0.5, 0.5, -0.5, 0.5 ]
+body_p_imu_vec: [ 0, 0, 0 ]
 
 cam_fx: 431.38739114
 cam_fy: 430.24961762
 cam_u0: 427.4407802
 cam_v0: 238.52694868
+
+distortion_model:
+  coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
+  type: radtan

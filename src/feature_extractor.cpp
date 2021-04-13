@@ -6,6 +6,7 @@
 #include "global_params.h"
 #include "match_result.h"
 #include "Initializer.h"
+#include "image_undistorter.h"
 
 #include <algorithm>
 #include <utility>
@@ -20,6 +21,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe toCvShare?
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
+
+  UndistortImage(img_resized);
 
   shared_ptr<Frame> new_frame = make_shared<Frame>();
   new_frame->image = img_resized;
@@ -697,7 +700,24 @@ FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
   {
     return boost::make_optional(result);
   }
-  else {
+  else
+  {
     return boost::none;
+  }
+}
+
+void FeatureExtractor::UndistortImage(cv::Mat& img)
+{
+  if (GlobalParams::DistortionModel() == "radtan")
+  {
+    ImageUndistorter::UndistortRadTan(img, GlobalParams::DistortionCoefficients());
+  }
+  else if (GlobalParams::DistortionModel() == "equidistant")
+  {
+    ImageUndistorter::UndistortEquidistant(img, GlobalParams::DistortionCoefficients());
+  }
+  else
+  {
+    std::cout << "Given unsupported distortion model " << GlobalParams::DistortionModel() << ". Typo?" << std::endl;
   }
 }

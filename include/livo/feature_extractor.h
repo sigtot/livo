@@ -66,6 +66,8 @@ private:
 
   static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);
 
+  static void UndistortImage(cv::Mat& img);
+
 public:
   explicit FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag);
 

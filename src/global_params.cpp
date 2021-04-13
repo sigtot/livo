@@ -108,6 +108,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
   ReadVariable(nh, "/orb_test_node/cam_u0", GetInstance().cam_u0_);
   ReadVariable(nh, "/orb_test_node/cam_v0", GetInstance().cam_v0_);
+
+  ReadVectorVariable(nh, "/orb_test_node/distortion_model/coeffs", GetInstance().distortion_coeffs_);
+  ReadVariable(nh, "/orb_test_node/distortion_model/type", GetInstance().distortion_model_);
 }
 
 // Implement parameter accessors here
@@ -242,6 +245,14 @@ double GlobalParams::CamU0()
 double GlobalParams::CamV0()
 {
   return GetInstance().cam_v0_;
+}
+std::vector<double> GlobalParams::DistortionCoefficients()
+{
+  return GetInstance().distortion_coeffs_;
+}
+std::string GlobalParams::DistortionModel()
+{
+  return GetInstance().distortion_model_;
 }
 double GlobalParams::MatchMaxDistance()
 {
