@@ -1,5 +1,5 @@
 #include <opencv2/imgproc.hpp>
-#include "image_undistorter.h"
+#include "radtan_undistorter.h"
 
 void RadTanImageUndistorter::Undistort(const cv::Mat& input_image, cv::Mat& undistorted_image)
 {

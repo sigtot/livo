@@ -6,10 +6,11 @@
 #include "global_params.h"
 #include "match_result.h"
 #include "Initializer.h"
-#include "image_undistorter.h"
+#include "radtan_undistorter.h"
 
 #include <algorithm>
 #include <utility>
+#include <memory>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag)
   : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag), orb_extractor()
@@ -46,7 +47,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<uchar> status;
     vector<float> err;
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
-    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
+    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2,
+                             criteria);
 
     // Discard bad points
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
@@ -587,13 +589,14 @@ FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
   }
 }
 
-RadTanImageUndistorter makeUndistorter(const cv::Size2i& size)
+std::unique_ptr<ImageUndistorter> makeUndistorter(const cv::Size2i& size)
 {
   cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0.,
                            GlobalParams::CamFy(), GlobalParams::CamV0(), 0., 0., 1.);
   if (GlobalParams::DistortionModel() == "radtan")
   {
-    return RadTanImageUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1);
+    return std::unique_ptr<RadTanImageUndistorter>(
+        new RadTanImageUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1));
   }
   else if (GlobalParams::DistortionModel() == "equidistant")
   {
@@ -610,6 +613,6 @@ RadTanImageUndistorter makeUndistorter(const cv::Size2i& size)
 void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image)
 {
   // Construct on first use
-  static RadTanImageUndistorter image_undistorter = makeUndistorter(cv::Size(input_image.cols, input_image.rows));
-  image_undistorter.Undistort(input_image, undistorted_image);
+  static unique_ptr<ImageUndistorter> image_undistorter = makeUndistorter(cv::Size(input_image.cols, input_image.rows));
+  image_undistorter->Undistort(input_image, undistorted_image);
 }
