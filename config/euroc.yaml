@@ -1,5 +1,5 @@
 imu_sub_topic: /imu0
-cam_sub_topic: /output/image
+cam_sub_topic: /cam0/image_raw
 
 resize_factor: 1.0
 ground_truth_file: "/home/sigtot/Downloads/data/euroc/MH_01_easy/asl/mav0/state_groundtruth_estimate0/data.csv"

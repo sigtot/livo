@@ -22,10 +22,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
 
-  UndistortImage(img_resized);
+  cv::Mat img_undistorted;
+  UndistortImage(img_resized, img_undistorted);
 
   shared_ptr<Frame> new_frame = make_shared<Frame>();
-  new_frame->image = img_resized;
+  new_frame->image = img_undistorted;
   new_frame->id = frame_count_++;
   new_frame->timestamp = msg->header.stamp.toSec();
   new_frame->stationary = true;  // Assume stationary at first
@@ -45,7 +46,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<uchar> status;
     vector<float> err;
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
-    cv::calcOpticalFlowPyrLK(prev_img, img_resized, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
+    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2, criteria);
 
     // Discard bad points
     for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
@@ -117,7 +118,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
     tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
     tracks_out_img.header.seq = frames.back()->id;
-    cvtColor(img_resized, tracks_out_img.image, CV_GRAY2RGB);
+    cvtColor(img_undistorted, tracks_out_img.image, CV_GRAY2RGB);
 
     for (const auto& track : active_tracks_)
     {
@@ -138,7 +139,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
-    FindGoodFeaturesToTrackGridded(img_resized, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    FindGoodFeaturesToTrackGridded(img_undistorted, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
       active_tracks_.push_back(std::make_shared<Track>(
@@ -149,7 +150,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
-    if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_resized.cols, img_resized.rows,
+    if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_undistorted.cols, img_undistorted.rows,
                            GlobalParams::ImageEdgePaddingPercent()))
     {
       // TODO perf erase-remove?
@@ -180,126 +181,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
-
-  return new_frame;
-}
-
-shared_ptr<Frame> FeatureExtractor::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
-{
-  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // Makes copy. We can also share to
-  // increase performance
-  Mat img_resized;
-  resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
-
-  Ptr<Feature2D> orb = ORB::create(GlobalParams::MaxFeaturesPerCell());
-
-  vector<KeyPoint> keypoints;
-  Mat descriptors;
-
-  orb_extractor(img_resized, cv::Mat(), keypoints, descriptors);
-
-  // Register observations in new frame
-  shared_ptr<Frame> new_frame = make_shared<Frame>();
-  new_frame->image = img_resized;
-  new_frame->id = frame_count_++;
-  new_frame->timestamp = msg->header.stamp.toSec();
-  for (int i = 0; i < keypoints.size(); ++i)
-  {
-    shared_ptr<KeyPointObservation> observation =
-        make_shared<KeyPointObservation>(keypoints[i], descriptors.row(i), new_frame);
-    new_frame->keypoint_observations.push_back(move(observation));
-  }
-
-  // Perform matching and create new landmarks
-  if (!frames.empty())
-  {
-    // Match with existing landmarks
-    std::vector<LandmarkMatch> landmark_matches;
-    std::vector<std::shared_ptr<KeyPointObservation>> unmatched_observations;
-    GetLandmarkMatches(new_frame->keypoint_observations, unmatched_observations, landmark_matches);
-    for (auto& landmark_match : landmark_matches)
-    {
-      landmark_match.landmark_->keypoint_observations.push_back(landmark_match.observation_);
-      auto obs = landmark_match.observation_;
-      auto lm = weak_ptr<Landmark>(landmark_match.landmark_);
-      auto obs_value = *obs;
-      landmark_match.observation_->landmark = weak_ptr<Landmark>(landmark_match.landmark_);
-    }
-    std::cout << unmatched_observations.size() << " remaining of " << new_frame->keypoint_observations.size()
-              << " observations after matching with existing landmarks." << std::endl;
-
-    std::vector<KeyPoint> unmatched_keypoints;
-    cv::Mat unmatched_descriptors;
-    for (auto& observation : unmatched_observations)
-    {
-      unmatched_keypoints.push_back(observation->keypoint);
-      unmatched_descriptors.push_back(observation->descriptor);
-    }
-
-    auto prev_frame_unmatched_observations = frames.back()->GetUnmatchedObservations();
-    std::vector<KeyPoint> prev_frame_unmatched_keypoints;
-    cv::Mat prev_frame_unmatched_descriptors;
-    for (auto& observation : prev_frame_unmatched_observations)
-    {
-      prev_frame_unmatched_keypoints.push_back(observation->keypoint);
-      prev_frame_unmatched_descriptors.push_back(observation->descriptor);
-    }
-    MatchResult match_result;
-    getMatches(unmatched_descriptors, unmatched_keypoints, prev_frame_unmatched_descriptors,
-               prev_frame_unmatched_keypoints, match_result.matches, match_result.inliers);
-
-    // Remove dupes, outliers and bad matches
-    std::map<int, cv::DMatch> best_matches_by_train_idx;
-    for (int i = 0; i < unmatched_observations.size(); ++i)
-    {
-      auto match = match_result.matches[i];
-      // train and query idx can be -1 for some reason?
-      if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < unmatched_observations.size() &&
-          match.trainIdx >= 0 && match.trainIdx < prev_frame_unmatched_observations.size() &&
-          match.distance < GlobalParams::MatchMaxDistance())
-      {
-        auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
-        if (dupe_match != best_matches_by_train_idx.end())
-        {
-          if (match.distance < dupe_match->second.distance)
-          {
-            best_matches_by_train_idx[match.trainIdx] = match;
-          }  // else discarded ...
-        }
-        else
-        {
-          best_matches_by_train_idx[match.trainIdx] = match;
-        }
-      }
-    }
-
-    // Init new landmarks
-    for (auto& match_by_train_idx : best_matches_by_train_idx)
-    {
-      auto match = match_by_train_idx.second;
-
-      // Init new landmark
-      shared_ptr<Landmark> new_landmark = make_shared<Landmark>(Landmark());
-      new_landmark->id = landmark_count_++;
-
-      // Add weak_ptr to previous frame
-      new_landmark->keypoint_observations.push_back(prev_frame_unmatched_observations[match.trainIdx]);
-      prev_frame_unmatched_observations[match.trainIdx]->landmark = std::weak_ptr<Landmark>(new_landmark);
-
-      // Also add to the new_landmarks vector
-      frames.back()->new_landmarks.push_back(std::weak_ptr<Landmark>(new_landmark));
-
-      // Add weak_ptr to new frame
-      new_landmark->keypoint_observations.push_back(unmatched_observations[match.queryIdx]);
-      unmatched_observations[match.queryIdx]->landmark = std::weak_ptr<Landmark>(new_landmark);
-
-      // Move shared_ptr to landmarks map
-      landmarks[new_landmark->id] = move(new_landmark);
-    }
-  }
-
-  // Persist new frame
-  frames.push_back(new_frame);
 
   return new_frame;
 }
@@ -706,18 +587,29 @@ FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
   }
 }
 
-void FeatureExtractor::UndistortImage(cv::Mat& img)
+RadTanImageUndistorter makeUndistorter(const cv::Size2i& size)
 {
+  cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0.,
+                           GlobalParams::CamFy(), GlobalParams::CamV0(), 0., 0., 1.);
   if (GlobalParams::DistortionModel() == "radtan")
   {
-    ImageUndistorter::UndistortRadTan(img, GlobalParams::DistortionCoefficients());
+    return RadTanImageUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1);
   }
   else if (GlobalParams::DistortionModel() == "equidistant")
   {
-    ImageUndistorter::UndistortEquidistant(img, GlobalParams::DistortionCoefficients());
+    std::cout << "Equidistant undistortion not yet implemented" << std::endl;
+    exit(1);
   }
   else
   {
     std::cout << "Given unsupported distortion model " << GlobalParams::DistortionModel() << ". Typo?" << std::endl;
+    exit(1);
   }
+}
+
+void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image)
+{
+  // Construct on first use
+  static RadTanImageUndistorter image_undistorter = makeUndistorter(cv::Size(input_image.cols, input_image.rows));
+  image_undistorter.Undistort(input_image, undistorted_image);
 }
