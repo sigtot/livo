@@ -10,6 +10,7 @@ class DebugImagePublisher
 {
 private:
   ros::Publisher new_landmarks_publisher_;
+  ros::Publisher reprojection_error_publisher_;
 
   DebugImagePublisher() = default;
   static DebugImagePublisher& GetInstance();
@@ -18,10 +19,13 @@ public:
   DebugImagePublisher(DebugImagePublisher const&) = delete;
   void operator=(DebugImagePublisher const&) = delete;
 
-  static void SetPublishers(const ros::Publisher& new_landmarks_publisher);
+  static void SetPublishers(const ros::Publisher& new_landmarks_publisher,
+                            const ros::Publisher& reprojection_error_publisher);
 
   static void PublishNewLandmarksImage(const cv::Mat& image, const std::vector<std::vector<cv::Point2f>>& tracks,
                                        double timestamp);
+  static void PublishReprojectionErrorImage(const cv::Mat& image, const std::vector<cv::Point2f>& features,
+                                            const std::vector<cv::Point2f>& reprojected_features, double timestamp);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEBUG_IMAGE_PUBLISHER_H_

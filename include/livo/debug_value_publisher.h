@@ -20,6 +20,8 @@ private:
 
   ros::Publisher velocity_norm_average_pub_;
 
+  ros::Publisher frame_id_pub_;
+
   DebugValuePublisher() = default;
   static DebugValuePublisher& GetInstance();
 
@@ -37,6 +39,7 @@ public:
   static void PublishTotalCliques(int total_cliques);
   static void PublishBias(const std::vector<double>& acc_bias, const std::vector<double>& gyro_bias);
   static void PublishVelocityNormAverage(double velocity_norm_average);
+  static void PublishFrameId(int frame_id);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEBUG_VALUE_PUBLISHER_H_

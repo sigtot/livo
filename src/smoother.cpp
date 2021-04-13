@@ -87,8 +87,9 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
 gtsam::SmartProjectionParams GetSmartProjectionParams()
 {
   gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
-  // smart_projection_params.setDynamicOutlierRejectionThreshold(10.);
-  // smart_projection_params.setLandmarkDistanceThreshold(30.);
+  //smart_projection_params.setRetriangulationThreshold(1e-3);
+  //smart_projection_params.setDynamicOutlierRejectionThreshold(8.0);
+  // smart_projection_params.setLandmarkDistanceThreshold(20.0);
   return smart_projection_params;
 }
 
@@ -195,7 +196,7 @@ void Smoother::InitializeLandmarks(
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
   // TODO: Switch to robust noise model
-  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
 
   for (auto& track : tracks)
   {
@@ -212,6 +213,7 @@ void Smoother::InitializeLandmarks(
     {
       std::cout << "adding landmark " << track->id << " with " << smart_factor->size() << " observations and parallax "
                 << track->max_parallax << " and inlier ratio " << track->InlierRatio() << std::endl;
+      added_tracks_[track->id] = track;
       smart_factors_[track->id] = smart_factor;
       graph_->add(smart_factor);
     }
@@ -305,6 +307,7 @@ void Smoother::InitializeLandmarks(
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
+  //PublishReprojectionErrorImages();
 
   last_frame_id_added_ = keyframe_transforms.back().frame2->id;
 
@@ -319,6 +322,53 @@ void Smoother::InitializeLandmarks(
     values_->clear();
   }
   status_ = kLandmarksInitialized;
+}
+
+void Smoother::PublishReprojectionErrorImages()
+{
+  std::map<int, std::vector<cv::Point2f>> measured_points_by_frame;
+  std::map<int, std::vector<cv::Point2f>> reprojected_points_by_frame;
+  std::map<int, std::shared_ptr<Frame>> frames_by_frame;
+  for (const auto& added_frame_pair : added_frame_timestamps_)
+  {
+    measured_points_by_frame[added_frame_pair.first] = std::vector<cv::Point2f>{};
+    reprojected_points_by_frame[added_frame_pair.first] = std::vector<cv::Point2f>{};
+  }
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    std::cout << "Landmark " << smart_factor_pair.first << std::endl;
+    auto reproj_error = smart_factor_pair.second->reprojectionErrorAfterTriangulation(
+        GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_);
+    auto features = added_tracks_[smart_factor_pair.first]->features;
+    std::cout << reproj_error << std::endl;
+
+    int i = 0;
+    for (const auto& feature : features)
+    {
+      if (added_frame_timestamps_.count(feature->frame->id))
+      {
+        measured_points_by_frame[feature->frame->id].push_back(feature->pt);
+        auto point_reproj_error = cv::Point2f(static_cast<float>(reproj_error(2 * i, 0)),
+                                              static_cast<float>(reproj_error(2 * i + 1, 0)));
+        std::cout << point_reproj_error << std::endl;
+        cv::Point2f reproj_point = feature->pt + point_reproj_error;
+        reprojected_points_by_frame[feature->frame->id].push_back(reproj_point);
+        if (!frames_by_frame.count(feature->frame->id))
+        {
+          frames_by_frame[feature->frame->id] = feature->frame;
+        }
+        ++i;
+      }
+    }
+  }
+
+  for (const auto& added_frame_pair : added_frame_timestamps_)
+  {
+    DebugImagePublisher::PublishReprojectionErrorImage(
+        frames_by_frame[added_frame_pair.first]->image, measured_points_by_frame[added_frame_pair.first],
+        reprojected_points_by_frame[added_frame_pair.first], added_frame_pair.second);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
 }
 
 void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
@@ -348,6 +398,7 @@ void Smoother::RemoveBadLandmarks()
         {
           std::cout << "Removing landmark with large P norm " << P.norm() << ")" << std::endl;
           smart_factor.reset();
+          added_tracks_.erase(it->first);
           smart_factors_.erase(it++);
           continue;
         }
@@ -356,6 +407,7 @@ void Smoother::RemoveBadLandmarks()
       {
         std::cout << "Triangulation failed for landmark " << it->first << ". Removing it." << std::endl;
         smart_factor.reset();
+        added_tracks_.erase(it->first);
         smart_factors_.erase(it++);
         continue;
       }
@@ -520,7 +572,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
-  auto measurementNoise = gtsam::noiseModel::Isotropic::Sigma(1, 1.0);
+  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(1, 3.0);
   auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
 
   gtsam::Pose3 body_p_cam = gtsam::Pose3(
@@ -569,8 +621,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     else
     {
       // TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
-      SmartFactor::shared_ptr smart_factor(
-          new SmartFactor(measurementNoise, K, body_p_cam, GetSmartProjectionParams()));
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
       std::vector<cv::Point2f> added_features = { new_feature->pt };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0 && added_features.size() <= 5; --i)
       {
@@ -595,6 +646,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
             std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
                       << std::endl;
             smart_factors_[track->id] = smart_factor;
+            added_tracks_[track->id] = track;
             graph_->add(smart_factor);
             initialized_landmarks.push_back(added_features);
           }
@@ -715,6 +767,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   }
   auto v_average = std::accumulate(v_norms.begin(), v_norms.end(), 0.0) / static_cast<double>(v_norms.size());
   DebugValuePublisher::PublishVelocityNormAverage(v_average);
+  DebugValuePublisher::PublishFrameId(keyframe_transform.frame2->id);
 
   imu_measurements_->resetIntegrationAndSetBias(new_bias);
 

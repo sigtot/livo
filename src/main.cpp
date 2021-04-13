@@ -40,7 +40,8 @@ int main(int argc, char** argv)
   }
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
-  DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub);
+  auto reprojection_error_image_pub = nh.advertise<sensor_msgs::Image>("/debug_reprojection_error_image", 1000);
+  DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub, reprojection_error_image_pub);
 
   DebugValuePublisher::SetPublishers(nh);
 

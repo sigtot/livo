@@ -6,9 +6,11 @@ DebugImagePublisher& DebugImagePublisher::GetInstance()
   return instance;
 }
 
-void DebugImagePublisher::SetPublishers(const ros::Publisher& new_landmarks_publisher)
+void DebugImagePublisher::SetPublishers(const ros::Publisher& new_landmarks_publisher,
+                                        const ros::Publisher& reprojection_error_publisher)
 {
   GetInstance().new_landmarks_publisher_ = new_landmarks_publisher;
+  GetInstance().reprojection_error_publisher_ = reprojection_error_publisher;
 }
 
 void DebugImagePublisher::PublishNewLandmarksImage(const cv::Mat& image,
@@ -34,4 +36,25 @@ void DebugImagePublisher::PublishNewLandmarksImage(const cv::Mat& image,
   }
 
   GetInstance().new_landmarks_publisher_.publish(out_img.toImageMsg());
+}
+
+void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image,
+                                                        const std::vector<cv::Point2f>& features,
+                                                        const std::vector<cv::Point2f>& reprojected_features,
+                                                        double timestamp)
+{
+  assert(features.size() == reprojected_features.size());
+  cv_bridge::CvImage out_img;
+  out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  out_img.header.stamp = ros::Time(timestamp);
+  cvtColor(image, out_img.image, CV_GRAY2RGB);
+
+  auto color = cv::Scalar(0, 255, 0);
+  for (int i = 0; i < features.size(); ++i)
+  {
+    cv::line(out_img.image, features[i], reprojected_features[i], color, 1);
+    cv::circle(out_img.image, reprojected_features[i], 5, color, 1);
+  }
+
+  GetInstance().reprojection_error_publisher_.publish(out_img.toImageMsg());
 }
