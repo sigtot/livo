@@ -59,6 +59,8 @@ private:
   double imu_accel_random_walk_ = 0.01;
   double imu_gyro_random_walk_ = 0.01;
 
+  bool do_initial_gravity_alignment_ = false;
+
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
 
@@ -120,6 +122,8 @@ public:
   static double IMUGyroNoiseDensity();
   static double IMUAccelRandomWalk();
   static double IMUGyroRandomWalk();
+
+  static bool DoInitialGravityAlignment();
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();

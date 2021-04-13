@@ -99,6 +99,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_accel_random_walk", GetInstance().imu_accel_random_walk_);
   ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
 
+  ReadVariable(nh, "/orb_test_node/do_initial_gravity_alignment", GetInstance().do_initial_gravity_alignment_);
+
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_imu_quat", GetInstance().body_p_imu_quat_);
@@ -211,6 +213,11 @@ double GlobalParams::IMUNGravityY()
 double GlobalParams::IMUNGravityZ()
 {
   return GetInstance().imu_n_gravity_z_;
+}
+
+bool GlobalParams::DoInitialGravityAlignment()
+{
+  return GetInstance().do_initial_gravity_alignment_;
 }
 
 std::vector<double> GlobalParams::BodyPCamQuat()

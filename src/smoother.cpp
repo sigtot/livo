@@ -115,7 +115,7 @@ void Smoother::InitializeLandmarks(
           gtsam::Pose3(gtsam::Rot3::ypr(M_PI, -M_PI_2, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
 
   // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  auto init_pose = frames_for_imu_init ?
+  auto init_pose = (frames_for_imu_init && GlobalParams::DoInitialGravityAlignment()) ?
                        gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(
                                         frames_for_imu_init->first->timestamp, frames_for_imu_init->second->timestamp,
                                         ToRot(unrefined_init_pose.rotation()))),
@@ -495,7 +495,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
 
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, keyframe_transforms[0].frame1->stationary ? 0.0001 : 0.1);
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, keyframe_transforms[0].frame1->stationary ? 0.01 : 0.1);
   auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.001);
 
   auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :

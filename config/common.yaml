@@ -22,6 +22,8 @@ imu_cam_vector: [0, 0, 0]
 body_p_imu_quat: [0, 0, 0, 1]
 body_p_imu_vec: [0, 0, 0]
 
+do_initial_gravity_alignment: false
+
 feature_extraction_interval: 20
 track_count_lower_thresh: 50
 track_nms_squared_dist_thresh: 1200.
