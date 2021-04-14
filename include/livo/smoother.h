@@ -26,6 +26,8 @@ class Pose3;
 class TangentPreintegration;
 typedef TangentPreintegration PreintegrationType;
 
+class SmartProjectionParams;
+
 template <class T>
 class SmartProjectionPoseFactor;
 
@@ -63,6 +65,8 @@ private:
 
   void WaitForAndIntegrateIMU(double timestamp1, double timestamp2);
   void PublishReprojectionErrorImages();
+  void PublishNewReprojectionErrorImage(const gtsam::Values& values, const shared_ptr<Frame>& frame);
+  void UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params);
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);

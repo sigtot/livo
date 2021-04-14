@@ -84,15 +84,6 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
   return imu_measurements;
 }
 
-gtsam::SmartProjectionParams GetSmartProjectionParams()
-{
-  gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
-  //smart_projection_params.setRetriangulationThreshold(1e-3);
-  //smart_projection_params.setDynamicOutlierRejectionThreshold(8.0);
-  // smart_projection_params.setLandmarkDistanceThreshold(20.0);
-  return smart_projection_params;
-}
-
 Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
   : isam2(new gtsam::ISAM2(MakeIsam2Params()))
   , graph_(new gtsam::NonlinearFactorGraph())
@@ -100,6 +91,28 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
   , imu_queue_(std::move(imu_queue))
   , imu_measurements_(MakeIMUIntegrator())
 {
+}
+
+void Smoother::UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params)
+{
+  for (auto& smart_factor_pair : smart_factors_)
+  {
+    auto K = smart_factor_pair.second->calibration();
+    auto body_p_cam = smart_factor_pair.second->body_P_sensor();
+    smart_factor_pair.second.reset();
+
+    auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, params));
+    for (auto& feature : added_tracks_[smart_factor_pair.first]->features)
+    {
+      if (added_frame_timestamps_.count(feature->frame->id))
+      {
+        auto pt = feature->pt;
+        smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
+      }
+    }
+    smart_factor_pair.second = smart_factor;
+  }
 }
 
 void Smoother::InitializeLandmarks(
@@ -195,12 +208,13 @@ void Smoother::InitializeLandmarks(
   gtsam::Cal3_S2::shared_ptr K(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0,
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
-  // TODO: Switch to robust noise model
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
 
+  gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
+                                                            1e-5);
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, init_smart_projection_params));
     for (auto& feature : track->features)
     {
       if (frame_ids.count(feature->frame->id))
@@ -220,22 +234,31 @@ void Smoother::InitializeLandmarks(
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
 
-  if (GlobalParams::UseIsam())
+  try
   {
-    auto isam_result = isam2->update(*graph_, *values_);
-    isam_result.print("isam result: ");
-    if (isam_result.errorBefore && isam_result.errorAfter)
+    if (GlobalParams::UseIsam())
     {
-      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
-      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+      auto isam_result = isam2->update(*graph_, *values_);
+      isam_result.print("isam result: ");
+      if (isam_result.errorBefore && isam_result.errorAfter)
+      {
+        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
+                  << std::endl;
+        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+      }
+      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
     }
-    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+    else
+    {
+      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      *values_ = optimizer.optimize();
+    }
   }
-  else
+  catch (exception& e)
   {
-    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-    *values_ = optimizer.optimize();
+    PublishReprojectionErrorImages();
+    throw e;
   }
 
   // If an initial range factor length is provided, we scale the solution to account for it and redo the optimization
@@ -255,6 +278,7 @@ void Smoother::InitializeLandmarks(
       { frame_it->first, GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
                                                    values_->at<gtsam::Pose3>(X(frame_it->first)) }
     };
+
     while (true)
     {
       auto pose1_id = frame_it->first;
@@ -284,30 +308,44 @@ void Smoother::InitializeLandmarks(
     *second_prior = gtsam::PriorFactor<gtsam::Pose3>(X(scaled_poses.back().first), scaled_poses.back().second,
                                                      noise_x_second_prior);
 
-    if (GlobalParams::UseIsam())
+    try
     {
-      *isam2 = gtsam::ISAM2(MakeIsam2Params());  // Reinitialize isam
-      auto isam_result = isam2->update(*graph_, *values_);
-      isam_result.print("isam result: ");
-      if (isam_result.errorBefore && isam_result.errorAfter)
+      if (GlobalParams::UseIsam())
       {
-        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
-                  << std::endl;
-        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+        *isam2 = gtsam::ISAM2(MakeIsam2Params());  // Reinitialize isam
+        auto isam_result = isam2->update(*graph_, *values_);
+        isam_result.print("isam result: ");
+        if (isam_result.errorBefore && isam_result.errorAfter)
+        {
+          std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
+                    << std::endl;
+          DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+        }
+        DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+        DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
       }
-      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+      else
+      {
+        gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+        *values_ = optimizer.optimize();
+      }
     }
-    else
+    catch (exception& e)
     {
-      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-      *values_ = optimizer.optimize();
+      PublishReprojectionErrorImages();
+      throw e;
     }
   }
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
-  //PublishReprojectionErrorImages();
+
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    smart_factor_pair.second->print("Before setting dynamicOutlierReprojectionThresh");
+  }
+
+  // PublishReprojectionErrorImages();
 
   last_frame_id_added_ = keyframe_transforms.back().frame2->id;
 
@@ -340,23 +378,32 @@ void Smoother::PublishReprojectionErrorImages()
     auto reproj_error = smart_factor_pair.second->reprojectionErrorAfterTriangulation(
         GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_);
     auto features = added_tracks_[smart_factor_pair.first]->features;
-    std::cout << reproj_error << std::endl;
 
     int i = 0;
     for (const auto& feature : features)
     {
       if (added_frame_timestamps_.count(feature->frame->id))
       {
-        measured_points_by_frame[feature->frame->id].push_back(feature->pt);
-        auto point_reproj_error = cv::Point2f(static_cast<float>(reproj_error(2 * i, 0)),
-                                              static_cast<float>(reproj_error(2 * i + 1, 0)));
-        std::cout << point_reproj_error << std::endl;
-        cv::Point2f reproj_point = feature->pt + point_reproj_error;
-        reprojected_points_by_frame[feature->frame->id].push_back(reproj_point);
         if (!frames_by_frame.count(feature->frame->id))
         {
           frames_by_frame[feature->frame->id] = feature->frame;
         }
+        auto reproj_error_x = static_cast<float>(reproj_error(2 * i, 0));
+        auto reproj_error_y = static_cast<float>(reproj_error(2 * i + 1, 0));
+
+        const float zero_thresh = 0.00001;
+        if (std::abs(reproj_error_x) < zero_thresh && std::abs(reproj_error_y) < zero_thresh)
+        {
+          // skip: 0,0 reproj error means degeneracy (in practice, healthy features will always have _some_ error)
+          ++i;
+          continue;
+        }
+
+        measured_points_by_frame[feature->frame->id].push_back(feature->pt);
+        auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
+        std::cout << point_reproj_error << std::endl;
+        cv::Point2f reproj_point = feature->pt + point_reproj_error;
+        reprojected_points_by_frame[feature->frame->id].push_back(reproj_point);
         ++i;
       }
     }
@@ -367,8 +414,43 @@ void Smoother::PublishReprojectionErrorImages()
     DebugImagePublisher::PublishReprojectionErrorImage(
         frames_by_frame[added_frame_pair.first]->image, measured_points_by_frame[added_frame_pair.first],
         reprojected_points_by_frame[added_frame_pair.first], added_frame_pair.second);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
+}
+
+void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, const std::shared_ptr<Frame>& frame)
+{
+  std::vector<cv::Point2f> measured_points;
+  std::vector<cv::Point2f> reprojected_points;
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    std::cout << "Landmark " << smart_factor_pair.first << std::endl;
+    auto reproj_error = smart_factor_pair.second->reprojectionErrorAfterTriangulation(values);
+    auto features = added_tracks_[smart_factor_pair.first]->features;
+
+    auto feature = features.back();
+    if (feature->frame->id == frame->id)
+    {
+      auto reproj_error_x = static_cast<float>(reproj_error(reproj_error.rows() - 2, 0));
+      auto reproj_error_y = static_cast<float>(reproj_error(reproj_error.rows() - 1, 0));
+
+      const float zero_thresh = 0.00001;
+      if (std::abs(reproj_error_x) < zero_thresh && std::abs(reproj_error_y) < zero_thresh)
+      {
+        // skip: 0,0 reproj error means degeneracy (in practice, healthy features will always have _some_ error)
+        continue;
+      }
+
+      measured_points.push_back(feature->pt);
+      auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
+      std::cout << point_reproj_error << std::endl;
+      cv::Point2f reproj_point = feature->pt + point_reproj_error;
+      reprojected_points.push_back(reproj_point);
+    }
+  }
+
+  DebugImagePublisher::PublishReprojectionErrorImage(frame->image, measured_points, reprojected_points,
+                                                     frame->timestamp);
 }
 
 void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
@@ -507,22 +589,31 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
-  if (GlobalParams::UseIsam())
+  try
   {
-    auto isam_result = isam2->update(*graph_, *values_);
-    isam_result.print("isam result: ");
-    if (isam_result.errorBefore && isam_result.errorAfter)
+    if (GlobalParams::UseIsam())
     {
-      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
-      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+      auto isam_result = isam2->update(*graph_, *values_);
+      isam_result.print("isam result: ");
+      if (isam_result.errorBefore && isam_result.errorAfter)
+      {
+        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
+                  << std::endl;
+        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+      }
+      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
     }
-    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+    else
+    {
+      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      *values_ = optimizer.optimize();
+    }
   }
-  else
+  catch (exception& e)
   {
-    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-    *values_ = optimizer.optimize();
+    PublishReprojectionErrorImages();
+    throw e;
   }
 
   GetPoseEstimates(pose_estimates);
@@ -620,8 +711,10 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     }
     else
     {
-      // TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
-      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, GetSmartProjectionParams()));
+      gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
+                                                           1e-5);
+      //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, smart_projection_params));
       std::vector<cv::Point2f> added_features = { new_feature->pt };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0 && added_features.size() <= 5; --i)
       {
@@ -741,9 +834,13 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   catch (exception& e)
   {
     std::cout << "oopsie woopsie" << std::endl;
+    PublishReprojectionErrorImages();
     throw;
   }
   std::cout << "Optimization done" << std::endl;
+
+  PublishNewReprojectionErrorImage(GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_,
+                                   keyframe_transform.frame2);
 
   RemoveBadLandmarks();
   GetPoseEstimates(pose_estimates);
