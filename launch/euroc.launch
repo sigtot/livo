@@ -1,5 +1,5 @@
 <launch>
-    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
+    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">#  launch-prefix="gdb -ex run --args">
         <rosparam file="$(find orb_test)/config/common.yaml"/>
         <rosparam file="$(find orb_test)/config/euroc.yaml"/>
     </node>
