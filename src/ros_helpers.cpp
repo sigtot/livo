@@ -2,15 +2,17 @@
 #include "ros_conversions.h"
 
 #include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
 namespace ros_helpers
 {
-void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher)
+void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher, const ros::Publisher& pa_pub)
 {
   nav_msgs::Path pathMsg;
+  geometry_msgs::PoseArray pose_arr;
   for (auto& pose_stamped : poses)
   {
     geometry_msgs::PoseStamped stampedPoseMsg;
@@ -18,10 +20,14 @@ void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& 
     stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
     stampedPoseMsg.header.frame_id = "world";
     pathMsg.poses.push_back(stampedPoseMsg);
+    pose_arr.poses.push_back(stampedPoseMsg.pose);
   }
   pathMsg.header.frame_id = "world";
   pathMsg.header.stamp = ros::Time(poses.back().stamp);
+  pose_arr.header.frame_id = "world";
+  pose_arr.header.stamp = pathMsg.header.stamp;
   publisher.publish(pathMsg);
+  pa_pub.publish(pose_arr);
 }
 
 void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp, const ros::Publisher& publisher)

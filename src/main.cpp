@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseArray.h>
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <newer_college_ground_truth.h>
@@ -51,11 +52,13 @@ int main(int argc, char** argv)
   auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
   auto path_pub = nh.advertise<nav_msgs::Path>("/pose", 1000);
-  auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000);
+  auto posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_array", 1000);
+  auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
+  auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000, true);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor feature_extractor(matches_pub, tracks_pub, 20);
   Smoother smoother(imu_queue);
-  Controller controller(feature_extractor, smoother, path_pub, landmarks_pub);
+  Controller controller(feature_extractor, smoother, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);
@@ -78,12 +81,10 @@ int main(int argc, char** argv)
       }
       i++;
     }
-    while (gt_pub.getNumSubscribers() == 0)
-    {
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    ros_helpers::PublishPoses(gt_poses_vec, gt_pub);
+    ros_helpers::PublishPoses(gt_poses_vec, gt_pub, gt_posearr_pub);
   }
+
+  ROS_INFO("Ready and spinning");
 
   ros::spin();
   return 0;

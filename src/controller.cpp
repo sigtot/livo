@@ -7,9 +7,9 @@
 
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& path_publisher,
+Controller::Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                        ros::Publisher& landmark_publisher)
-  : frontend(frontend), backend(backend), path_publisher_(path_publisher), landmark_publisher_(landmark_publisher)
+  : frontend(frontend), backend(backend), path_publisher_(path_publisher), pose_arr_publisher_(pose_arr_publisher), landmark_publisher_(landmark_publisher)
 {
 }
 
@@ -65,7 +65,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
 {
-  ros_helpers::PublishPoses(poses, path_publisher_);
+  ros_helpers::PublishPoses(poses, path_publisher_, pose_arr_publisher_);
 }
 
 void Controller::PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp)

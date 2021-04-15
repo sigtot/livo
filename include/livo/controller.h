@@ -14,9 +14,10 @@ private:
   Smoother& backend;
   ros::Publisher path_publisher_;
   ros::Publisher landmark_publisher_;
+  ros::Publisher pose_arr_publisher_;
 
 public:
-  explicit Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& path_publisher,
+  explicit Controller(FeatureExtractor& frontend, Smoother& backend, ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                       ros::Publisher& landmark_publisher);
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
