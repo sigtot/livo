@@ -16,9 +16,9 @@ void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const st
 {
   if (!HaveEnoughMatches(frame1, frame2, tracks))
   {
-    std::cout << "Lost track: Reinitializing keyframe tracker on frame " << frame2->id << std::endl;
-    first_frame_ = frame2;
-    keyframe_transforms_.clear();
+    auto transform = KeyframeTransform::Invalid(frame1, frame2);
+    keyframe_transforms_.push_back(transform);
+    return;
   }
   std::vector<std::shared_ptr<Track>> valid_tracks;
   OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
