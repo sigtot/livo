@@ -61,11 +61,13 @@ Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3&
   auto aligned_init_rot = rotation_diff * ToGtsamRot(init_rot);
   Rot3 aligned = ToRot(aligned_init_rot);
 
-  std::cout << "Aligned initial attitude along gravity using stationary IMU measurements: " << aligned.x << ", "
-            << aligned.y << ", " << aligned.z << ", " << aligned.w << std::endl;
+  std::cout << "Aligned initial attitude along gravity using stationary IMU measurements." << std::endl;
+  std::cout << "Initial: " << init_rot.x << ", " << init_rot.y << ", " << init_rot.z << ", " << init_rot.w << std::endl;
+  std::cout << "Aligned: " << aligned.x << ", " << aligned.y << ", " << aligned.z << ", " << aligned.w << std::endl;
 
   auto aligned_acc = aligned_init_rot * body_R_imu * acc_sum;
-  std::cout << "Measured acceleration stationary acceleration: " << aligned_acc.transpose() << std::endl;
+  std::cout << "Measured acceleration stationary accel unaligned: " << (body_R_imu * acc_sum).transpose() << std::endl;
+  std::cout << "Measured acceleration stationary accel aligned: " << aligned_acc.transpose() << std::endl;
 
   return aligned;
 }
