@@ -11,6 +11,7 @@ struct Feature
   }
   std::shared_ptr<Frame> frame;
   cv::Point2f pt;
+  bool in_smoother = false;
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_H_

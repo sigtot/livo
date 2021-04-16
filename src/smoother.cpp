@@ -109,6 +109,7 @@ void Smoother::UpdateSmartFactorParams(const gtsam::SmartProjectionParams& param
       {
         auto pt = feature->pt;
         smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
+        feature->in_smoother = true;
       }
     }
     smart_factor_pair.second = smart_factor;
@@ -211,7 +212,7 @@ void Smoother::InitializeLandmarks(
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
 
   gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
-                                                            1e-5);
+                                                            1e-3);
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, init_smart_projection_params));
@@ -221,6 +222,7 @@ void Smoother::InitializeLandmarks(
       {
         auto pt = feature->pt;
         smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
+        feature->in_smoother = true;
       }
     }
     if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
@@ -378,7 +380,7 @@ void Smoother::PublishReprojectionErrorImages()
     int i = 0;
     for (const auto& feature : features)
     {
-      if (added_frame_timestamps_.count(feature->frame->id))
+      if (feature->in_smoother)
       {
         if (!frames_by_frame.count(feature->frame->id))
         {
@@ -397,7 +399,6 @@ void Smoother::PublishReprojectionErrorImages()
 
         measured_points_by_frame[feature->frame->id].push_back(feature->pt);
         auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
-        std::cout << point_reproj_error << std::endl;
         cv::Point2f reproj_point = feature->pt + point_reproj_error;
         reprojected_points_by_frame[feature->frame->id].push_back(reproj_point);
         ++i;
@@ -424,7 +425,7 @@ void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, con
     auto features = added_tracks_[smart_factor_pair.first]->features;
 
     auto feature = features.back();
-    if (feature->frame->id == frame->id)
+    if (feature->frame->id == frame->id && feature->in_smoother && reproj_error.rows() >= 2)
     {
       auto reproj_error_x = static_cast<float>(reproj_error(reproj_error.rows() - 2, 0));
       auto reproj_error_y = static_cast<float>(reproj_error(reproj_error.rows() - 1, 0));
@@ -438,7 +439,6 @@ void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, con
 
       measured_points.push_back(feature->pt);
       auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
-      std::cout << point_reproj_error << std::endl;
       cv::Point2f reproj_point = feature->pt + point_reproj_error;
       reprojected_points.push_back(reproj_point);
     }
@@ -477,6 +477,10 @@ void Smoother::RemoveBadLandmarks()
           smart_factor.reset();
           added_tracks_.erase(it->first);
           smart_factors_.erase(it++);
+          for (auto& feature : added_tracks_[it->first]->features)
+          {
+            feature->in_smoother = false;
+          }
           continue;
         }
       }
@@ -698,25 +702,28 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
         smart_factor.add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
         smart_factors_[track->id].reset();
         smart_factors_[track->id] = gtsam::make_shared<SmartFactor>(smart_factor);
+        new_feature->in_smoother = true;
       }
       else
       {
         smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+        new_feature->in_smoother = true;
       }
     }
     else
     {
       gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
-                                                           1e-5);
+                                                           1e-3);
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K, body_p_cam, smart_projection_params));
       std::vector<cv::Point2f> added_features = { new_feature->pt };
-      for (int i = static_cast<int>(track->features.size()) - 1; i >= 0 && added_features.size() <= 5; --i)
+      for (int i = static_cast<int>(track->features.size()) - 1; i >= 0; --i)
       {
         auto feature = track->features[i];
         if (added_frame_timestamps_.count(feature->frame->id))
         {
           smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
+          feature->in_smoother = true;
           added_features.push_back(feature->pt);
         }
       }
@@ -731,6 +738,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
           if (P.norm() < 3)
           {
             smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+            new_feature->in_smoother = true;
             std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
                       << std::endl;
             smart_factors_[track->id] = smart_factor;
@@ -796,8 +804,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     std::cout << "--------------------" << std::endl;
 
     std::cout << "----- Velocity: ----" << std::endl;
-    std::cout << "prev -> IMU delta v -> IMU navstate v: " << prev_velocity.transpose() << " -> " << imu_delta.velocity()
-              << " -> " << predicted_navstate.velocity().transpose() << std::endl;
+    std::cout << "prev -> IMU delta v -> IMU navstate v: " << prev_velocity.transpose() << " -> "
+              << imu_delta.velocity() << " -> " << predicted_navstate.velocity().transpose() << std::endl;
     std::cout << "--------------------" << std::endl;
   }
 
@@ -889,6 +897,12 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     std::cout << gyro_bias.x() << "," << gyro_bias.y() << "," << gyro_bias.z() << std::endl;
   }
    */
+
+  for (const auto& factor : (GlobalParams::UseIsam() ? isam2->getFactorsUnsafe() : *graph_))
+  {
+    factor->printKeys();
+    std::cout << factor->error(GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_) << std::endl;
+  }
 
   if (GlobalParams::UseIsam())
   {
