@@ -49,7 +49,7 @@ gtsam::ISAM2Params MakeIsam2Params()
   return params;
 }
 
-shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
+std::shared_ptr<gtsam::PreintegrationType> Smoother::MakeIMUIntegrator()
 {
   auto imu_params = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU(GlobalParams::IMUG());
   // imu_params->n_gravity = gtsam::Vector3(GlobalParams::IMUNGravityX(), GlobalParams::IMUNGravityY(),
@@ -71,11 +71,7 @@ shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator()
   imu_params->body_P_sensor->print("imu body p sensor: ");
    */
 
-  gtsam::Pose3 body_p_imu = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
-                              GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
-      gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2]));
-  imu_params->body_P_sensor = body_p_imu;
+  imu_params->body_P_sensor = *body_p_imu_;
 
   auto imu_bias = gtsam::imuBias::ConstantBias();  // Initialize at zero bias
 
@@ -92,6 +88,14 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
   , imu_measurements_(MakeIMUIntegrator())
   , K_(new gtsam::Cal3_S2(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                           GlobalParams::CamV0()))
+  , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
+        gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
+                                GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
+        gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2])))
+  , body_p_imu_(gtsam::make_shared<gtsam::Pose3>(
+        gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
+                                GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
+        gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2])))
 {
 }
 
@@ -611,16 +615,6 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(1, 3.0);
   auto prev_estimate = isam2->calculateEstimate();
 
-  gtsam::Pose3 body_p_cam = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
-                              GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
-      gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
-
-  gtsam::Pose3 body_p_imu = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
-                              GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
-      gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2]));
-
   std::vector<std::vector<cv::Point2f>> initialized_landmarks;
   for (auto& track : tracks)
   {
@@ -661,7 +655,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
                                                            1e-3);
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
-      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K_, body_p_cam, smart_projection_params));
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K_, *body_p_cam_, smart_projection_params));
       std::vector<cv::Point2f> added_features = { new_feature->pt };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0; --i)
       {
@@ -734,8 +728,8 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
     gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
     gtsam::Rot3 R_cam_frame(R_mat);
 
-    gtsam::Unit3 t_i(body_p_cam * t_unit_cam_frame.point3());
-    gtsam::Rot3 R_i(body_p_cam.rotation() * R_cam_frame * body_p_cam.rotation().inverse());
+    gtsam::Unit3 t_i(*body_p_cam_ * t_unit_cam_frame.point3());
+    gtsam::Rot3 R_i(body_p_cam_->rotation() * R_cam_frame * body_p_cam_->rotation().inverse());
     gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i.point3());
 
     auto imu_delta_t_length = imu_delta.pose().translation().norm();

@@ -53,6 +53,8 @@ private:
   gtsam::Marginals* marginals_ = nullptr;
   boost::shared_ptr<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3, double>> range_factor_;
   boost::shared_ptr<gtsam::Cal3_S2> K_;
+  boost::shared_ptr<gtsam::Pose3> body_p_cam_;
+  boost::shared_ptr<gtsam::Pose3> body_p_imu_;
 
   // Bookkeeping
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
@@ -69,6 +71,7 @@ private:
   void PublishReprojectionErrorImages();
   void PublishNewReprojectionErrorImage(const gtsam::Values& values, const shared_ptr<Frame>& frame);
   void UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params);
+  std::shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator();
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
