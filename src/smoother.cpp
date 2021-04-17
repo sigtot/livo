@@ -128,20 +128,20 @@ void Smoother::InitializeLandmarks(
           ToGtsamPose(GroundTruth::At(keyframe_transforms[0].frame1->timestamp)) :
           gtsam::Pose3(gtsam::Rot3::ypr(M_PI, -M_PI_2, -0.0001), gtsam::Point3(0.0001, -0.0001, -0.0001));
 
-  // gtsam::Pose3 init_pose(gtsam::Rot3(), gtsam::Point3::Zero());
-  auto init_pose = (frames_for_imu_init && GlobalParams::DoInitialGravityAlignment()) ?
-                       gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(
-                                        frames_for_imu_init->first->timestamp, frames_for_imu_init->second->timestamp,
-                                        ToRot(unrefined_init_pose.rotation()))),
-                                    unrefined_init_pose.translation()) :
-                       unrefined_init_pose;
+  init_pose_ = std::make_shared<gtsam::Pose3>(
+      (frames_for_imu_init && GlobalParams::DoInitialGravityAlignment()) ?
+          gtsam::Pose3(ToGtsamRot(imu_queue_->RefineInitialAttitude(frames_for_imu_init->first->timestamp,
+                                                                    frames_for_imu_init->second->timestamp,
+                                                                    ToRot(unrefined_init_pose.rotation()))),
+                       unrefined_init_pose.translation()) :
+          unrefined_init_pose);
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());
 
-  graph_->addPrior(X(keyframe_transforms[0].frame1->id), init_pose, noise_x);
+  graph_->addPrior(X(keyframe_transforms[0].frame1->id), *init_pose_, noise_x);
 
-  values_->insert(X(keyframe_transforms[0].frame1->id), init_pose);
+  values_->insert(X(keyframe_transforms[0].frame1->id), *init_pose_);
 
   added_frame_timestamps_[keyframe_transforms[0].frame1->id] = keyframe_transforms[0].frame1->timestamp;
 
@@ -154,7 +154,7 @@ void Smoother::InitializeLandmarks(
       gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
 
   // Initialize values on R and t from essential matrix
-  std::vector<gtsam::Pose3> poses = { init_pose };
+  std::vector<gtsam::Pose3> poses = { *init_pose_ };
   for (auto& keyframe_transform : keyframe_transforms)
   {
     added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
@@ -238,24 +238,8 @@ void Smoother::InitializeLandmarks(
 
   try
   {
-    if (GlobalParams::UseIsam())
-    {
-      auto isam_result = isam2->update(*graph_, *values_);
-      isam_result.print("isam result: ");
-      if (isam_result.errorBefore && isam_result.errorAfter)
-      {
-        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
-                  << std::endl;
-        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
-      }
-      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
-    }
-    else
-    {
-      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-      *values_ = optimizer.optimize();
-    }
+    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    *values_ = optimizer.optimize();
   }
   catch (exception& e)
   {
@@ -264,6 +248,8 @@ void Smoother::InitializeLandmarks(
     throw e;
   }
 
+  // TODO: This param is no longer used like this: We essentially use it as a bool now.
+  // TODO: If it's > 0, we scale the solution by the scale given by the ground truth, while the given value is ignored
   // If an initial range factor length is provided, we scale the solution to account for it and redo the optimization
   if (GlobalParams::InitRangeFactorLength() > 0)
   {
@@ -277,23 +263,19 @@ void Smoother::InitializeLandmarks(
               << std::endl;
     auto frame_it = added_frame_timestamps_.begin();
     std::vector<std::pair<std::pair<int, int>, gtsam::Pose3>> scaled_between_poses;
-    std::vector<std::pair<int, gtsam::Pose3>> scaled_poses{
-      { frame_it->first, GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
-                                                   values_->at<gtsam::Pose3>(X(frame_it->first)) }
-    };
+    std::vector<std::pair<int, gtsam::Pose3>> scaled_poses{ { frame_it->first,
+                                                              values_->at<gtsam::Pose3>(X(frame_it->first)) } };
 
     while (true)
     {
       auto pose1_id = frame_it->first;
-      auto pose1 = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
-                                             values_->at<gtsam::Pose3>(X(frame_it->first));
+      auto pose1 = values_->at<gtsam::Pose3>(X(frame_it->first));
       ++frame_it;
       if (frame_it == added_frame_timestamps_.end())
       {
         break;
       }
-      auto pose2 = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_it->first)) :
-                                             values_->at<gtsam::Pose3>(X(frame_it->first));
+      auto pose2 = values_->at<gtsam::Pose3>(X(frame_it->first));
       auto between_pose = pose1.between(pose2);
       auto scaled_between_pose = gtsam::Pose3(between_pose.rotation(), scale_ratio * between_pose.translation());
       auto scaled_pose2 = scaled_poses.back().second.compose(scaled_between_pose);
@@ -313,25 +295,8 @@ void Smoother::InitializeLandmarks(
 
     try
     {
-      if (GlobalParams::UseIsam())
-      {
-        *isam2 = gtsam::ISAM2(MakeIsam2Params());  // Reinitialize isam
-        auto isam_result = isam2->update(*graph_, *values_);
-        isam_result.print("isam result: ");
-        if (isam_result.errorBefore && isam_result.errorAfter)
-        {
-          std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
-                    << std::endl;
-          DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
-        }
-        DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-        DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
-      }
-      else
-      {
-        gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-        *values_ = optimizer.optimize();
-      }
+      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      *values_ = optimizer.optimize();
     }
     catch (exception& e)
     {
@@ -340,6 +305,8 @@ void Smoother::InitializeLandmarks(
       throw e;
     }
   }
+
+  std::cout << "Done with scaled optimization" << std::endl;
 
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
@@ -353,11 +320,6 @@ void Smoother::InitializeLandmarks(
     SaveGraphToFile("/tmp/landmarks-graph.dot", *graph_, *values_);
   }
 
-  if (GlobalParams::UseIsam())
-  {
-    graph_->resize(0);
-    values_->clear();
-  }
   status_ = kLandmarksInitialized;
 }
 
@@ -374,7 +336,7 @@ void Smoother::PublishReprojectionErrorImages()
   for (const auto& smart_factor_pair : smart_factors_)
   {
     auto reproj_error = smart_factor_pair.second->reprojectionErrorAfterTriangulation(
-        GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_);
+        isam2->empty() ? *values_ : isam2->calculateEstimate());
     auto features = added_tracks_[smart_factor_pair.first]->features;
 
     int i = 0;
@@ -452,15 +414,15 @@ void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
 {
   for (auto& frame_pair : added_frame_timestamps_)
   {
-    auto gtsam_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(frame_pair.first)) :
-                                                values_->at<gtsam::Pose3>(X(frame_pair.first));
+    auto gtsam_pose = isam2->empty() ? values_->at<gtsam::Pose3>(X(frame_pair.first)) :
+                                       isam2->calculateEstimate<gtsam::Pose3>(X(frame_pair.first));
     pose_estimates.push_back(Pose3Stamped{ .pose = ToPose(gtsam_pose), .stamp = frame_pair.second });
   }
 }
 
 void Smoother::RemoveBadLandmarks()
 {
-  auto values = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
+  auto values = isam2->empty() ? *values_ : isam2->calculateEstimate();
   for (auto it = smart_factors_.cbegin(); it != smart_factors_.cend();)
   {
     auto smart_factor = it->second;
@@ -499,7 +461,7 @@ void Smoother::RemoveBadLandmarks()
 
 void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
 {
-  auto values = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
+  auto values = isam2->empty() ? *values_ : isam2->calculateEstimate();
   for (const auto& smart_factor_pair : smart_factors_)
   {
     auto smart_factor = smart_factor_pair.second;
@@ -544,11 +506,12 @@ void Smoother::GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates)
 void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_transforms,
                              std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
 {
+  graph_->resize(0);
   // Init on "random values" as this apparently helps convergence
   gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.003172, 0.021267, 0.078502),
                                          gtsam::Vector3(-0.025266, 0.136696, 0.075593));
   std::vector<gtsam::Vector3> velocity_estimates;
-  auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
+  auto prev_estimate = *values_;
   for (auto& keyframe_transform : keyframe_transforms)
   {
     WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
@@ -576,42 +539,56 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     values_->insert(B(keyframe_transform.frame2->id), init_bias);
   }
 
+  auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, keyframe_transforms[0].frame1->stationary ? 0.01 : 0.1);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.001);
+  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.1);
 
   auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :
                                                                    velocity_estimates.front();  // assume v1 == v2
 
+  graph_->addPrior(X(keyframe_transforms[0].frame1->id), *init_pose_, noise_x);
   graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
 
   values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
+  for (const auto& smart_factor_pair : smart_factors_)
+  {
+    graph_->add(smart_factor_pair.second);
+  }
+
   try
   {
-    if (GlobalParams::UseIsam())
-    {
-      auto isam_result = isam2->update(*graph_, *values_);
-      isam_result.print("isam result: ");
-      if (isam_result.errorBefore && isam_result.errorAfter)
-      {
-        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
-                  << std::endl;
-        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
-      }
-      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
-    }
-    else
-    {
-      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-      *values_ = optimizer.optimize();
-    }
+    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    *values_ = optimizer.optimize();
   }
   catch (exception& e)
   {
+    std::cout << "Got exception during batch IMU initialization" << std::endl;
     PublishReprojectionErrorImages();
+    std::cout << e.what() << std::endl;
+    throw e;
+  }
+
+  try
+  {
+    auto isam_result = isam2->update(*graph_, *values_);
+    isam_result.print("isam result: ");
+    if (isam_result.errorBefore && isam_result.errorAfter)
+    {
+      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+    }
+    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+  }
+  catch (exception& e)
+  {
+    std::cout << "Got exception during isam2 initialization" << std::endl;
+    PublishReprojectionErrorImages();
+    std::cout << e.what() << std::endl;
     throw e;
   }
 
@@ -623,34 +600,8 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     SaveGraphToFile("/tmp/imu-graph.dot", *graph_, *values_);
   }
 
-  if (GlobalParams::UseIsam())
-  {
-    graph_->resize(0);
-    values_->clear();
-  }
-}
-
-void Smoother::Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates)
-{
-  if (GlobalParams::UseIsam())
-  {
-    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-    *values_ = optimizer.optimize();
-  }
-  else
-  {
-    auto isam_result = isam2->update();
-    isam_result.print("isam result: ");
-    if (isam_result.errorBefore && isam_result.errorAfter)
-    {
-      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
-      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
-    }
-    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
-  }
-  GetPoseEstimates(pose_estimates);
-  GetLandmarkEstimates(landmark_estimates);
+  graph_->resize(0);
+  values_->clear();
 }
 
 Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const std::vector<shared_ptr<Track>>& tracks,
@@ -663,7 +614,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
                                                   GlobalParams::CamU0(), GlobalParams::CamV0()));
 
   auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(1, 3.0);
-  auto prev_estimate = GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_;
+  auto prev_estimate = isam2->calculateEstimate();
 
   gtsam::Pose3 body_p_cam = gtsam::Pose3(
       gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
@@ -733,9 +684,13 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
         if (triangulationResult.valid())
         {
           gtsam::Matrix E;
+          auto reproj_error = smart_factor->totalReprojectionError(smart_factor->cameras(prev_estimate));
+          auto avg_error = reproj_error / static_cast<double>(smart_factor->size());
+          std::cout << "smart factor " << track->id << " with error " << reproj_error << " and size "
+                    << smart_factor->size() << " (average " << avg_error << ")" << std::endl;
           smart_factor->triangulateAndComputeE(E, prev_estimate);
           auto P = smart_factor->PointCov(E);
-          if (P.norm() < 3)
+          if (P.norm() < 3 && avg_error < 8.0)
           {
             smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
             new_feature->in_smoother = true;
@@ -744,6 +699,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
             smart_factors_[track->id] = smart_factor;
             added_tracks_[track->id] = track;
             graph_->add(smart_factor);
+            smart_factor->printKeys();
             initialized_landmarks.push_back(added_features);
           }
           else
@@ -818,24 +774,15 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   std::cout << "Performing optimization" << std::endl;
   try
   {
-    if (GlobalParams::UseIsam())
+    auto isam_result = isam2->update(*graph_, *values_);
+    isam_result.print("isam result: ");
+    if (isam_result.errorBefore && isam_result.errorAfter)
     {
-      auto isam_result = isam2->update(*graph_, *values_);
-      isam_result.print("isam result: ");
-      if (isam_result.errorBefore && isam_result.errorAfter)
-      {
-        std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter
-                  << std::endl;
-        DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
-      }
-      DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-      DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+      std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
-    else
-    {
-      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
-      *values_ = optimizer.optimize();
-    }
+    DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   }
   catch (exception& e)
   {
@@ -845,16 +792,15 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   }
   std::cout << "Optimization done" << std::endl;
 
-  PublishNewReprojectionErrorImage(GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_,
-                                   keyframe_transform.frame2);
+  auto new_estimate = isam2->calculateEstimate();
+  //PublishReprojectionErrorImages();
+  PublishNewReprojectionErrorImage(new_estimate, keyframe_transform.frame2);
 
   RemoveBadLandmarks();
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 
-  auto new_bias = GlobalParams::UseIsam() ?
-                      isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id)) :
-                      values_->at<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id));
+  auto new_bias = new_estimate.at<gtsam::imuBias::ConstantBias>(B(keyframe_transform.frame2->id));
 
   std::vector<double> bias_acc = { new_bias.accelerometer().x(), new_bias.accelerometer().y(),
                                    new_bias.accelerometer().z() };
@@ -864,8 +810,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   std::vector<double> v_norms;
   for (auto frame : added_frame_timestamps_)
   {
-    auto velocity = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Vector3>(V(frame.first)) :
-                                              values_->at<gtsam::Vector3>(V(frame.first));
+    auto velocity = new_estimate.at<gtsam::Vector3>(V(frame.first));
     v_norms.push_back(velocity.norm());
   }
   auto v_average = std::accumulate(v_norms.begin(), v_norms.end(), 0.0) / static_cast<double>(v_norms.size());
@@ -877,38 +822,21 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   last_frame_id_added_ = keyframe_transform.frame2->id;
   added_frame_timestamps_[keyframe_transform.frame2->id] = keyframe_transform.frame2->timestamp;
 
-  auto new_pose = GlobalParams::UseIsam() ? isam2->calculateEstimate<gtsam::Pose3>(X(keyframe_transform.frame2->id)) :
-                                            values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
+  auto new_pose = new_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame2->id));
 
   if (GlobalParams::SaveFactorGraphsToFile())
   {
     SaveGraphToFile("/tmp/update-graph.dot", *graph_, *values_);
   }
 
-  /* Print imu biases in csv format
-  std::cout << "acc_bias_x" << "," << "acc_bias_y" << "," << "acc_bias_z" << ",";
-  std::cout << "gyro_bias_x" << "," << "gyro_bias_y" << "," << "gyro_bias_z" << std::endl;
-  for (auto frame_pair : added_frame_timestamps_)
-  {
-    auto bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_pair.first));
-    auto acc_bias = bias.accelerometer();
-    auto gyro_bias = bias.gyroscope();
-    std::cout << acc_bias.x() << "," << acc_bias.y() << "," << acc_bias.z() << ",";
-    std::cout << gyro_bias.x() << "," << gyro_bias.y() << "," << gyro_bias.z() << std::endl;
-  }
-   */
-
-  for (const auto& factor : (GlobalParams::UseIsam() ? isam2->getFactorsUnsafe() : *graph_))
+  for (const auto& factor : isam2->getFactorsUnsafe())
   {
     factor->printKeys();
-    std::cout << factor->error(GlobalParams::UseIsam() ? isam2->calculateEstimate() : *values_) << std::endl;
+    std::cout << factor->error(new_estimate) << std::endl;
   }
 
-  if (GlobalParams::UseIsam())
-  {
-    graph_->resize(0);
-    values_->clear();
-  }
+  graph_->resize(0);
+  values_->clear();
 
   return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = keyframe_transform.frame2->timestamp };
 }

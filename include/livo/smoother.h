@@ -57,6 +57,7 @@ private:
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
   std::map<int, double> added_frame_timestamps_;  // Map for looking up timestamps of frames added to the optimization
   std::map<int, std::shared_ptr<Track>> added_tracks_;
+  std::shared_ptr<gtsam::Pose3> init_pose_;
 
   int last_frame_id_added_ = -1;
   std::shared_ptr<IMUQueue> imu_queue_;
@@ -81,7 +82,6 @@ public:
   BackendStatus GetStatus();
   void InitializeIMU(const std::vector<KeyframeTransform>& keyframe_transforms,
                      std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
-  void Reoptimize(std::vector<Pose3Stamped>& pose_estimates, std::map<int, Point3>& landmark_estimates);
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
