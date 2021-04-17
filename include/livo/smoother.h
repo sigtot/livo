@@ -52,6 +52,7 @@ private:
   gtsam::Values* values_;
   gtsam::Marginals* marginals_ = nullptr;
   boost::shared_ptr<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3, double>> range_factor_;
+  boost::shared_ptr<gtsam::Cal3_S2> K_;
 
   // Bookkeeping
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
