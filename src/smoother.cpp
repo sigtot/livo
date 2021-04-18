@@ -96,6 +96,7 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
         gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
                                 GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
         gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2])))
+  , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, 3.0))
 {
 }
 
@@ -103,11 +104,9 @@ void Smoother::UpdateSmartFactorParams(const gtsam::SmartProjectionParams& param
 {
   for (auto& smart_factor_pair : smart_factors_)
   {
-    auto body_p_cam = smart_factor_pair.second->body_P_sensor();
     smart_factor_pair.second.reset();
 
-    auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K_, body_p_cam, params));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, params));
     for (auto& feature : added_tracks_[smart_factor_pair.first]->features)
     {
       if (added_frame_timestamps_.count(feature->frame->id))
@@ -211,13 +210,11 @@ void Smoother::InitializeLandmarks(
                                                                            poses.back(), noise_x_second_prior);
   graph_->add(second_prior);
 
-  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 3.0);
-
   gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
                                                             1e-3);
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K_, body_p_cam, init_smart_projection_params));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, body_p_cam, init_smart_projection_params));
     for (auto& feature : track->features)
     {
       if (frame_ids.count(feature->frame->id))
@@ -612,7 +609,6 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
   std::cout << "Performing update for frame " << keyframe_transform.frame1->id << " -> "
             << keyframe_transform.frame2->id << std::endl;
 
-  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(1, 3.0);
   auto prev_estimate = isam2->calculateEstimate();
 
   std::vector<std::vector<cv::Point2f>> initialized_landmarks;
@@ -655,7 +651,7 @@ Pose3Stamped Smoother::Update(const KeyframeTransform& keyframe_transform, const
       gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
                                                            1e-3);
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
-      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise, K_, *body_p_cam_, smart_projection_params));
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
       std::vector<cv::Point2f> added_features = { new_feature->pt };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0; --i)
       {
