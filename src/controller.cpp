@@ -51,13 +51,19 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     }
   }
   else if (backend.GetStatus() == kLandmarksInitialized &&
-           frontend.GetNewestKeyframeTransform().frame1->id == backend.GetLastFrameId() &&
-           frontend.GetNewestKeyframeTransform().frame2->id != backend.GetLastFrameId())
+           frontend.GetNewestKeyframeTransform().frame2->id > backend.GetLastFrameId())
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;
-    backend.Update(frontend.GetNewestKeyframeTransform(), frontend.GetActiveHighParallaxTracks(), pose_estimates,
-                   landmark_estimates);
+    backend.AddKeyframe(frontend.GetNewestKeyframeTransform(), frontend.GetActiveHighParallaxTracks(), pose_estimates,
+                        landmark_estimates);
+    PublishPoses(pose_estimates);
+    PublishLandmarks(landmark_estimates, new_frame->timestamp);
+  }
+  else if (backend.GetStatus() == kLandmarksInitialized){
+    std::vector<Pose3Stamped> pose_estimates;
+    std::map<int, Point3> landmark_estimates;
+    backend.AddFrame(new_frame, frontend.GetActiveHighParallaxTracks(), pose_estimates, landmark_estimates);
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
