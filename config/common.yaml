@@ -7,7 +7,9 @@ init_keyframe_interval: 6
 num_good_keyframes_for_initialization: 20
 add_essential_matrix_constraints: false
 min_keyframe_feature_inlier_ratio: 0.75
-min_parallax: 20
+min_parallax_for_keyframe: 10
+min_parallax_for_smoothing: 5
+max_parallax_rotation_compensation: 200
 num_high_parallax_points_for_keyframe: 15
 
 use_isam: true

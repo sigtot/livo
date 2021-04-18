@@ -124,7 +124,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     for (const auto& track : active_tracks_)
     {
-      double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallax());
+      double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForKeyframe());
       auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, intensity, 0);
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
       {
@@ -499,7 +499,7 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
   std::vector<shared_ptr<Track>> tracks;
   for (auto& track : active_tracks_)
   {
-    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
     {
       tracks.push_back(track);
     }
@@ -512,14 +512,14 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
   std::vector<shared_ptr<Track>> tracks;
   for (auto& track : old_tracks_)
   {
-    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
     {
       tracks.push_back(track);
     }
   }
   for (auto& track : active_tracks_)
   {
-    if (track->max_parallax >= GlobalParams::MinParallax() / 2)
+    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
     {
       tracks.push_back(track);
     }

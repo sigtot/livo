@@ -27,7 +27,9 @@ private:
   std::string ground_truth_provider_ = "newer_college";  // Possible values: newer_college, euroc
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
-  double min_parallax_ = 10.;
+  double min_parallax_for_keyframe_ = 10.; // Need n points with higher than parallax than this to insert a new keyframe
+  double min_parallax_for_smoothing_ = 5.; // Points need higher parallax than this to be added to the smoother
+  double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
 
   int feature_extraction_interval_ = 5;
@@ -97,7 +99,9 @@ public:
   static int NumGoodKeyframesForInitialization();
   static bool AddEssentialMatrixConstraints();
   static double MinKeyframeFeatureInlierRatio();
-  static double MinParallax();
+  static double MinParallaxForKeyframe();
+  static double MinParallaxForSmoothing();
+  static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
 
   static bool UseIsam();

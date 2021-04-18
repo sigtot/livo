@@ -239,17 +239,51 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
   auto R12 = transform.GetRotation();
   if (R12)
   {
-    std::vector<double> parallaxes;
-    int num_high_parallax = ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallax(), parallaxes);
-    for (int i = 0; i < valid_tracks.size(); ++i)
+    std::vector<double> rotation_compensated_parallaxes;
+    std::vector<double> uncompensated_parallaxes;
+    ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallaxForKeyframe(),
+                           rotation_compensated_parallaxes);
+    ComputePointParallaxes(points1, points2, cv::Mat::eye(3, 3, CV_64F), K, GlobalParams::MinParallaxForKeyframe(),
+                           uncompensated_parallaxes);
+
+    int num_high_parallax = 0;
+    for (int i = 0; i < rotation_compensated_parallaxes.size(); ++i)
     {
       if (inlier_mask[i])
       {
-        valid_tracks[i]->max_parallax = std::max(valid_tracks[i]->max_parallax, parallaxes[i]);
+        // Simple check to avoid bad rotation estimates (e.g. due to very low motion):
+        // Rotation compensation should only correct the parallax by a reasonable amount
+        if (std::abs(uncompensated_parallaxes[i] - rotation_compensated_parallaxes[i]) >
+            GlobalParams::MaxParallaxRotationCompensation())
+        {
+          return KeyframeTransform::Invalid(frame1, frame2);
+        }
+        if (rotation_compensated_parallaxes[i] > GlobalParams::MinParallaxForKeyframe())
+        {
+          ++num_high_parallax;
+        }
+        valid_tracks[i]->max_parallax = std::max(valid_tracks[i]->max_parallax, rotation_compensated_parallaxes[i]);
       }
     }
+
     if (num_high_parallax > GlobalParams::NumHighParallaxPointsForKeyframe())
     {
+      std::cout << "R_H = " << R_H << std::endl;
+      std::cout << "#points: " << points1.size() << std::endl;
+      int inlier_count = 0;
+      int outlier_count = 0;
+      for (const auto& inlier : inlier_mask)
+      {
+        if (inlier)
+        {
+          ++inlier_count;
+        }
+        else
+        {
+          ++outlier_count;
+        }
+      }
+      std::cout << inlier_count << "/" << outlier_count << " inliers/outliers" << std::endl;
       return transform;
     }
   }
@@ -259,7 +293,8 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
 
 int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& points1,
                                             const std::vector<cv::Point2f>& points2, const cv::Mat& R12,
-                                            const cv::Mat& K, double min_parallax, std::vector<double>& parallaxes)
+                                            const cv::Mat& K, double min_parallax_for_keyframe,
+                                            std::vector<double>& parallaxes)
 {
   int num_high_parallax = 0;
   parallaxes.resize(points1.size());
@@ -275,7 +310,7 @@ int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& poin
     cv::Mat point2_delta = point2 - point2_comp;
     double dist = std::sqrt(point2_delta.dot(point2_delta));  // This works because last coordinate is zero
     parallaxes[i] = dist;
-    if (dist > min_parallax)
+    if (dist > min_parallax_for_keyframe)
     {
       num_high_parallax++;
     }

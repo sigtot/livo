@@ -25,7 +25,8 @@ public:
   static void PublishNewLandmarksImage(const cv::Mat& image, const std::vector<std::vector<cv::Point2f>>& tracks,
                                        double timestamp);
   static void PublishReprojectionErrorImage(const cv::Mat& image, const std::vector<cv::Point2f>& features,
-                                            const std::vector<cv::Point2f>& reprojected_features, double timestamp);
+                                            const std::vector<cv::Point2f>& reprojected_features,
+                                            const std::vector<bool>& inlier_mask, double timestamp);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEBUG_IMAGE_PUBLISHER_H_

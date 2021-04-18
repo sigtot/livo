@@ -41,6 +41,7 @@ void DebugImagePublisher::PublishNewLandmarksImage(const cv::Mat& image,
 void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image,
                                                         const std::vector<cv::Point2f>& features,
                                                         const std::vector<cv::Point2f>& reprojected_features,
+                                                        const std::vector<bool>& inlier_mask,
                                                         double timestamp)
 {
   assert(features.size() == reprojected_features.size());
@@ -49,9 +50,11 @@ void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image,
   out_img.header.stamp = ros::Time(timestamp);
   cvtColor(image, out_img.image, CV_GRAY2RGB);
 
-  auto color = cv::Scalar(0, 255, 0);
+  auto color_green = cv::Scalar(0, 255, 0);
+  auto color_red = cv::Scalar(0, 0, 255);
   for (int i = 0; i < features.size(); ++i)
   {
+    auto color = inlier_mask[i] ? color_green : color_red;
     cv::line(out_img.image, features[i], reprojected_features[i], color, 1);
     cv::circle(out_img.image, reprojected_features[i], 5, color, 1);
   }

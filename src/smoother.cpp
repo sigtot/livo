@@ -152,11 +152,6 @@ void Smoother::InitializeLandmarks(
   std::map<int, bool> frame_ids;
   frame_ids[keyframe_transforms[0].frame1->id] = true;
 
-  gtsam::Pose3 body_p_cam = gtsam::Pose3(
-      gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
-                              GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
-      gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2]));
-
   // Initialize values on R and t from essential matrix
   std::vector<gtsam::Pose3> poses = { *init_pose_ };
   for (auto& keyframe_transform : keyframe_transforms)
@@ -173,18 +168,18 @@ void Smoother::InitializeLandmarks(
       gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
       gtsam::Rot3 R_cam_frame(R_mat);
 
-      gtsam::Unit3 t_i(body_p_cam * t_unit_cam_frame.point3());
-      gtsam::Rot3 R_i(body_p_cam.rotation() * R_cam_frame * body_p_cam.rotation().inverse());
+      gtsam::Unit3 t_i(*body_p_cam_ * t_unit_cam_frame.point3());
+      gtsam::Rot3 R_i(body_p_cam_->rotation() * R_cam_frame * body_p_cam_->rotation().inverse());
       gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i.point3());
 
       gtsam::Pose3 X_world = poses.back().compose(X_i);
       poses.push_back(X_world);
 
-      std::cout << "R_c = " << R_cam_frame.ypr() << std::endl;
+      std::cout << "R_c = " << R_cam_frame.quaternion() << std::endl;
       t_unit_cam_frame.print("t_c = ");
-      std::cout << "R_i = " << R_i.ypr() << std::endl;
+      std::cout << "R_i = " << R_i.quaternion() << std::endl;
       t_i.print("t_i = ");
-      std::cout << "R_world = " << X_world.rotation().ypr() << std::endl;
+      std::cout << "R_world = " << X_world.rotation().quaternion() << std::endl;
       std::cout << "t_world = " << X_world.translation().transpose() << std::endl;
     }
     else
@@ -214,14 +209,15 @@ void Smoother::InitializeLandmarks(
                                                             1e-3);
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, body_p_cam, init_smart_projection_params));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, init_smart_projection_params));
+    std::vector<std::shared_ptr<Feature>> added_features;
     for (auto& feature : track->features)
     {
       if (frame_ids.count(feature->frame->id))
       {
         auto pt = feature->pt;
         smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
-        feature->in_smoother = true;
+        added_features.push_back(feature);
       }
     }
     if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
@@ -231,6 +227,10 @@ void Smoother::InitializeLandmarks(
       added_tracks_[track->id] = track;
       smart_factors_[track->id] = smart_factor;
       graph_->add(smart_factor);
+      for (auto& feature : added_features)
+      {
+        feature->in_smoother = true;
+      }
     }
   }
   std::cout << "Added " << smart_factors_.size() << " smart factors" << std::endl;
@@ -326,11 +326,13 @@ void Smoother::PublishReprojectionErrorImages()
 {
   std::map<int, std::vector<cv::Point2f>> measured_points_by_frame;
   std::map<int, std::vector<cv::Point2f>> reprojected_points_by_frame;
+  std::map<int, std::vector<bool>> inlier_masks_by_frame;
   std::map<int, std::shared_ptr<Frame>> frames_by_frame;
   for (const auto& added_frame_pair : added_frame_timestamps_)
   {
     measured_points_by_frame[added_frame_pair.first] = std::vector<cv::Point2f>{};
     reprojected_points_by_frame[added_frame_pair.first] = std::vector<cv::Point2f>{};
+    inlier_masks_by_frame[added_frame_pair.first] = std::vector<bool>{};
   }
   for (const auto& smart_factor_pair : smart_factors_)
   {
@@ -351,12 +353,8 @@ void Smoother::PublishReprojectionErrorImages()
         auto reproj_error_y = static_cast<float>(reproj_error(2 * i + 1, 0));
 
         const float zero_thresh = 0.00001;
-        if (std::abs(reproj_error_x) < zero_thresh && std::abs(reproj_error_y) < zero_thresh)
-        {
-          // skip: 0,0 reproj error means degeneracy (in practice, healthy features will always have _some_ error)
-          ++i;
-          continue;
-        }
+        inlier_masks_by_frame[feature->frame->id].push_back(std::abs(reproj_error_x) > zero_thresh ||
+                                                            std::abs(reproj_error_y) > zero_thresh);
 
         measured_points_by_frame[feature->frame->id].push_back(feature->pt);
         auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
@@ -369,9 +367,10 @@ void Smoother::PublishReprojectionErrorImages()
 
   for (const auto& added_frame_pair : added_frame_timestamps_)
   {
+    auto frame_id = added_frame_pair.first;
     DebugImagePublisher::PublishReprojectionErrorImage(
-        frames_by_frame[added_frame_pair.first]->image, measured_points_by_frame[added_frame_pair.first],
-        reprojected_points_by_frame[added_frame_pair.first], added_frame_pair.second);
+        frames_by_frame[frame_id]->image, measured_points_by_frame[frame_id], reprojected_points_by_frame[frame_id],
+        inlier_masks_by_frame[frame_id], added_frame_pair.second);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
@@ -380,6 +379,7 @@ void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, con
 {
   std::vector<cv::Point2f> measured_points;
   std::vector<cv::Point2f> reprojected_points;
+  std::vector<bool> inlier_mask;
   for (const auto& smart_factor_pair : smart_factors_)
   {
     auto reproj_error = smart_factor_pair.second->reprojectionErrorAfterTriangulation(values);
@@ -392,11 +392,7 @@ void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, con
       auto reproj_error_y = static_cast<float>(reproj_error(reproj_error.rows() - 1, 0));
 
       const float zero_thresh = 0.00001;
-      if (std::abs(reproj_error_x) < zero_thresh && std::abs(reproj_error_y) < zero_thresh)
-      {
-        // skip: 0,0 reproj error means degeneracy (in practice, healthy features will always have _some_ error)
-        continue;
-      }
+      inlier_mask.push_back(std::abs(reproj_error_x) > zero_thresh || std::abs(reproj_error_y) > zero_thresh);
 
       measured_points.push_back(feature->pt);
       auto point_reproj_error = cv::Point2f(reproj_error_x, reproj_error_y);
@@ -405,7 +401,7 @@ void Smoother::PublishNewReprojectionErrorImage(const gtsam::Values& values, con
     }
   }
 
-  DebugImagePublisher::PublishReprojectionErrorImage(frame->image, measured_points, reprojected_points,
+  DebugImagePublisher::PublishReprojectionErrorImage(frame->image, measured_points, reprojected_points, inlier_mask,
                                                      frame->timestamp);
 }
 
@@ -611,10 +607,10 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   for (auto& track : tracks)
   {
     auto feat_it = track->features.rbegin();
-    const auto new_feature =
-        std::find_if(feat_it, track->features.rend(), [keyframe_transform](const std::shared_ptr<Feature>& f) -> bool {
+    auto new_feature =
+        *std::find_if(feat_it, track->features.rend(), [keyframe_transform](const std::shared_ptr<Feature>& f) -> bool {
           return f->frame->id == keyframe_transform.frame2->id;
-        })->get();
+        });
 
     if (smart_factors_.count(track->id))
     {
@@ -648,15 +644,16 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
                                                            1e-3);
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
-      std::vector<cv::Point2f> added_features = { new_feature->pt };
+      std::vector<cv::Point2f> added_feature_points = { new_feature->pt };
+      std::vector<std::shared_ptr<Feature>> added_features = { new_feature };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0; --i)
       {
         auto feature = track->features[i];
         if (added_frame_timestamps_.count(feature->frame->id))
         {
           smart_factor->add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
-          feature->in_smoother = true;
-          added_features.push_back(feature->pt);
+          added_feature_points.push_back(feature->pt);
+          added_features.push_back(feature);
         }
       }
       if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
@@ -674,14 +671,17 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           if (P.norm() < 3 && avg_error < 8.0)
           {
             smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
-            new_feature->in_smoother = true;
             std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
                       << std::endl;
             smart_factors_[track->id] = smart_factor;
             added_tracks_[track->id] = track;
             graph_->add(smart_factor);
             smart_factor->printKeys();
-            initialized_landmarks.push_back(added_features);
+            initialized_landmarks.push_back(added_feature_points);
+            for (auto& feature : added_features)
+            {
+              feature->in_smoother = true;
+            }
           }
           else
           {
