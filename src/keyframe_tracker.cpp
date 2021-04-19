@@ -243,10 +243,9 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
     std::vector<double> uncompensated_parallaxes;
     ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallaxForKeyframe(),
                            rotation_compensated_parallaxes);
-    ComputePointParallaxes(points1, points2, cv::Mat::eye(3, 3, CV_64F), K, GlobalParams::MinParallaxForKeyframe(),
-                           uncompensated_parallaxes);
+    auto num_high_motion = ComputePointParallaxes(points1, points2, cv::Mat::eye(3, 3, CV_64F), K,
+                                                  GlobalParams::MinParallaxForKeyframe(), uncompensated_parallaxes);
 
-    int num_high_parallax = 0;
     for (int i = 0; i < rotation_compensated_parallaxes.size(); ++i)
     {
       if (inlier_mask[i])
@@ -258,15 +257,11 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
         {
           return KeyframeTransform::Invalid(frame1, frame2);
         }
-        if (rotation_compensated_parallaxes[i] > GlobalParams::MinParallaxForKeyframe())
-        {
-          ++num_high_parallax;
-        }
         valid_tracks[i]->max_parallax = std::max(valid_tracks[i]->max_parallax, rotation_compensated_parallaxes[i]);
       }
     }
 
-    if (num_high_parallax > GlobalParams::NumHighParallaxPointsForKeyframe())
+    if (num_high_motion > GlobalParams::NumHighParallaxPointsForKeyframe())
     {
       std::cout << "R_H = " << R_H << std::endl;
       std::cout << "#points: " << points1.size() << std::endl;

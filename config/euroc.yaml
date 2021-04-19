@@ -20,12 +20,12 @@ init_range_factor_length: 8.1
 
 num_good_keyframes_for_initialization: 60
 track_nms_squared_dist_thresh: 100.
-max_features_per_cell: 3
-track_count_lower_thresh: 80
+max_features_per_cell: 5
+track_count_lower_thresh: 50
 
 min_parallax_for_keyframe: 15
 min_parallax_for_smoothing: 0
-num_high_parallax_points_for_keyframe: 10
+num_high_parallax_points_for_keyframe: 20
 min_track_length_for_smoothing: 3
 
 #body_p_cam_quat: [-0.51109733, -0.50166396, -0.49624908,  0.49076434] # body_p_cam * body_to_imu
@@ -42,7 +42,7 @@ noise_params:
   prior_X_translation: 0.01
   prior_gyro: 0.1
   prior_accel: 0.1
-  prior_velocity: 0.1
+  prior_velocity: 0.4
   feature: 1.0
 
 cam_fx: 458.654
