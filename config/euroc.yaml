@@ -40,8 +40,8 @@ do_initial_gravity_alignment: true
 noise_params:
   prior_X_rotation: 0.1
   prior_X_translation: 0.01
-  prior_gyro: 0.1
-  prior_accel: 0.1
+  prior_gyro: 0.4
+  prior_accel: 0.4
   prior_velocity: 0.4
   feature: 1.0
 

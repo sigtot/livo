@@ -139,7 +139,7 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/ORBextractor.cc src/try_project_debug.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/frame.cpp src/landmark.cpp src/key_point_observation.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/ORBextractor.cc src/try_project_debug.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

@@ -501,8 +501,8 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 {
   graph_->resize(0);
   // Init on "random values" as this apparently helps convergence
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.003172, 0.021267, 0.078502),
-                                         gtsam::Vector3(-0.025266, 0.136696, 0.075593));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.025266, 0.136696, 0.075593),
+                                         gtsam::Vector3(-0.003172, 0.021267, 0.078502));
   std::vector<gtsam::Vector3> velocity_estimates;
   auto prev_estimate = *values_;
   for (auto& keyframe_transform : keyframe_transforms)

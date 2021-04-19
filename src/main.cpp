@@ -5,7 +5,6 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <newer_college_ground_truth.h>
 #include <euroc_ground_truth_provider.h>
-#include <thread>
 #include <chrono>
 #include <imu_queue.h>
 #include "controller.h"
@@ -15,6 +14,7 @@
 #include "ros_helpers.h"
 #include "debug_image_publisher.h"
 #include "debug_value_publisher.h"
+#include "imu_ground_truth_smoother.h"
 
 #include <memory>
 
@@ -58,7 +58,8 @@ int main(int argc, char** argv)
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor feature_extractor(matches_pub, tracks_pub, 20);
   Smoother smoother(imu_queue);
-  Controller controller(feature_extractor, smoother, path_pub, posearr_pub, landmarks_pub);
+  IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
+  Controller controller(feature_extractor, smoother, imu_ground_truth_smoother, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);
