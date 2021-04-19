@@ -20,6 +20,7 @@
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <thread>
@@ -40,7 +41,7 @@ gtsam::ISAM2Params MakeIsam2Params()
   if (GlobalParams::UseDogLeg())
   {
     params.optimizationParams =
-        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::SEARCH_EACH_ITERATION, true);
+        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::SEARCH_REDUCE_ONLY, true);
   }
   else
   {
@@ -141,7 +142,8 @@ void Smoother::InitializeLandmarks(
           unrefined_init_pose);
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseXRotation()),
+      (gtsam::Vector(6) << gtsam::Vector3(GlobalParams::PriorNoiseXRollPitch(), GlobalParams::PriorNoiseXRollPitch(),
+                                          GlobalParams::PriorNoiseXYaw()),
        gtsam::Vector3::Constant(GlobalParams::PriorNoiseXTranslation()))
           .finished());
 
@@ -208,7 +210,7 @@ void Smoother::InitializeLandmarks(
   graph_->add(second_prior);
 
   gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
-                                                            1e-3);
+                                                            1e-5);
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(
@@ -240,8 +242,9 @@ void Smoother::InitializeLandmarks(
 
   try
   {
-    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
     *values_ = optimizer.optimize();
+    std::cout << "Error after LM step: " << optimizer.error() << std::endl;
   }
   catch (exception& e)
   {
@@ -297,8 +300,9 @@ void Smoother::InitializeLandmarks(
 
     try
     {
-      gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+      gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
       *values_ = optimizer.optimize();
+      std::cout << "Error after LM step: " << optimizer.error() << std::endl;
     }
     catch (exception& e)
     {
@@ -521,8 +525,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
         prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame1->id))
             .translation()
             .between(prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame2->id)).translation());
-    auto time_delta =
-        added_frame_timestamps_[keyframe_transform.frame2->id] - added_frame_timestamps_[keyframe_transform.frame1->id];
+    auto time_delta = keyframe_transform.frame2->timestamp - keyframe_transform.frame1->timestamp;
 
     gtsam::Vector3 velocity_estimate = (translation_delta / time_delta);
     velocity_estimates.push_back(velocity_estimate);
@@ -533,14 +536,15 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   }
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseXRotation()),
+      (gtsam::Vector(6) << gtsam::Vector3(GlobalParams::PriorNoiseXYaw(), GlobalParams::PriorNoiseXRollPitch(),
+                                          GlobalParams::PriorNoiseXRollPitch()),
        gtsam::Vector3::Constant(GlobalParams::PriorNoiseXTranslation()))
           .finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(
       3, keyframe_transforms[0].frame1->stationary ? 0.01 : GlobalParams::PriorNoiseVelocity());
   auto noise_b = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseAccel()),
-          gtsam::Vector3::Constant(GlobalParams::PriorNoiseGyro()))
+       gtsam::Vector3::Constant(GlobalParams::PriorNoiseGyro()))
           .finished());
 
   auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :
@@ -560,8 +564,9 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   try
   {
-    gtsam::GaussNewtonOptimizer optimizer(*graph_, *values_);
+    gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
     *values_ = optimizer.optimize();
+    std::cout << "Error after LM step: " << optimizer.error() << std::endl;
   }
   catch (exception& e)
   {
@@ -650,7 +655,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     else
     {
       gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
-                                                           1e-3);
+                                                           1e-5);
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
       std::vector<cv::Point2f> added_feature_points = { new_feature->pt };
@@ -677,24 +682,17 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
                     << smart_factor->size() << " (average " << avg_error << ")" << std::endl;
           smart_factor->triangulateAndComputeE(E, prev_estimate);
           auto P = smart_factor->PointCov(E);
-          if (P.norm() < 3 && avg_error < 8.0)
+          smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
+          std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
+                    << std::endl;
+          smart_factors_[track->id] = smart_factor;
+          added_tracks_[track->id] = track;
+          graph_->add(smart_factor);
+          smart_factor->printKeys();
+          initialized_landmarks.push_back(added_feature_points);
+          for (auto& feature : added_features)
           {
-            smart_factor->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
-            std::cout << "initializing landmark " << track->id << " with " << smart_factor->size() << " observations"
-                      << std::endl;
-            smart_factors_[track->id] = smart_factor;
-            added_tracks_[track->id] = track;
-            graph_->add(smart_factor);
-            smart_factor->printKeys();
-            initialized_landmarks.push_back(added_feature_points);
-            for (auto& feature : added_features)
-            {
-              feature->in_smoother = true;
-            }
-          }
-          else
-          {
-            std::cout << "Skipping landmark " << track->id << " with P norm " << P.norm() << std::endl;
+            feature->in_smoother = true;
           }
         }
       }
@@ -786,7 +784,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   // PublishReprojectionErrorImages();
   PublishNewReprojectionErrorImage(new_estimate, keyframe_transform.frame2);
 
-  RemoveBadLandmarks();
+  // RemoveBadLandmarks();
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 
@@ -819,11 +817,13 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     SaveGraphToFile("/tmp/update-graph.dot", *graph_, *values_);
   }
 
+  /*
   for (const auto& factor : isam2->getFactorsUnsafe())
   {
     factor->printKeys();
     std::cout << factor->error(new_estimate) << std::endl;
   }
+   */
 
   graph_->resize(0);
   values_->clear();

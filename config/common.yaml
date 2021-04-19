@@ -23,7 +23,8 @@ imu_n_gravity_y: 0
 imu_n_gravity_z: -9.81
 
 noise_params:
-  prior_X_rotation: 0.1
+  prior_X_yaw: 0.001
+  prior_X_roll_pitch: 0.1
   prior_X_translation: 0.01
   prior_gyro: 0.1
   prior_accel: 0.1

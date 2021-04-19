@@ -49,7 +49,8 @@ private:
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.;  // Give negative value to use value calculate from estimate
 
-  double prior_noise_X_rotation_ = 0.1;
+  double prior_noise_X_yaw_ = 0.001;  // Low variance for yaw since it is unobservable
+  double prior_noise_X_roll_pitch_ = 0.1;
   double prior_noise_X_translation_ = 0.01;
   double prior_noise_gyro_ = 0.1;
   double prior_noise_accel_ = 0.1;
@@ -124,7 +125,8 @@ public:
   static double ImageEdgePaddingPercent();
   static double StationaryThresh();
 
-  static double PriorNoiseXRotation();
+  static double PriorNoiseXYaw();
+  static double PriorNoiseXRollPitch();
   static double PriorNoiseXTranslation();
   static double PriorNoiseGyro();
   static double PriorNoiseAccel();

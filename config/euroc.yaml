@@ -14,16 +14,16 @@ imu_accel_random_walk: 0.003
 imu_gyro_random_walk: 0.000019393
 
 use_isam: true
-use_dogleg: false
+use_dogleg: true
 isam_relinearize_thresh: 0.1
 init_range_factor_length: 8.1
 
-num_good_keyframes_for_initialization: 60
-track_nms_squared_dist_thresh: 100.
-max_features_per_cell: 5
-track_count_lower_thresh: 50
+num_good_keyframes_for_initialization: 20
+track_nms_squared_dist_thresh: 400.
+max_features_per_cell: 6
+track_count_lower_thresh: 150
 
-min_parallax_for_keyframe: 15
+min_parallax_for_keyframe: 25
 min_parallax_for_smoothing: 0
 num_high_parallax_points_for_keyframe: 20
 min_track_length_for_smoothing: 3
@@ -38,12 +38,13 @@ body_p_imu_vec: [ 0.0, 0.0, 0.0 ]
 do_initial_gravity_alignment: true
 
 noise_params:
-  prior_X_rotation: 0.1
-  prior_X_translation: 0.01
-  prior_gyro: 0.4
-  prior_accel: 0.4
+  prior_X_yaw: 0.001
+  prior_X_roll_pitch: 0.2
+  prior_X_translation: 0.0001
+  prior_gyro: 0.2
+  prior_accel: 0.2
   prior_velocity: 0.4
-  feature: 1.0
+  feature: 3.0
 
 cam_fx: 458.654
 cam_fy: 457.296

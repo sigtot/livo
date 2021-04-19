@@ -85,7 +85,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
 
-  ReadVariable(nh, "/orb_test_node/noise_params/prior_X_rotation", GetInstance().prior_noise_X_rotation_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_X_yaw", GetInstance().prior_noise_X_yaw_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_X_roll_pitch", GetInstance().prior_noise_X_roll_pitch_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_translation", GetInstance().prior_noise_X_translation_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_gyro", GetInstance().prior_noise_gyro_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_accel", GetInstance().prior_noise_accel_);
@@ -335,9 +336,13 @@ bool GlobalParams::UseDogLeg()
 {
   return GetInstance().use_dogleg_;
 }
-double GlobalParams::PriorNoiseXRotation()
+double GlobalParams::PriorNoiseXYaw()
 {
-  return GetInstance().prior_noise_X_rotation_;
+  return GetInstance().prior_noise_X_yaw_;
+}
+double GlobalParams::PriorNoiseXRollPitch()
+{
+  return GetInstance().prior_noise_X_roll_pitch_;
 }
 double GlobalParams::PriorNoiseXTranslation()
 {

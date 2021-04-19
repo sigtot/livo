@@ -27,6 +27,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   {
     std::cout << "R_H good. Ready for initialization!" << std::endl;
   }
+  /*
 
   if (!imu_ground_truth_smoother_.IsInitialized() && !frontend_.GetKeyframeTransforms().empty())
   {
@@ -50,8 +51,8 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       PublishPoses(pose_estimates);
     }
   }
+   */
 
-  /*
   if (backend_.GetStatus() != kLandmarksInitialized && frontend_.ReadyForInitialization())
   {
     {
@@ -99,7 +100,6 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
-   */
 }
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)

@@ -72,7 +72,8 @@ void IMUGroundTruthSmoother::Initialize(double stamp1, double stamp2, std::vecto
   std::cout << "Initializing between timestamps " << stamp1 << " and " << stamp2 << std::endl;
 
   auto prior_noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseXRotation()),
+      (gtsam::Vector(6) << gtsam::Vector3(GlobalParams::PriorNoiseXRollPitch(), GlobalParams::PriorNoiseXRollPitch(),
+                                          GlobalParams::PriorNoiseXYaw()),
        gtsam::Vector3::Constant(GlobalParams::PriorNoiseXTranslation()))
           .finished());
   auto prior_noise_v = gtsam::noiseModel::Isotropic::Sigma(3, GlobalParams::PriorNoiseVelocity());
