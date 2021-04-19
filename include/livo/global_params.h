@@ -49,6 +49,13 @@ private:
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.;  // Give negative value to use value calculate from estimate
 
+  double prior_noise_X_rotation_ = 0.1;
+  double prior_noise_X_translation_ = 0.01;
+  double prior_noise_gyro_ = 0.1;
+  double prior_noise_accel_ = 0.1;
+  double prior_noise_velocity = 0.1;
+  double noise_feature_ = 1.0;
+
   double timeshift_cam_imu_ = 0.01379378638037798;
 
   // For explanation and units, see https://github.com/borglab/gtsam/issues/213
@@ -116,6 +123,13 @@ public:
   static int MinTrackLengthForSmoothing();
   static double ImageEdgePaddingPercent();
   static double StationaryThresh();
+
+  static double PriorNoiseXRotation();
+  static double PriorNoiseXTranslation();
+  static double PriorNoiseGyro();
+  static double PriorNoiseAccel();
+  static double PriorNoiseVelocity();
+  static double NoiseFeature();
 
   static double TimeshiftCamImu();  // t_imu = t_cam + shift
   static double IMUG();

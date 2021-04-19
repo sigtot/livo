@@ -85,6 +85,13 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
 
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_X_rotation", GetInstance().prior_noise_X_rotation_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_X_translation", GetInstance().prior_noise_X_translation_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_gyro", GetInstance().prior_noise_gyro_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_accel", GetInstance().prior_noise_accel_);
+  ReadVariable(nh, "/orb_test_node/noise_params/prior_velocity", GetInstance().prior_noise_velocity);
+  ReadVariable(nh, "/orb_test_node/noise_params/feature", GetInstance().noise_feature_);
+
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
   ReadVariable(nh, "/orb_test_node/track_nms_squared_dist_thresh", GetInstance().track_nms_squared_dist_thresh_);
@@ -327,4 +334,28 @@ double GlobalParams::InitRangeFactorLength()
 bool GlobalParams::UseDogLeg()
 {
   return GetInstance().use_dogleg_;
+}
+double GlobalParams::PriorNoiseXRotation()
+{
+  return GetInstance().prior_noise_X_rotation_;
+}
+double GlobalParams::PriorNoiseXTranslation()
+{
+  return GetInstance().prior_noise_X_translation_;
+}
+double GlobalParams::PriorNoiseGyro()
+{
+  return GetInstance().prior_noise_gyro_;
+}
+double GlobalParams::PriorNoiseAccel()
+{
+  return GetInstance().prior_noise_accel_;
+}
+double GlobalParams::PriorNoiseVelocity()
+{
+  return GetInstance().prior_noise_velocity;
+}
+double GlobalParams::NoiseFeature()
+{
+  return GetInstance().noise_feature_;
 }

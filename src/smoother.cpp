@@ -96,7 +96,7 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
         gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
                                 GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
         gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2])))
-  , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, 1.0))
+  , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
 {
 }
 
@@ -141,7 +141,9 @@ void Smoother::InitializeLandmarks(
           unrefined_init_pose);
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseXRotation()),
+       gtsam::Vector3::Constant(GlobalParams::PriorNoiseXTranslation()))
+          .finished());
 
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), *init_pose_, noise_x);
 
@@ -209,7 +211,8 @@ void Smoother::InitializeLandmarks(
                                                             1e-3);
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, init_smart_projection_params));
+    SmartFactor::shared_ptr smart_factor(
+        new SmartFactor(feature_noise_, K_, *body_p_cam_, init_smart_projection_params));
     std::vector<std::shared_ptr<Feature>> added_features;
     for (auto& feature : track->features)
     {
@@ -530,9 +533,15 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   }
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.01), gtsam::Vector3::Constant(0.01)).finished());
-  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, keyframe_transforms[0].frame1->stationary ? 0.01 : 0.1);
-  auto noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.1);
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseXRotation()),
+       gtsam::Vector3::Constant(GlobalParams::PriorNoiseXTranslation()))
+          .finished());
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(
+      3, keyframe_transforms[0].frame1->stationary ? 0.01 : GlobalParams::PriorNoiseVelocity());
+  auto noise_b = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::PriorNoiseAccel()),
+          gtsam::Vector3::Constant(GlobalParams::PriorNoiseGyro()))
+          .finished());
 
   auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :
                                                                    velocity_estimates.front();  // assume v1 == v2

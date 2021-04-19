@@ -37,6 +37,14 @@ body_p_imu_vec: [ 0.0, 0.0, 0.0 ]
 
 do_initial_gravity_alignment: true
 
+noise_params:
+  prior_X_rotation: 0.1
+  prior_X_translation: 0.01
+  prior_gyro: 0.1
+  prior_accel: 0.1
+  prior_velocity: 0.1
+  feature: 1.0
+
 cam_fx: 458.654
 cam_fy: 457.296
 cam_u0: 367.215

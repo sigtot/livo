@@ -18,6 +18,18 @@ isam_relinearize_thresh: 0.1
 save_factor_graphs_to_file: false
 init_range_factor_length_: -1.
 
+imu_n_gravity_x: 0
+imu_n_gravity_y: 0
+imu_n_gravity_z: -9.81
+
+noise_params:
+  prior_X_rotation: 0.1
+  prior_X_translation: 0.01
+  prior_gyro: 0.1
+  prior_accel: 0.1
+  prior_velocity: 0.1
+  feature: 1.0
+
 imu_cam_quat: [0, 0, 0, 1]
 imu_cam_vector: [0, 0, 0]
 
