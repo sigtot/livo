@@ -92,7 +92,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
-  else if (backend_.GetStatus() == kLandmarksInitialized && false)
+  else if (backend_.GetStatus() == kLandmarksInitialized)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;

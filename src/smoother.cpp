@@ -19,7 +19,6 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
-#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/nonlinear/Marginals.h>
@@ -41,7 +40,7 @@ gtsam::ISAM2Params MakeIsam2Params()
   if (GlobalParams::UseDogLeg())
   {
     params.optimizationParams =
-        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::SEARCH_REDUCE_ONLY, true);
+        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::ONE_STEP_PER_ITERATION, true);
   }
   else
   {
@@ -204,7 +203,7 @@ void Smoother::InitializeLandmarks(
 
   // The SfM-only problem has scale ambiguity, so we add a second prior
   auto noise_x_second_prior = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.2), gtsam::Vector3::Constant(0.2)).finished());
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.1)).finished());
   auto second_prior = gtsam::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(X(keyframe_transforms.back().frame2->id),
                                                                            poses.back(), noise_x_second_prior);
   graph_->add(second_prior);
@@ -242,7 +241,9 @@ void Smoother::InitializeLandmarks(
 
   try
   {
+    gtsam::LevenbergMarquardtParams params;
     gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
+    std::cout << "Error before LM step: " << optimizer.error() << std::endl;
     *values_ = optimizer.optimize();
     std::cout << "Error after LM step: " << optimizer.error() << std::endl;
   }
@@ -295,12 +296,24 @@ void Smoother::InitializeLandmarks(
     }
 
     // The second prior is already added as a shared pointer in the graph, we update the pointer value here.
+    /*
     *second_prior = gtsam::PriorFactor<gtsam::Pose3>(X(scaled_poses.back().first), scaled_poses.back().second,
                                                      noise_x_second_prior);
+                                                     */
+
+    *second_prior = gtsam::PriorFactor<gtsam::Pose3>(
+        X(scaled_poses.back().first), ToGtsamPose(GroundTruth::At(keyframe_transforms.back().frame2->timestamp)),
+        noise_x_second_prior);
+
+    for (auto it = keyframe_transforms.begin(); it != keyframe_transforms.end() - 1; ++it)
+    {
+      graph_->addPrior(X(it->frame2->id), ToGtsamPose(GroundTruth::At(it->frame2->timestamp)), noise_x_second_prior);
+    }
 
     try
     {
       gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
+      std::cout << "Error before LM step: " << optimizer.error() << std::endl;
       *values_ = optimizer.optimize();
       std::cout << "Error after LM step: " << optimizer.error() << std::endl;
     }
@@ -507,8 +520,17 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   // Init on "random values" as this apparently helps convergence
   gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.025266, 0.136696, 0.075593),
                                          gtsam::Vector3(-0.003172, 0.021267, 0.078502));
-  std::vector<gtsam::Vector3> velocity_estimates;
-  auto prev_estimate = *values_;
+
+  auto init_translation_delta =
+      values_->at<gtsam::Pose3>(X(keyframe_transforms.front().frame1->id))
+          .translation()
+          .between(values_->at<gtsam::Pose3>(X(keyframe_transforms.front().frame2->id)).translation());
+  auto init_time_delta = keyframe_transforms.front().frame2->timestamp - keyframe_transforms.front().frame1->timestamp;
+
+  auto init_velocity = keyframe_transforms.front().frame1->stationary ?
+                           gtsam::Vector3(0.0000001, 0.0000001, 0.0000001) :
+                           init_translation_delta / init_time_delta;  // assume constant velocity: v1 == v2
+  std::vector<gtsam::Vector3> velocity_estimates = { init_velocity };
   for (auto& keyframe_transform : keyframe_transforms)
   {
     WaitForAndIntegrateIMU(keyframe_transform.frame1->timestamp, keyframe_transform.frame2->timestamp);
@@ -519,15 +541,29 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
                                         B(keyframe_transform.frame1->id), B(keyframe_transform.frame2->id),
                                         imu_combined);
     graph_->add(imu_factor);
-    imu_measurements_->resetIntegration();
 
-    auto translation_delta =
-        prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame1->id))
-            .translation()
-            .between(prev_estimate.at<gtsam::Pose3>(X(keyframe_transform.frame2->id)).translation());
+    /*
+    auto velocity_prediction =
+        imu_measurements_
+            ->predict(
+                gtsam::NavState(values_->at<gtsam::Pose3>(X(keyframe_transform.frame1->id)), velocity_estimates.back()),
+                init_bias)
+            .velocity();
+            */
+
+    auto translation_delta = values_->at<gtsam::Pose3>(X(keyframe_transform.frame1->id))
+                                 .translation()
+                                 .between(values_->at<gtsam::Pose3>(X(keyframe_transform.frame2->id)).translation());
     auto time_delta = keyframe_transform.frame2->timestamp - keyframe_transform.frame1->timestamp;
 
-    gtsam::Vector3 velocity_estimate = (translation_delta / time_delta);
+    std::cout << "delta vi: " << imu_measurements_->deltaVij() << std::endl;
+
+    // v_k = (p_k+1 - p_k)/t - 1/2 a_k t (a bit shady: is deltaVij really a_k t?)
+    // gtsam::Vector3 velocity_estimate = (translation_delta / time_delta) - 0.5 * imu_measurements_->deltaVij();
+    gtsam::Vector3 velocity_estimate = gtsam::Vector3(0.0001, 0.0001, 0.0001);
+
+    imu_measurements_->resetIntegration();
+
     velocity_estimates.push_back(velocity_estimate);
     std::cout << "v" << keyframe_transform.frame2->id << " = " << velocity_estimate << std::endl;
 
@@ -547,9 +583,6 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
        gtsam::Vector3::Constant(GlobalParams::PriorNoiseGyro()))
           .finished());
 
-  auto init_velocity = keyframe_transforms[0].frame1->stationary ? gtsam::Vector3(0.000001, 0.000002, 0.000001) :
-                                                                   velocity_estimates.front();  // assume v1 == v2
-
   graph_->addPrior(X(keyframe_transforms[0].frame1->id), *init_pose_, noise_x);
   graph_->addPrior(V(keyframe_transforms[0].frame1->id), init_velocity, noise_v);
   graph_->addPrior(B(keyframe_transforms[0].frame1->id), init_bias, noise_b);
@@ -565,6 +598,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   try
   {
     gtsam::LevenbergMarquardtOptimizer optimizer(*graph_, *values_);
+    std::cout << "Error before LM step: " << optimizer.error() << std::endl;
     *values_ = optimizer.optimize();
     std::cout << "Error after LM step: " << optimizer.error() << std::endl;
   }
@@ -575,6 +609,9 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     std::cout << e.what() << std::endl;
     throw e;
   }
+
+  GetPoseEstimates(pose_estimates);
+  GetLandmarkEstimates(landmark_estimates);
 
   try
   {
@@ -596,8 +633,8 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     throw e;
   }
 
-  GetPoseEstimates(pose_estimates);
-  GetLandmarkEstimates(landmark_estimates);
+  // GetPoseEstimates(pose_estimates);
+  // GetLandmarkEstimates(landmark_estimates);
 
   if (GlobalParams::SaveFactorGraphsToFile())
   {
@@ -606,6 +643,77 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
 
   graph_->resize(0);
   values_->clear();
+}
+
+void Smoother::RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate,
+                                     const gtsam::CombinedImuFactor& imu_factor)
+{
+  gtsam::NonlinearFactorGraph graph;
+  gtsam::Values values;
+
+  auto prior_noise_x = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.001), gtsam::Vector3::Constant(0.001)).finished());
+  auto prior_noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.001);
+  auto prior_noise_b = gtsam::noiseModel::Isotropic::Sigma(6, 0.001);
+
+  std::map<int, bool> existing_frame_ids_to_add;
+  int i = 0;
+  for (auto it = added_frame_timestamps_.rbegin(); it != added_frame_timestamps_.rend() && i < 4; ++it, ++i)
+  {
+    existing_frame_ids_to_add[it->first] = true;
+    auto pose = isam2->calculateEstimate<gtsam::Pose3>(X(it->first));
+    auto velocity = isam2->calculateEstimate<gtsam::Vector3>(V(it->first));
+    auto bias = isam2->calculateEstimate<gtsam::imuBias::ConstantBias>(B(it->first));
+
+    values.insert(X(it->first), pose);
+    values.insert(V(it->first), velocity);
+    values.insert(B(it->first), bias);
+
+    graph.addPrior(X(it->first), pose, prior_noise_x);
+    graph.addPrior(V(it->first), velocity, prior_noise_v);
+    graph.addPrior(B(it->first), bias, prior_noise_b);
+  }
+
+  values.insert(X(new_frame_id), navstate.pose());
+  values.insert(V(new_frame_id), navstate.velocity());
+  values.insert(B(new_frame_id), values.at<gtsam::imuBias::ConstantBias>(B(existing_frame_ids_to_add.rbegin()->first)));
+
+  graph.add(imu_factor);
+
+  // TODO: make class member
+  gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-5);
+
+  for (const auto& track : added_tracks_)
+  {
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
+    bool observed_in_new_frame = false;
+    for (auto it = track.second->features.rbegin();
+         it != track.second->features.rend() && (*it)->frame->id >= existing_frame_ids_to_add.cbegin()->first; ++it)
+    {
+      auto frame_id = (*it)->frame->id;
+      if (existing_frame_ids_to_add.count(frame_id) || frame_id == new_frame_id)
+      {
+        smart_factor->add(gtsam::Point2((*it)->pt.x, (*it)->pt.y), X(frame_id));
+      }
+      if (frame_id == new_frame_id)
+      {
+        observed_in_new_frame = true;
+      }
+    }
+    if (smart_factor->size() > 3 && observed_in_new_frame)
+    {
+      graph.add(smart_factor);
+    }
+  }
+
+  gtsam::LevenbergMarquardtParams params;
+  gtsam::LevenbergMarquardtOptimizer optimizer(graph, values);
+  std::cout << "Navstate refinement: Error before LM step: " << optimizer.error() << std::endl;
+  auto estimate = optimizer.optimize();
+  std::cout << "Navstate refinement: Error after LM step: " << optimizer.error() << std::endl;
+  navstate.print("Navstate before: ");
+  navstate = gtsam::NavState(estimate.at<gtsam::Pose3>(X(new_frame_id)), estimate.at<gtsam::Vector3>(V(new_frame_id)));
+  navstate.print("Navstate after refinement: ");
 }
 
 Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
@@ -699,12 +807,20 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     }
   }
 
+  gtsam::ISAM2UpdateParams params;
+
   DebugImagePublisher::PublishNewLandmarksImage(keyframe_transform.frame2->image, initialized_landmarks,
                                                 keyframe_transform.frame2->timestamp);
 
   std::cout << "Have " << smart_factors_.size() << " smart factors" << std::endl;
 
   WaitForAndIntegrateIMU(added_frame_timestamps_[last_frame_id_added_], keyframe_transform.frame2->timestamp);
+
+  auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
+  gtsam::CombinedImuFactor imu_factor(X(last_frame_id_added_), V(last_frame_id_added_),
+                                      X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
+                                      B(last_frame_id_added_), B(keyframe_transform.frame2->id), imu_combined);
+  graph_->add(imu_factor);
 
   // TODO all these can also be extracted
   auto prev_pose = prev_estimate.at<gtsam::Pose3>(X(last_frame_id_added_));
@@ -713,6 +829,8 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   // TODO end
 
   auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
+
+  RefineInitialNavstate(keyframe_transform.frame2->id, predicted_navstate, imu_factor);
 
   values_->insert(X(keyframe_transform.frame2->id), predicted_navstate.pose());
   values_->insert(V(keyframe_transform.frame2->id), predicted_navstate.velocity());
@@ -752,12 +870,6 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
               << imu_delta.velocity() << " -> " << predicted_navstate.velocity().transpose() << std::endl;
     std::cout << "--------------------" << std::endl;
   }
-
-  auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
-  gtsam::CombinedImuFactor imu_factor(X(last_frame_id_added_), V(last_frame_id_added_),
-                                      X(keyframe_transform.frame2->id), V(keyframe_transform.frame2->id),
-                                      B(last_frame_id_added_), B(keyframe_transform.frame2->id), imu_combined);
-  graph_->add(imu_factor);
 
   std::cout << "Performing optimization" << std::endl;
   try
@@ -885,6 +997,7 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
   // TODO end
 
   auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
+  RefineInitialNavstate(frame->id, predicted_navstate, imu_factor);
 
   values_->insert(X(frame->id), predicted_navstate.pose());
   values_->insert(V(frame->id), predicted_navstate.velocity());

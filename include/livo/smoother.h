@@ -22,6 +22,8 @@ class NonlinearFactorGraph;
 class Values;
 class Marginals;
 class Pose3;
+class NavState;
+class CombinedImuFactor;
 
 namespace noiseModel
 {
@@ -78,6 +80,7 @@ private:
   void PublishNewReprojectionErrorImage(const gtsam::Values& values, const shared_ptr<Frame>& frame);
   void UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params);
   std::shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator();
+  void RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate, const gtsam::CombinedImuFactor& imu_factor);
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
