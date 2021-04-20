@@ -22,6 +22,7 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/nonlinear/Marginals.h>
+#include <gtsam/base/types.h>
 #include <thread>
 #include <chrono>
 #include <gtsam/sam/RangeFactor.h>
@@ -590,8 +591,12 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
   values_->insert(V(keyframe_transforms[0].frame1->id), init_velocity);
   values_->insert(B(keyframe_transforms[0].frame1->id), init_bias);
 
+  std::map<gtsam::FactorIndex, int> new_factor_to_track_id;
+
   for (const auto& smart_factor_pair : smart_factors_)
   {
+    // Use graph->size() as index so will correspond to ISAM2Result::newFactorIndices
+    new_factor_to_track_id[graph_->size()] = smart_factor_pair.first;
     graph_->add(smart_factor_pair.second);
   }
 
@@ -624,6 +629,11 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
     }
     DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
     DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+
+    for (const auto& factor_track_pair : new_factor_to_track_id)
+    {
+      track_id_to_factor_index_[factor_track_pair.second] = isam_result.newFactorsIndices.at(factor_track_pair.first);
+    }
   }
   catch (exception& e)
   {
@@ -725,6 +735,8 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
 
   auto prev_estimate = isam2->calculateEstimate();
 
+  gtsam::FastMap<gtsam::FactorIndex, gtsam::KeySet> factor_new_affected_keys;
+  std::map<gtsam::FactorIndex, int> new_factor_to_track_id;
   std::vector<std::vector<cv::Point2f>> initialized_landmarks;
   for (auto& track : tracks)
   {
@@ -759,6 +771,8 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
         smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
         new_feature->in_smoother = true;
       }
+      auto factor_idx = track_id_to_factor_index_.at(track->id);
+      factor_new_affected_keys[factor_idx].insert(X(new_feature->frame->id));
     }
     else
     {
@@ -796,12 +810,12 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           smart_factors_[track->id] = smart_factor;
           added_tracks_[track->id] = track;
           graph_->add(smart_factor);
-          smart_factor->printKeys();
           initialized_landmarks.push_back(added_feature_points);
           for (auto& feature : added_features)
           {
             feature->in_smoother = true;
           }
+          new_factor_to_track_id[graph_->size()] = track->id;
         }
       }
     }
@@ -874,7 +888,11 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   std::cout << "Performing optimization" << std::endl;
   try
   {
-    auto isam_result = isam2->update(*graph_, *values_);
+    // Set newAffectedKeys to notify isam about which new keys existing smart factors are now affecting
+    gtsam::ISAM2UpdateParams update_params;
+    update_params.newAffectedKeys = std::move(factor_new_affected_keys);
+
+    auto isam_result = isam2->update(*graph_, *values_, update_params);
     isam_result.print("isam result: ");
     if (isam_result.errorBefore && isam_result.errorAfter)
     {
@@ -883,6 +901,11 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     }
     DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
     DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+
+    for (const auto& factor_track_pair : new_factor_to_track_id)
+    {
+      track_id_to_factor_index_[factor_track_pair.second] = isam_result.newFactorsIndices.at(factor_track_pair.first);
+    }
   }
   catch (exception& e)
   {
@@ -950,6 +973,7 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
 
   auto prev_estimate = isam2->calculateEstimate();
 
+  gtsam::FastMap<gtsam::FactorIndex, gtsam::KeySet> factor_new_affected_keys;
   std::vector<std::vector<cv::Point2f>> initialized_landmarks;
   for (auto& track : tracks)
   {
@@ -980,6 +1004,8 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
         smart_factors_[track->id]->add(gtsam::Point2(new_feature->pt.x, new_feature->pt.y), X(new_feature->frame->id));
         new_feature->in_smoother = true;
       }
+      auto factor_idx = track_id_to_factor_index_.at(track->id);
+      factor_new_affected_keys[factor_idx].insert(X(new_feature->frame->id));
     }
   }
 
@@ -1006,7 +1032,11 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
   std::cout << "Performing optimization" << std::endl;
   try
   {
-    auto isam_result = isam2->update(*graph_, *values_);
+    // Set newAffectedKeys to notify isam about which new keys existing smart factors are now affecting
+    gtsam::ISAM2UpdateParams update_params;
+    update_params.newAffectedKeys = std::move(factor_new_affected_keys);
+
+    auto isam_result = isam2->update(*graph_, *values_, update_params);
     isam_result.print("isam result: ");
     if (isam_result.errorBefore && isam_result.errorAfter)
     {

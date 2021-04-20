@@ -24,6 +24,7 @@ class Marginals;
 class Pose3;
 class NavState;
 class CombinedImuFactor;
+typedef std::uint64_t FactorIndex;
 
 namespace noiseModel
 {
@@ -69,6 +70,7 @@ private:
   std::map<int, double> added_frame_timestamps_;  // Map for looking up timestamps of frames added to the optimization
   std::map<int, std::shared_ptr<Track>> added_tracks_;
   std::shared_ptr<gtsam::Pose3> init_pose_;
+  std::map<int, gtsam::FactorIndex> track_id_to_factor_index_;
 
   int last_frame_id_added_ = -1;
   std::shared_ptr<IMUQueue> imu_queue_;
@@ -103,6 +105,7 @@ public:
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
   void RemoveBadLandmarks();
+  void RefineInitialNavstate(int new_frame_id, const vector<Track>& new_tracks);
 };
 
 #endif
