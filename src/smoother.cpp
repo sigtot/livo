@@ -298,14 +298,8 @@ void Smoother::InitializeLandmarks(
     }
 
     // The second prior is already added as a shared pointer in the graph, we update the pointer value here.
-    /*
     *second_prior = gtsam::PriorFactor<gtsam::Pose3>(X(scaled_poses.back().first), scaled_poses.back().second,
                                                      noise_x_second_prior);
-                                                     */
-
-    *second_prior = gtsam::PriorFactor<gtsam::Pose3>(
-        X(scaled_poses.back().first), ToGtsamPose(GroundTruth::At(keyframe_transforms.back().frame2->timestamp)),
-        noise_x_second_prior);
 
     for (auto it = keyframe_transforms.begin(); it != keyframe_transforms.end() - 1; ++it)
     {
