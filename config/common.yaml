@@ -38,6 +38,7 @@ body_p_imu_quat: [0, 0, 0, 1]
 body_p_imu_vec: [0, 0, 0]
 
 do_initial_gravity_alignment: false
+dynamic_outlier_rejection_threshold: 8.0
 
 feature_extraction_interval: 20
 track_count_lower_thresh: 50

@@ -263,8 +263,6 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
 
     if (num_high_motion > GlobalParams::NumHighParallaxPointsForKeyframe())
     {
-      std::cout << "R_H = " << R_H << std::endl;
-      std::cout << "#points: " << points1.size() << std::endl;
       int inlier_count = 0;
       int outlier_count = 0;
       for (const auto& inlier : inlier_mask)

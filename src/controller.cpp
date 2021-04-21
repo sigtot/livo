@@ -23,10 +23,6 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend_.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
-  if (frontend_.ReadyForInitialization())
-  {
-    std::cout << "R_H good. Ready for initialization!" << std::endl;
-  }
   /*
 
   if (!imu_ground_truth_smoother_.IsInitialized() && !frontend_.GetKeyframeTransforms().empty())
@@ -92,7 +88,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
-  else if (backend_.GetStatus() == kLandmarksInitialized)
+  else if (backend_.GetStatus() == kLandmarksInitialized && false)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;

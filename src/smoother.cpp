@@ -41,7 +41,7 @@ gtsam::ISAM2Params MakeIsam2Params()
   if (GlobalParams::UseDogLeg())
   {
     params.optimizationParams =
-        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::ONE_STEP_PER_ITERATION, true);
+        gtsam::ISAM2DoglegParams(1.0, 1e-05, gtsam::DoglegOptimizerImpl::ONE_STEP_PER_ITERATION, false);
   }
   else
   {
@@ -211,6 +211,7 @@ void Smoother::InitializeLandmarks(
 
   gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
                                                             1e-5);
+  init_smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(
@@ -721,9 +722,7 @@ void Smoother::RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate
   std::cout << "Navstate refinement: Error before LM step: " << optimizer.error() << std::endl;
   auto estimate = optimizer.optimize();
   std::cout << "Navstate refinement: Error after LM step: " << optimizer.error() << std::endl;
-  navstate.print("Navstate before: ");
   navstate = gtsam::NavState(estimate.at<gtsam::Pose3>(X(new_frame_id)), estimate.at<gtsam::Vector3>(V(new_frame_id)));
-  navstate.print("Navstate after refinement: ");
 }
 
 Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
@@ -778,6 +777,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     {
       gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
                                                            1e-5);
+      smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
       SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
       std::vector<cv::Point2f> added_feature_points = { new_feature->pt };
@@ -844,46 +844,13 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
 
   auto predicted_navstate = imu_measurements_->predict(gtsam::NavState(prev_pose, prev_velocity), prev_bias);
 
+  predicted_navstate.print("navstate before: ");
   RefineInitialNavstate(keyframe_transform.frame2->id, predicted_navstate, imu_factor);
+  predicted_navstate.print("navstate after: ");
 
   values_->insert(X(keyframe_transform.frame2->id), predicted_navstate.pose());
   values_->insert(V(keyframe_transform.frame2->id), predicted_navstate.velocity());
   values_->insert(B(keyframe_transform.frame2->id), prev_bias);
-
-  if (keyframe_transform.Valid())
-  {
-    auto imu_delta = imu_measurements_->deltaXij();  // body_P_sensor is accounted for in integration
-
-    auto R_mat = ToMatrix3(*keyframe_transform.GetRotation());
-    auto t = *keyframe_transform.GetTranslation();
-    gtsam::Unit3 t_unit_cam_frame(t[0], t[1], t[2]);
-    gtsam::Rot3 R_cam_frame(R_mat);
-
-    gtsam::Unit3 t_i(*body_p_cam_ * t_unit_cam_frame.point3());
-    gtsam::Rot3 R_i(body_p_cam_->rotation() * R_cam_frame * body_p_cam_->rotation().inverse());
-    gtsam::Pose3 X_i = gtsam::Pose3(R_i, t_i.point3());
-
-    auto imu_delta_t_length = imu_delta.pose().translation().norm();
-
-    std::cout << "----- Rotation: ----" << std::endl;
-    std::cout << "Prev: " << prev_pose.rotation().ypr().transpose() << std::endl;
-    std::cout << "IMU pred: " << predicted_navstate.pose().rotation().ypr().transpose() << std::endl;
-    std::cout << "IMU delta: " << imu_delta.pose().rotation().toQuaternion().coeffs().transpose() << std::endl;
-    std::cout << "SfM delta: " << X_i.rotation().toQuaternion().coeffs().transpose() << std::endl;
-    std::cout << "--------------------" << std::endl;
-
-    std::cout << "--- Translation: ---" << std::endl;
-    std::cout << "Prev: " << prev_pose.translation().transpose() << std::endl;
-    std::cout << "IMU pred: " << predicted_navstate.pose().translation().transpose() << std::endl;
-    std::cout << "IMU delta: " << imu_delta.pose().translation().transpose() << std::endl;
-    std::cout << "SfM delta: " << (imu_delta_t_length * X_i.translation()).transpose() << std::endl;
-    std::cout << "--------------------" << std::endl;
-
-    std::cout << "----- Velocity: ----" << std::endl;
-    std::cout << "prev -> IMU delta v -> IMU navstate v: " << prev_velocity.transpose() << " -> "
-              << imu_delta.velocity() << " -> " << predicted_navstate.velocity().transpose() << std::endl;
-    std::cout << "--------------------" << std::endl;
-  }
 
   std::cout << "Performing optimization" << std::endl;
   try
@@ -891,6 +858,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     // Set newAffectedKeys to notify isam about which new keys existing smart factors are now affecting
     gtsam::ISAM2UpdateParams update_params;
     update_params.newAffectedKeys = std::move(factor_new_affected_keys);
+    update_params.forceFullSolve = true; // TODO remove
 
     auto isam_result = isam2->update(*graph_, *values_, update_params);
     isam_result.print("isam result: ");

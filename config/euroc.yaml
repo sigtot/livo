@@ -36,6 +36,7 @@ body_p_imu_quat: [ -0.7071068, 0.0, -0.7071068, 0.0 ]
 body_p_imu_vec: [ 0.0, 0.0, 0.0 ]
 
 do_initial_gravity_alignment: true
+dynamic_outlier_rejection_threshold: 8.0
 
 noise_params:
   prior_X_yaw: 0.001
