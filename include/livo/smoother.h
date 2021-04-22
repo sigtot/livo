@@ -18,6 +18,7 @@ namespace gtsam
 {
 class Cal3_S2;
 class ISAM2;
+class ISAM2Result;
 class NonlinearFactorGraph;
 class Values;
 class Marginals;
@@ -86,6 +87,8 @@ private:
   void RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate, const gtsam::CombinedImuFactor& imu_factor);
   void RemoveTrack(int track_id);
   void BlacklistTrack(int track_id);
+  void GetDegenerateLandmarks(std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>>& degenerate_landmarks) const;
+  void HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values);
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
@@ -107,7 +110,6 @@ public:
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
-  void GetDegenerateLandmarks(std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>>& degenerate_landmarks) const;
   void RefineInitialNavstate(int new_frame_id, const vector<Track>& new_tracks);
 };
 
