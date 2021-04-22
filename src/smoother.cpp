@@ -262,12 +262,9 @@ void Smoother::InitializeLandmarks(
   if (GlobalParams::InitRangeFactorLength() > 0)
   {
     auto pose_delta_range = poses[0].inverse().compose(poses.back()).translation().norm();
-    auto gt_range = ToGtsamPose(GroundTruth::At(keyframe_transforms[0].frame1->timestamp))
-                        .between(ToGtsamPose(GroundTruth::At(keyframe_transforms.back().frame2->timestamp)))
-                        .translation()
-                        .norm();
-    double scale_ratio = gt_range / pose_delta_range;
-    std::cout << "Gt range: " << gt_range << " old range: " << pose_delta_range << " scale_ratio: " << scale_ratio
+    auto range = GlobalParams::InitRangeFactorLength();
+    double scale_ratio = range / pose_delta_range;
+    std::cout << "Gt range: " << range << " old range: " << pose_delta_range << " scale_ratio: " << scale_ratio
               << std::endl;
     auto frame_it = added_frame_timestamps_.begin();
     std::vector<std::pair<std::pair<int, int>, gtsam::Pose3>> scaled_between_poses;
@@ -300,11 +297,6 @@ void Smoother::InitializeLandmarks(
     // The second prior is already added as a shared pointer in the graph, we update the pointer value here.
     *second_prior = gtsam::PriorFactor<gtsam::Pose3>(X(scaled_poses.back().first), scaled_poses.back().second,
                                                      noise_x_second_prior);
-
-    for (auto it = keyframe_transforms.begin(); it != keyframe_transforms.end() - 1; ++it)
-    {
-      graph_->addPrior(X(it->frame2->id), ToGtsamPose(GroundTruth::At(it->frame2->timestamp)), noise_x_second_prior);
-    }
 
     try
     {
