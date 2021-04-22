@@ -88,7 +88,7 @@ private:
   void RemoveTrack(int track_id);
   void BlacklistTrack(int track_id);
   void GetDegenerateLandmarks(std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>>& degenerate_landmarks) const;
-  void HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values);
+  void HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values, gtsam::ISAM2Result& isam_result);
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);

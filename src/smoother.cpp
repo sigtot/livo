@@ -694,12 +694,28 @@ void Smoother::RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate
   navstate = gtsam::NavState(estimate.at<gtsam::Pose3>(X(new_frame_id)), estimate.at<gtsam::Vector3>(V(new_frame_id)));
 }
 
-void Smoother::HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values)
+void Smoother::HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values, gtsam::ISAM2Result& isam_result)
 {
   std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>> degenerate_smart_factors;
   std::set<int> factors_marked_for_removal;
   GetDegenerateLandmarks(degenerate_smart_factors);
   std::cout << "Have " << degenerate_smart_factors.size() << " degenerate smart factors" << std::endl;
+  // First, try the optimization again with full solve
+  if (!degenerate_smart_factors.empty())
+  {
+    gtsam::ISAM2UpdateParams params;
+    params.forceFullSolve = true;
+    auto result = isam2->update(gtsam::NonlinearFactorGraph(), gtsam::Values(), params);
+    if (result.errorBefore && result.errorAfter)
+    {
+      std::cout << "error before after: " << *result.errorBefore << " -> " << *result.errorAfter << std::endl;
+    }
+    degenerate_smart_factors.clear();
+    GetDegenerateLandmarks(degenerate_smart_factors);
+    std::cout << "Have " << degenerate_smart_factors.size() << " degenerate smart factors after update" << std::endl;
+  }
+
+
   if (!degenerate_smart_factors.empty())
   {
     for (const auto& degenerate_factor : degenerate_smart_factors)
@@ -730,7 +746,7 @@ void Smoother::HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values
       smart_factors_[degenerate_factor.first] = gtsam::make_shared<SmartFactor>(new_smart_factor);
     }
 
-    isam2->update();
+    isam_result = isam2->update();
     values = isam2->calculateEstimate();
 
     std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>> degenerate_smart_factors_post_update;
@@ -823,7 +839,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           added_features.push_back(feature);
         }
       }
-      if (smart_factor->size() >= 7)
+      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
       {
         auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
         if (triangulationResult.valid())
@@ -886,7 +902,6 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   // Set newAffectedKeys to notify isam about which new keys existing smart factors are now affecting
   gtsam::ISAM2UpdateParams update_params;
   update_params.newAffectedKeys = std::move(factor_new_affected_keys);
-  update_params.forceFullSolve = true;  // TODO remove
 
   auto isam_result = isam2->update(*graph_, *values_, update_params);
   isam_result.print("isam result: ");
@@ -905,10 +920,17 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
      */
     DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
   }
-  HandleDegenerateLandmarks(keyframe_transform.frame2->id, new_estimate);
   DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
   DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
   DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+
+  gtsam::ISAM2Result new_isam_result;
+  HandleDegenerateLandmarks(keyframe_transform.frame2->id, new_estimate, new_isam_result);
+  if (new_isam_result.errorBefore && new_isam_result.errorAfter)
+  {
+    std::cout << "error before after: " << *new_isam_result.errorBefore << " -> " << *new_isam_result.errorAfter
+              << std::endl;
+  }
 
   for (const auto& factor_track_pair : new_factor_to_track_id)
   {
@@ -1048,10 +1070,17 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
       isam2->update(gtsam::NonlinearFactorGraph(), gtsam::Values(), new_update_params);
     }
   }
-  HandleDegenerateLandmarks(frame->id, new_estimate);
   DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
   DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
   DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+
+  gtsam::ISAM2Result new_isam_result;
+  HandleDegenerateLandmarks(frame->id, new_estimate, new_isam_result);
+  if (new_isam_result.errorBefore && new_isam_result.errorAfter)
+  {
+    std::cout << "error before after: " << *new_isam_result.errorBefore << " -> " << *new_isam_result.errorAfter
+              << std::endl;
+  }
   std::cout << "Optimization done" << std::endl;
 
   last_frame_id_added_ = frame->id;
