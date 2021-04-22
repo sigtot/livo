@@ -71,6 +71,7 @@ private:
   std::map<int, std::shared_ptr<Track>> added_tracks_;
   std::shared_ptr<gtsam::Pose3> init_pose_;
   std::map<int, gtsam::FactorIndex> track_id_to_factor_index_;
+  std::map<int, std::shared_ptr<Track>> blacklisted_tracks_;  // New features from these tracks will not be added
 
   int last_frame_id_added_ = -1;
   std::shared_ptr<IMUQueue> imu_queue_;
@@ -83,6 +84,8 @@ private:
   void UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params);
   std::shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator();
   void RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate, const gtsam::CombinedImuFactor& imu_factor);
+  void RemoveTrack(int track_id);
+  void BlacklistTrack(int track_id);
 
 public:
   explicit Smoother(std::shared_ptr<IMUQueue> imu_queue);
@@ -104,7 +107,7 @@ public:
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
-  void RemoveBadLandmarks();
+  void GetDegenerateLandmarks(std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>>& degenerate_landmarks) const;
   void RefineInitialNavstate(int new_frame_id, const vector<Track>& new_tracks);
 };
 

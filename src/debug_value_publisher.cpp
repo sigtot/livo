@@ -12,6 +12,7 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
 {
   GetInstance().nonlinear_error_pub_ = nh.advertise<std_msgs::Float64>("/nonlinear_error", 1000);
   GetInstance().relinearized_cliques_pub_ = nh.advertise<std_msgs::Int32>("/relinearized_cliques", 1000);
+  GetInstance().reeliminated_cliques_pub_ = nh.advertise<std_msgs::Int32>("/reeliminated_cliques", 1000);
   GetInstance().total_cliques_pub_ = nh.advertise<std_msgs::Int32>("/total_cliques", 1000);
 
   GetInstance().bias_acc_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_x", 1000);
@@ -35,6 +36,11 @@ void DebugValuePublisher::PublishNonlinearError(double nonlinear_error)
 void DebugValuePublisher::PublishRelinearizedCliques(int relinearized_cliques)
 {
   DebugValuePublisher::PublishIntValue(relinearized_cliques, GetInstance().relinearized_cliques_pub_);
+}
+
+void DebugValuePublisher::PublishReeliminatedCliques(int reeliminated_cliques)
+{
+  DebugValuePublisher::PublishIntValue(reeliminated_cliques, GetInstance().reeliminated_cliques_pub_);
 }
 
 void DebugValuePublisher::PublishTotalCliques(int total_cliques)

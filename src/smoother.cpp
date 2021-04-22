@@ -209,7 +209,7 @@ void Smoother::InitializeLandmarks(
                                                                            poses.back(), noise_x_second_prior);
   graph_->add(second_prior);
 
-  gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
+  gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true,
                                                             1e-5);
   init_smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
   for (auto& track : tracks)
@@ -431,42 +431,16 @@ void Smoother::GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates)
   }
 }
 
-void Smoother::RemoveBadLandmarks()
+void Smoother::GetDegenerateLandmarks(
+    std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>>& degenerate_landmarks) const
 {
-  auto values = isam2->empty() ? *values_ : isam2->calculateEstimate();
-  for (auto it = smart_factors_.cbegin(); it != smart_factors_.cend();)
+  for (const auto & it : smart_factors_)
   {
-    auto smart_factor = it->second;
-    if (smart_factor->isValid())
+    auto smart_factor = it.second;
+    if (!smart_factor->isValid())
     {
-      gtsam::Matrix E;
-      bool worked = smart_factor->triangulateAndComputeE(E, values);
-      if (worked)
-      {
-        auto P = smart_factor->PointCov(E);
-        if (P.norm() > 5)
-        {
-          std::cout << "Removing landmark with large P norm " << P.norm() << ")" << std::endl;
-          smart_factor.reset();
-          added_tracks_.erase(it->first);
-          smart_factors_.erase(it++);
-          for (auto& feature : added_tracks_[it->first]->features)
-          {
-            feature->in_smoother = false;
-          }
-          continue;
-        }
-      }
-      else
-      {
-        std::cout << "Triangulation failed for landmark " << it->first << ". Removing it." << std::endl;
-        smart_factor.reset();
-        added_tracks_.erase(it->first);
-        smart_factors_.erase(it++);
-        continue;
-      }
+      degenerate_landmarks.emplace_back(it.first, it.second);
     }
-    ++it;
   }
 }
 
@@ -623,6 +597,7 @@ void Smoother::InitializeIMU(const std::vector<KeyframeTransform>& keyframe_tran
       DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
     DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
     DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
 
     for (const auto& factor_track_pair : new_factor_to_track_id)
@@ -686,7 +661,7 @@ void Smoother::RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate
   graph.add(imu_factor);
 
   // TODO: make class member
-  gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-5);
+  gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
 
   for (const auto& track : added_tracks_)
   {
@@ -739,7 +714,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           return f->frame->id == keyframe_transform.frame2->id;
         });
 
-    if (smart_factors_.count(track->id))
+    if (smart_factors_.count(track->id) && !blacklisted_tracks_.count(track->id))
     {
       assert(new_feature->frame->id == keyframe_transform.frame2->id);
       if (GlobalParams::UseDogLeg())
@@ -769,7 +744,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     }
     else
     {
-      gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true,
+      gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true,
                                                            1e-5);
       smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
@@ -786,7 +761,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           added_features.push_back(feature);
         }
       }
-      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
+      if (smart_factor->size() >= 7)
       {
         auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
         if (triangulationResult.valid())
@@ -814,8 +789,6 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
       }
     }
   }
-
-  gtsam::ISAM2UpdateParams params;
 
   DebugImagePublisher::PublishNewLandmarksImage(keyframe_transform.frame2->image, initialized_landmarks,
                                                 keyframe_transform.frame2->timestamp);
@@ -847,21 +820,118 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   values_->insert(B(keyframe_transform.frame2->id), prev_bias);
 
   std::cout << "Performing optimization" << std::endl;
+  gtsam::Values new_estimate;
   try
   {
     // Set newAffectedKeys to notify isam about which new keys existing smart factors are now affecting
     gtsam::ISAM2UpdateParams update_params;
     update_params.newAffectedKeys = std::move(factor_new_affected_keys);
-    update_params.forceFullSolve = true; // TODO remove
+    update_params.forceFullSolve = true;  // TODO remove
 
     auto isam_result = isam2->update(*graph_, *values_, update_params);
     isam_result.print("isam result: ");
+    new_estimate = isam2->calculateEstimate();
     if (isam_result.errorBefore && isam_result.errorAfter)
     {
       std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
+      /*
+      if (isam_result.errorAfter > isam_result.errorBefore)
+      {
+        std::cout << "WARN: Error increased during ISAM update. Will re-do update with forceFullSolve on " << std::endl;
+        gtsam::ISAM2UpdateParams new_update_params;
+        new_update_params.forceFullSolve = true;
+        isam2->update(gtsam::NonlinearFactorGraph(), gtsam::Values(), new_update_params);
+      }
+       */
       DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
     }
+
+    std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>> degenerate_smart_factors;
+    std::set<int> factors_marked_for_removal;
+    GetDegenerateLandmarks(degenerate_smart_factors);
+    std::cout << "Have " << degenerate_smart_factors.size() << " degenerate smart factors" << std::endl;
+    if (!degenerate_smart_factors.empty())
+    {
+      for (const auto &f : degenerate_smart_factors)
+      {
+        std::cout << "track " << f.first << std::endl;
+        auto reproj_errors = f.second->reprojectionErrorAfterTriangulation(new_estimate);
+        for (int i = 0; i < f.second->size(); ++i)
+        {
+          auto reproj_error_x = static_cast<double>(reproj_errors(2 * i, 0));
+          auto reproj_error_y = static_cast<double>(reproj_errors(2 * i + 1, 0));
+          auto reproj_error = std::sqrt(std::pow(reproj_error_x, 2) + std::pow(reproj_error_y, 2));
+          std::cout << reproj_error << std::endl;
+        }
+      }
+      for (const auto& degenerate_factor : degenerate_smart_factors)
+      {
+        if (degenerate_factor.second->size() <= GlobalParams::MinTrackLengthForSmoothing())
+        {
+          factors_marked_for_removal.insert(degenerate_factor.first);
+          continue;
+        }
+        gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true,
+                                                             1e-5);
+        smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
+        SmartFactor new_smart_factor(feature_noise_, K_, *body_p_cam_, smart_projection_params);
+        for (const auto& feature : added_tracks_[degenerate_factor.first]->features)
+        {
+          // We recreate the factor with all features except the latest, in hopes that the it triggered the degeneracy
+          if (feature->frame->id == keyframe_transform.frame2->id)
+          {
+            feature->in_smoother = false;
+            continue;
+          }
+          if (added_frame_timestamps_.count(feature->frame->id))
+          {
+            new_smart_factor.add(gtsam::Point2(feature->pt.x, feature->pt.y), X(feature->frame->id));
+          }
+        }
+        new_smart_factor.triangulateForLinearize(new_smart_factor.cameras(new_estimate));
+        smart_factors_[degenerate_factor.first].reset();
+        smart_factors_[degenerate_factor.first] = gtsam::make_shared<SmartFactor>(new_smart_factor);
+      }
+
+      isam2->update();
+      new_estimate = isam2->calculateEstimate();
+
+      std::vector<std::pair<int, boost::shared_ptr<SmartFactor>>> degenerate_smart_factors_post_update;
+      GetDegenerateLandmarks(degenerate_smart_factors_post_update);
+      std::cout << "Have " << degenerate_smart_factors_post_update.size()
+                << " degenerate smart factors after removing newest observations" << std::endl;
+      for (const auto &f : degenerate_smart_factors_post_update)
+      {
+        std::cout << "track " << f.first << std::endl;
+        auto reproj_errors = f.second->reprojectionErrorAfterTriangulation(new_estimate);
+        for (int i = 0; i < f.second->size(); ++i)
+        {
+          auto reproj_error_x = static_cast<double>(reproj_errors(2 * i, 0));
+          auto reproj_error_y = static_cast<double>(reproj_errors(2 * i + 1, 0));
+          auto reproj_error = std::sqrt(std::pow(reproj_error_x, 2) + std::pow(reproj_error_y, 2));
+          std::cout << reproj_error << std::endl;
+        }
+      }
+
+      // factors_marked_for_removal already contain the too-short tracks at this point: also add the still-degenerate
+      for (const auto &degenerate_factor : degenerate_smart_factors_post_update)
+      {
+        factors_marked_for_removal.insert(degenerate_factor.first);
+      }
+
+      for (const auto &factor : degenerate_smart_factors)
+      {
+        BlacklistTrack(factor.first);
+      }
+
+      for (const auto track_id : factors_marked_for_removal)
+      {
+        BlacklistTrack(track_id);
+        RemoveTrack(track_id);
+      }
+    }
     DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
     DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
 
     for (const auto& factor_track_pair : new_factor_to_track_id)
@@ -877,11 +947,9 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
   }
   std::cout << "Optimization done" << std::endl;
 
-  auto new_estimate = isam2->calculateEstimate();
   // PublishReprojectionErrorImages();
   PublishNewReprojectionErrorImage(new_estimate, keyframe_transform.frame2);
 
-  // RemoveBadLandmarks();
   GetPoseEstimates(pose_estimates);
   GetLandmarkEstimates(landmark_estimates);
 
@@ -941,7 +1009,7 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
   {
     auto new_feature = track->features.back();
 
-    if (smart_factors_.count(track->id))
+    if (smart_factors_.count(track->id) && !blacklisted_tracks_.count(track->id))
     {
       assert(new_feature->frame->id == frame->id);
       if (GlobalParams::UseDogLeg())
@@ -1004,8 +1072,16 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
     {
       std::cout << "error before after: " << *isam_result.errorBefore << " -> " << *isam_result.errorAfter << std::endl;
       DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+      if (isam_result.errorAfter > isam_result.errorBefore)
+      {
+        std::cout << "WARN: Error increased during ISAM update. Will re-do update with forceFullSolve on " << std::endl;
+        gtsam::ISAM2UpdateParams new_update_params;
+        new_update_params.forceFullSolve = true;
+        isam2->update(gtsam::NonlinearFactorGraph(), gtsam::Values(), new_update_params);
+      }
     }
     DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+    DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
     DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   }
   catch (exception& e)
@@ -1036,6 +1112,26 @@ Pose3Stamped Smoother::AddFrame(const std::shared_ptr<Frame>& frame, const std::
   values_->clear();
 
   return Pose3Stamped{ .pose = ToPose(new_pose), .stamp = frame->timestamp };
+}
+
+void Smoother::RemoveTrack(int track_id)
+{
+  for (auto & feature : added_tracks_[track_id]->features)
+  {
+    feature->in_smoother = false;
+  }
+  added_tracks_.erase(track_id);
+  smart_factors_[track_id].reset();
+  smart_factors_.erase(track_id);
+  track_id_to_factor_index_.erase(track_id);
+}
+
+void Smoother::BlacklistTrack(int track_id)
+{
+  if (!blacklisted_tracks_.count(track_id))
+  {
+    blacklisted_tracks_[track_id] = added_tracks_[track_id];
+  }
 }
 
 void Smoother::WaitForAndIntegrateIMU(double timestamp1, double timestamp2)
