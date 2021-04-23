@@ -49,8 +49,8 @@ typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 enum BackendStatus
 {
   kUninitialized = 0,
-  kIMUInitialized,
   kLandmarksInitialized,
+  kNominal
 };
 
 class Smoother
@@ -77,7 +77,7 @@ private:
   int last_frame_id_added_ = -1;
   std::shared_ptr<IMUQueue> imu_queue_;
   std::shared_ptr<gtsam::PreintegrationType> imu_measurements_;
-  BackendStatus status_ = kUninitialized;
+  bool initialized_ = false;
 
   void WaitForAndIntegrateIMU(double timestamp1, double timestamp2);
   void PublishReprojectionErrorImages();

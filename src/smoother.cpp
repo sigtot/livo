@@ -327,7 +327,7 @@ void Smoother::InitializeLandmarks(
     SaveGraphToFile("/tmp/landmarks-graph.dot", *graph_, *values_);
   }
 
-  status_ = kLandmarksInitialized;
+  initialized_ = true;
 }
 
 void Smoother::PublishReprojectionErrorImages()
@@ -707,7 +707,6 @@ void Smoother::HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values
     std::cout << "Have " << degenerate_smart_factors.size() << " degenerate smart factors after update" << std::endl;
   }
 
-
   if (!degenerate_smart_factors.empty())
   {
     for (const auto& degenerate_factor : degenerate_smart_factors)
@@ -831,7 +830,7 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
           added_features.push_back(feature);
         }
       }
-      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing())
+      if (smart_factor->size() >= GlobalParams::MinTrackLengthForSmoothing() && smart_factor->size() <= 25)
       {
         auto triangulationResult = smart_factor->triangulateSafe(smart_factor->cameras(prev_estimate));
         if (triangulationResult.valid())
@@ -1133,5 +1132,19 @@ int Smoother::GetLastFrameId() const
 
 BackendStatus Smoother::GetStatus()
 {
-  return status_;
+  if (initialized_)
+  {
+    if (added_frame_timestamps_.size() > GlobalParams::MinKeyframesForNominal())
+    {
+      return kNominal;
+    }
+    else
+    {
+      return kLandmarksInitialized;
+    }
+  }
+  else
+  {
+    return kUninitialized;
+  }
 }

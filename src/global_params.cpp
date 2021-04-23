@@ -84,6 +84,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/isam_relinearize_thresh", GetInstance().isam_relinearize_thresh_);
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
+  ReadVariable(nh, "/orb_test_node/min_keyframes_for_nominal", GetInstance().min_keyframes_for_nominal_);
 
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_yaw", GetInstance().prior_noise_X_yaw_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_roll_pitch", GetInstance().prior_noise_X_roll_pitch_);
@@ -340,6 +341,10 @@ double GlobalParams::InitRangeFactorLength()
 bool GlobalParams::UseDogLeg()
 {
   return GetInstance().use_dogleg_;
+}
+int GlobalParams::MinKeyframesForNominal()
+{
+  return GetInstance().min_keyframes_for_nominal_;
 }
 double GlobalParams::PriorNoiseXYaw()
 {

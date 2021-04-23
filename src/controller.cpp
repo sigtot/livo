@@ -49,7 +49,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
    */
 
-  if (backend_.GetStatus() != kLandmarksInitialized && frontend_.ReadyForInitialization())
+  if (backend_.GetStatus() == kUninitialized && frontend_.ReadyForInitialization())
   {
     {
       std::vector<Pose3Stamped> pose_estimates;
@@ -78,7 +78,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       PublishLandmarks(landmark_estimates, new_frame->timestamp);
     }
   }
-  else if (backend_.GetStatus() == kLandmarksInitialized &&
+  else if (backend_.GetStatus() != kUninitialized &&
            frontend_.GetNewestKeyframeTransform().frame2->id > backend_.GetLastFrameId())
   {
     std::vector<Pose3Stamped> pose_estimates;
@@ -88,7 +88,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
-  else if (backend_.GetStatus() == kLandmarksInitialized && false)
+  else if (backend_.GetStatus() == kNominal && false)
   {
     std::vector<Pose3Stamped> pose_estimates;
     std::map<int, Point3> landmark_estimates;
