@@ -98,7 +98,10 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
                                 GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]),
         gtsam::Point3(GlobalParams::BodyPImuVec()[0], GlobalParams::BodyPImuVec()[1], GlobalParams::BodyPImuVec()[2])))
   , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
+  , smart_factor_params_(
+        std::make_shared<gtsam::SmartProjectionParams>(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5))
 {
+  smart_factor_params_->setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
 }
 
 void Smoother::UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params)
@@ -209,13 +212,10 @@ void Smoother::InitializeLandmarks(
                                                                            poses.back(), noise_x_second_prior);
   graph_->add(second_prior);
 
-  gtsam::SmartProjectionParams init_smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true,
-                                                            1e-5);
-  init_smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
   for (auto& track : tracks)
   {
     SmartFactor::shared_ptr smart_factor(
-        new SmartFactor(feature_noise_, K_, *body_p_cam_, init_smart_projection_params));
+        new SmartFactor(feature_noise_, K_, *body_p_cam_, *smart_factor_params_));
     std::vector<std::shared_ptr<Feature>> added_features;
     for (auto& feature : track->features)
     {
@@ -652,7 +652,7 @@ void Smoother::RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate
 
   graph.add(imu_factor);
 
-  // TODO: make class member
+  // We don't set the dynamic outlier rejection threshold here, as this might wrongly flag some factors as outliers
   gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
 
   for (const auto& track : added_tracks_)
@@ -716,9 +716,7 @@ void Smoother::HandleDegenerateLandmarks(int new_frame_id, gtsam::Values& values
         factors_marked_for_removal.insert(degenerate_factor.first);
         continue;
       }
-      gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
-      smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
-      SmartFactor new_smart_factor(feature_noise_, K_, *body_p_cam_, smart_projection_params);
+      SmartFactor new_smart_factor(feature_noise_, K_, *body_p_cam_, *smart_factor_params_);
       for (const auto& feature : added_tracks_[degenerate_factor.first]->features)
       {
         // We recreate the factor with all features except the latest, in hopes that the it triggered the degeneracy
@@ -814,10 +812,8 @@ Pose3Stamped Smoother::AddKeyframe(const KeyframeTransform& keyframe_transform,
     }
     else
     {
-      gtsam::SmartProjectionParams smart_projection_params(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5);
-      smart_projection_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
       //  TODO: is the new here causing a memory leak? investigate. maybe make_shared instead?
-      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, smart_projection_params));
+      SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, *smart_factor_params_));
       std::vector<cv::Point2f> added_feature_points = { new_feature->pt };
       std::vector<std::shared_ptr<Feature>> added_features = { new_feature };
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 0; --i)

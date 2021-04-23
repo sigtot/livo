@@ -65,6 +65,7 @@ private:
   boost::shared_ptr<gtsam::Pose3> body_p_cam_;
   boost::shared_ptr<gtsam::Pose3> body_p_imu_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
+  std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
 
   // Bookkeeping
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
