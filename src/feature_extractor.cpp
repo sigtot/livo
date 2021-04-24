@@ -4,7 +4,6 @@
 #include <opencv2/calib3d.hpp>
 
 #include "global_params.h"
-#include "match_result.h"
 #include "Initializer.h"
 #include "radtan_undistorter.h"
 

@@ -1,7 +1,6 @@
 #ifndef ORB_TEST_SRC_SMOOTHER_H_
 #define ORB_TEST_SRC_SMOOTHER_H_
 
-#include "landmark.h"
 #include "pose3_stamped.h"
 #include "point3.h"
 #include "feature.h"

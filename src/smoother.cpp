@@ -1,5 +1,4 @@
 #include "smoother.h"
-#include "key_point_observation.h"
 #include "gtsam_conversions.h"
 #include "pose3_stamped.h"
 #include "global_params.h"

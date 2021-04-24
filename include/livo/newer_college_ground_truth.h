@@ -13,7 +13,7 @@ private:
   std::string filename_;
 
 public:
-  NewerCollegeGroundTruth(std::string filename);
+  explicit NewerCollegeGroundTruth(std::string filename);
   void LoadFromFile(std::multimap<double, Pose3>& gt) const override;
 };
 

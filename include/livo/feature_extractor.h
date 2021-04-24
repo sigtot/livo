@@ -1,9 +1,7 @@
 #ifndef ORB_TEST_FEATUREEXTRACTOR_H
 #define ORB_TEST_FEATUREEXTRACTOR_H
 
-#include "landmark.h"
 #include "frame.h"
-#include "landmark_match.h"
 #include "track.h"
 #include "keyframe_transform.h"
 #include "keyframe_tracker.h"
