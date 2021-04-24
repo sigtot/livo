@@ -49,14 +49,13 @@ int main(int argc, char** argv)
   std::shared_ptr<IMUQueue> imu_queue = std::make_shared<IMUQueue>();
   auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
 
-  auto matches_pub = nh.advertise<sensor_msgs::Image>("/matches_image", 1000);
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
   auto path_pub = nh.advertise<nav_msgs::Path>("/pose", 1000);
   auto posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_array", 1000);
   auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
   auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000, true);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
-  FeatureExtractor feature_extractor(matches_pub, tracks_pub, 20);
+  FeatureExtractor feature_extractor(tracks_pub);
   Smoother smoother(imu_queue);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, smoother, imu_ground_truth_smoother, path_pub, posearr_pub, landmarks_pub);

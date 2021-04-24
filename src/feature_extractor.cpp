@@ -12,8 +12,8 @@
 #include <utility>
 #include <memory>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher& matches_pub, const ros::Publisher& tracks_pub, int lag)
-  : matches_pub_(matches_pub), tracks_pub_(tracks_pub), lag(lag), orb_extractor()
+FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub)
+  : tracks_pub_(tracks_pub)
 {
 }
 
@@ -187,194 +187,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   return new_frame;
 }
 
-void FeatureExtractor::getMatches(const Mat& query_descriptors, const vector<KeyPoint>& query_keypoints,
-                                  const cv::Mat& train_descriptors, const vector<KeyPoint>& train_keypoints,
-                                  vector<DMatch>& matches, vector<uchar>& outlier_mask)
-{
-  Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
-  matcher->match(query_descriptors, train_descriptors, matches);
-
-  vector<Point> src_points;
-  vector<Point> dst_points;
-  for (auto match : matches)
-  {
-    src_points.push_back(query_keypoints[match.queryIdx].pt);
-    dst_points.push_back(train_keypoints[match.trainIdx].pt);
-  }
-
-  // Homography is much better than fundamental matrix for whatever reason.
-  // Could be due to low parallax
-  // findHomography(src_points, dst_points, CV_RANSAC, 3, outlier_mask);
-  findFundamentalMat(src_points, dst_points, CV_FM_RANSAC, 3., 0.99, outlier_mask);
-}
-
-pair<shared_ptr<Frame>, shared_ptr<Frame>> FeatureExtractor::getFirstTwoFrames()
-{
-  if (frame_count_ >= 2)
-  {
-    return pair<shared_ptr<Frame>, shared_ptr<Frame>>(frames[0], frames[1]);
-  }
-  else
-  {
-    throw NotEnoughFramesException();
-  }
-}
-
-void FeatureExtractor::PublishLandmarkTracksImage()
-{
-  cv_bridge::CvImage tracks_out_img;
-  tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
-  tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
-  tracks_out_img.header.seq = frames.back()->id;
-  cvtColor(frames.back()->image, tracks_out_img.image, CV_GRAY2RGB);
-  for (const auto& landmark_pair : landmarks)
-  {
-    auto landmark = landmark_pair.second;
-    if (landmark->keypoint_observations.size() > 1 &&
-        landmark->keypoint_observations.back()->frame->id > frame_count_ - 5)
-    {
-      int obsCount = static_cast<int>(landmark->keypoint_observations.size());
-      for (int k = 1; k < obsCount; ++k)
-      {
-        line(tracks_out_img.image, landmark->keypoint_observations[k]->keypoint.pt,
-             landmark->keypoint_observations[k - 1]->keypoint.pt, Scalar(255, 0, 0), 1);
-      }
-      Point point = landmark->keypoint_observations.back()->keypoint.pt;
-      if (landmark->keypoint_observations.front()->frame->id < frame_count_ - GlobalParams::LandmarkCullingFrameCount())
-      {
-        // Landmark has passed the culling criteria so we draw it in green
-        circle(tracks_out_img.image, point, 5, Scalar(0, 255, 0), 2);
-      }
-      else
-      {
-        // Landmark might not have passed the culling criteria: draw in red
-        circle(tracks_out_img.image, point, 3, Scalar(0, 0, 255), 1);
-      }
-      /*
-      putText(tracks_out_img.image,
-              to_string(landmark->id),  // text
-              point + Point(5, 5), FONT_HERSHEY_DUPLEX, 0.3,
-              CV_RGB(255, 0, 0),  // font color
-              1);
-              */
-    }
-  }
-  tracks_pub_.publish(tracks_out_img.toImageMsg());
-}
-
-void FeatureExtractor::GetLandmarkMatches(vector<shared_ptr<KeyPointObservation>> new_observations,
-                                          std::vector<std::shared_ptr<KeyPointObservation>>& remaining_observations,
-                                          vector<LandmarkMatch>& landmark_matches)
-{
-  std::map<int, vector<shared_ptr<Landmark>>> landmarks_table;
-  for (auto& landmark_pair : landmarks)
-  {
-    auto landmark = landmark_pair.second;
-    if (landmark->GetLastObservationFrameId() > frame_count_ - GlobalParams::LandmarkCullingFrameCount())
-    {
-      landmarks_table[landmark->GetLastObservationFrameId()].push_back(landmark);
-    }
-  }
-
-  for (auto& x : landmarks_table)
-  {
-    int frame_id = x.first;  // TODO unused. maybe use a vector instead of a map
-    auto landmarks_in_frame = x.second;
-    if (landmarks_in_frame.size() < 8)
-    {
-      continue;
-    }
-    std::vector<KeyPoint> landmark_keypoints;
-    cv::Mat landmark_descriptors;
-    for (auto& landmark : landmarks_in_frame)
-    {
-      landmark_keypoints.push_back(landmark->GetNewestKeyPoint());
-      landmark_descriptors.push_back(landmark->GetNewestDescriptor());
-    }
-
-    std::vector<KeyPoint> new_keypoints;
-    cv::Mat new_descriptors;
-    for (auto& observation : new_observations)
-    {
-      new_keypoints.push_back(observation->keypoint);
-      new_descriptors.push_back(observation->descriptor);
-    }
-
-    MatchResult match_result;
-    getMatches(landmark_descriptors, landmark_keypoints, new_descriptors, new_keypoints, match_result.matches,
-               match_result.inliers);
-
-    // Remove dupes, outliers and bad matches
-    std::map<int, cv::DMatch> best_matches_by_train_idx;
-    for (int i = 0; i < landmarks_in_frame.size(); ++i)
-    {
-      auto match = match_result.matches[i];
-      // train and query idx can be -1 for some reason?
-      // and larger than new_observations.size somehow? this was maybe due to a dereference bug. TODO: investigate
-      if (match_result.inliers[i] && match.queryIdx >= 0 && match.queryIdx < new_observations.size() &&
-          match.trainIdx >= 0 && match.trainIdx < new_observations.size() &&
-          match.distance < GlobalParams::MatchMaxDistance())
-      {
-        auto dupe_match = best_matches_by_train_idx.find(match.trainIdx);
-        if (dupe_match != best_matches_by_train_idx.end())
-        {
-          if (match.distance < dupe_match->second.distance)
-          {
-            best_matches_by_train_idx[match.trainIdx] = match;
-          }  // else discarded ...
-        }
-        else
-        {
-          best_matches_by_train_idx[match.trainIdx] = match;
-        }
-      }
-    }
-
-    std::map<int, bool> observations_to_remove;
-    for (auto& match_by_train_idx : best_matches_by_train_idx)
-    {
-      auto match = match_by_train_idx.second;
-      landmark_matches.push_back(
-          LandmarkMatch{ landmarks_in_frame[match.queryIdx], new_observations[match.trainIdx], match.distance });
-      observations_to_remove[match.trainIdx] = true;
-    }
-
-    // Remove-erase all the matched observations for the next matching iteration
-    // TODO: This will likely be faster if we index directly instead of applying the remove_if predicate to all items
-    {
-      auto i = new_observations.size() - 1;
-      new_observations.erase(std::remove_if(new_observations.begin(), new_observations.end(),
-                                            [&observations_to_remove, &i](const shared_ptr<KeyPointObservation>& obs) {
-                                              return observations_to_remove.count(i--);
-                                            }),
-                             new_observations.end());
-    }
-  }
-  remaining_observations = new_observations;
-}
-
-int FeatureExtractor::GetLandmarkCount()
-{
-  return landmarks.size();
-}
-
-int FeatureExtractor::GetFrameCount()
-{
-  return frames.size();
-}
-
-bool cellIsInCenter(int cell, int cell_count)
-{
-  if (cell_count % 2 == 0)
-  {
-    return cell == cell_count / 2 || cell == cell_count / 2 - 1;
-  }
-  else
-  {
-    return cell == cell_count / 2;
-  }
-}
-
 void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                                       int cell_count_y, int max_features_per_cell, double quality_level,
                                                       double min_distance)
@@ -385,13 +197,6 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
   {
     for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
     {
-      /*
-      if (cellIsInCenter(cell_x, cell_count_x) && cellIsInCenter(cell_y, cell_count_y))
-      {
-        std::cout << "skipping cell" << cell_x << "," << cell_y << " because it is in the center" << std::endl;
-        continue;
-      }
-       */
       cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
       cv::Mat roi = img(mask);
       vector<cv::Point2f> corners_in_roi;
@@ -425,40 +230,6 @@ bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double th
   return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
 }
 
-vector<shared_ptr<Frame>> FeatureExtractor::GetFrames()
-{
-  return frames;
-}
-
-map<int, shared_ptr<Landmark>> FeatureExtractor::GetLandmarks()
-{
-  return landmarks;
-}
-void FeatureExtractor::CullLandmarks(int frame_window, double min_obs_percentage)
-{
-  if (frame_count_ < frame_window)
-  {
-    return;
-  }
-  auto frame = frames[frame_count_ - frame_window];
-  for (auto& landmark_weak : frame->new_landmarks)
-  {
-    auto landmark = landmark_weak.lock();
-    if (landmark)
-    {
-      if (landmark->keypoint_observations.size() < min_obs_percentage * frame_window)
-      {
-        CullLandmark(landmark->id);
-      }
-    }
-  }
-}
-
-void FeatureExtractor::CullLandmark(int landmark_id)
-{
-  landmarks.erase(landmark_id);
-}
-
 void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
 {
   for (int i = 0; i < active_tracks_.size(); ++i)
@@ -482,16 +253,6 @@ bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int h
   double padding_x = width * padding_percentage;
   double padding_y = height * padding_percentage;
   return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
-}
-
-std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveTracks()
-{
-  return active_tracks_;
-}
-
-std::vector<shared_ptr<Track>> FeatureExtractor::GetOldTracks()
-{
-  return old_tracks_;
 }
 
 std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
@@ -527,11 +288,6 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
   return tracks;
 }
 
-std::vector<KeyframeTransform> FeatureExtractor::GetValidKeyframeTransforms() const
-{
-  return keyframe_tracker_ ? keyframe_tracker_->GetGoodKeyframeTransforms() : std::vector<KeyframeTransform>{};
-}
-
 std::vector<KeyframeTransform> FeatureExtractor::GetKeyframeTransforms() const
 {
   return keyframe_tracker_ ? keyframe_tracker_->GetKeyframeTransforms() : std::vector<KeyframeTransform>{};
@@ -542,15 +298,6 @@ bool FeatureExtractor::ReadyForInitialization() const
   return keyframe_tracker_ && keyframe_tracker_->GoodForInitialization();
 }
 
-bool FeatureExtractor::CanPerformStationaryIMUInitialization() const
-{
-  bool perform_stationary_imu_update = !frames.back()->stationary;  // Last frame is non-stationary...
-  for (size_t i = frames.size() - 7; perform_stationary_imu_update && i < frames.size() - 2; ++i)
-  {
-    perform_stationary_imu_update = frames[i]->stationary;  // ... and the preceding frames are stationary
-  }
-  return perform_stationary_imu_update;
-}
 KeyframeTransform FeatureExtractor::GetNewestKeyframeTransform() const
 {
   return keyframe_tracker_->GetNewestKeyframeTransform();

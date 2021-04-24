@@ -104,26 +104,6 @@ Smoother::Smoother(std::shared_ptr<IMUQueue> imu_queue)
   smart_factor_params_->setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
 }
 
-void Smoother::UpdateSmartFactorParams(const gtsam::SmartProjectionParams& params)
-{
-  for (auto& smart_factor_pair : smart_factors_)
-  {
-    smart_factor_pair.second.reset();
-
-    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, params));
-    for (auto& feature : added_tracks_[smart_factor_pair.first]->features)
-    {
-      if (added_frame_timestamps_.count(feature->frame->id))
-      {
-        auto pt = feature->pt;
-        smart_factor->add(gtsam::Point2(pt.x, pt.y), X(feature->frame->id));
-        feature->in_smoother = true;
-      }
-    }
-    smart_factor_pair.second = smart_factor;
-  }
-}
-
 void Smoother::InitializeLandmarks(
     std::vector<KeyframeTransform> keyframe_transforms, const std::vector<shared_ptr<Track>>& tracks,
     const boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>& frames_for_imu_init,
