@@ -28,7 +28,7 @@ int main(int argc, char** argv)
   GlobalParams::LoadParams(nh);
   if (!GlobalParams::GroundTruthFile().empty())
   {
-    if(GlobalParams::GroundTruthProvider() == "newer_college")
+    if (GlobalParams::GroundTruthProvider() == "newer_college")
     {
       auto ground_truth_provider = NewerCollegeGroundTruth(GlobalParams::GroundTruthFile());
       GroundTruth::Load(ground_truth_provider);

@@ -33,10 +33,10 @@ gtsam::Pose3 ToGtsamPose(Pose3 pose)
 Rot3 ToRot(const gtsam::Rot3& gtsam_rot)
 {
   return Rot3{
-      .x = gtsam_rot.toQuaternion().x(),
-      .y = gtsam_rot.toQuaternion().y(),
-      .z = gtsam_rot.toQuaternion().z(),
-      .w = gtsam_rot.toQuaternion().w(),
+    .x = gtsam_rot.toQuaternion().x(),
+    .y = gtsam_rot.toQuaternion().y(),
+    .z = gtsam_rot.toQuaternion().z(),
+    .w = gtsam_rot.toQuaternion().w(),
   };
 }
 

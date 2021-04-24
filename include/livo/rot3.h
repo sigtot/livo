@@ -10,7 +10,7 @@ struct Rot3
 
   static Rot3 Eye()
   {
-    return Rot3 {.x = 0, .y = 0, .z = 0, .w = 1};
+    return Rot3{ .x = 0, .y = 0, .z = 0, .w = 1 };
   }
 };
 

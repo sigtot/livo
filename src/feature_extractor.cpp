@@ -12,8 +12,7 @@
 #include <utility>
 #include <memory>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub)
-  : tracks_pub_(tracks_pub)
+FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub) : tracks_pub_(tracks_pub)
 {
 }
 

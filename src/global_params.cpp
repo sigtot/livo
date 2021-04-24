@@ -112,7 +112,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
 
   ReadVariable(nh, "/orb_test_node/do_initial_gravity_alignment", GetInstance().do_initial_gravity_alignment_);
-  ReadVariable(nh, "/orb_test_node/dynamic_outlier_rejection_threshold", GetInstance().dynamic_outlier_rejection_threshold_);
+  ReadVariable(nh, "/orb_test_node/dynamic_outlier_rejection_threshold",
+               GetInstance().dynamic_outlier_rejection_threshold_);
 
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);

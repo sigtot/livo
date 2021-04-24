@@ -194,8 +194,7 @@ void Smoother::InitializeLandmarks(
 
   for (auto& track : tracks)
   {
-    SmartFactor::shared_ptr smart_factor(
-        new SmartFactor(feature_noise_, K_, *body_p_cam_, *smart_factor_params_));
+    SmartFactor::shared_ptr smart_factor(new SmartFactor(feature_noise_, K_, *body_p_cam_, *smart_factor_params_));
     std::vector<std::shared_ptr<Feature>> added_features;
     for (auto& feature : track->features)
     {

@@ -38,8 +38,7 @@ std::multimap<double, Pose3> GroundTruth::GetAllPoses()
   return GetInstance().gt_;
 }
 
-Pose3 GroundTruth::Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, double to_ts,
-                                           double target_ts)
+Pose3 GroundTruth::Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, double to_ts, double target_ts)
 {
   assert(from_ts < to_ts);
   assert(from_ts <= target_ts);

@@ -38,11 +38,9 @@ void DebugImagePublisher::PublishNewLandmarksImage(const cv::Mat& image,
   GetInstance().new_landmarks_publisher_.publish(out_img.toImageMsg());
 }
 
-void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image,
-                                                        const std::vector<cv::Point2f>& features,
+void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image, const std::vector<cv::Point2f>& features,
                                                         const std::vector<cv::Point2f>& reprojected_features,
-                                                        const std::vector<bool>& inlier_mask,
-                                                        double timestamp)
+                                                        const std::vector<bool>& inlier_mask, double timestamp)
 {
   assert(features.size() == reprojected_features.size());
   cv_bridge::CvImage out_img;

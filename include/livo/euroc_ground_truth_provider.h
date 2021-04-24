@@ -6,6 +6,7 @@ class EurocGroundTruthProvider : public GroundTruthProvider
 {
 private:
   std::string filename_;
+
 public:
   explicit EurocGroundTruthProvider(std::string filename);
   void LoadFromFile(std::multimap<double, Pose3>& gt) const override;

@@ -17,6 +17,6 @@ bool CanTriangulate(const Camera::MeasurementVector& measurements, const gtsam::
                     const gtsam::Cal3_S2::shared_ptr& K);
 
 void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGraph& graph,
-                      const gtsam::Values& values);
+                     const gtsam::Values& values);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_GTSAM_HELPERS_H_

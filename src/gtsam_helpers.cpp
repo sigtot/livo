@@ -13,8 +13,7 @@ bool CanTriangulate(const Camera::MeasurementVector& measurements, const gtsam::
   return triangulationResult != boost::none;
 }
 
-void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGraph& graph,
-                      const gtsam::Values& values)
+void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values)
 {
   std::ofstream ofs(filename, std::ofstream::out);
   graph.saveGraph(ofs, values);
