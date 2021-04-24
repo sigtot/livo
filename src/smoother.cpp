@@ -20,11 +20,9 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
-#include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/base/types.h>
 #include <thread>
 #include <chrono>
-#include <gtsam/sam/RangeFactor.h>
 #include <numeric>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
