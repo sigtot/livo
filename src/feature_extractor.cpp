@@ -73,7 +73,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       {
         if (inlier_mask[i])
         {
-          active_tracks_[i]->features.push_back(std::make_shared<Feature>(new_frame, new_points[i]));
+          auto new_feature = std::make_shared<Feature>(new_frame, new_points[i]);
+          new_frame->features[active_tracks_[i]->id] = new_feature;
+          active_tracks_[i]->features.push_back(std::move(new_feature));
         }
         else
         {
@@ -142,8 +144,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_undistorted, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      active_tracks_.push_back(std::make_shared<Track>(
-          std::vector<std::shared_ptr<Feature>>{ std::make_shared<Feature>(new_frame, corner) }));
+      auto new_feature = std::make_shared<Feature>(new_frame, corner);
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ std::move(new_feature) });
+      new_frame->features[new_track->id] = new_track->features.back();
+      active_tracks_.push_back(std::move(new_track));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }

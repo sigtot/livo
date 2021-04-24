@@ -77,6 +77,7 @@ void KeyframeTracker::ChooseBestHomographyDecomposition(KeyframeTransform& trans
   }
 }
 
+// TODO simplify this with better bookkeeping in the frame struct
 void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                 const std::vector<std::shared_ptr<Track>>& tracks, std::vector<cv::Point2f>& points1,
                                 std::vector<cv::Point2f>& points2, bool init)
@@ -110,6 +111,7 @@ void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std:
   }
 }
 
+// TODO: Also remove this one with better bookkeeping
 void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                                     const std::vector<std::shared_ptr<Track>>& tracks,
                                     std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2)
