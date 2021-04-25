@@ -12,22 +12,21 @@ void KeyframeTracker::TryAddFrameSafe(const std::shared_ptr<Frame>& frame2,
 }
 
 void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                  const std::vector<std::shared_ptr<Track>>& tracks, bool init)
+                                  const std::vector<std::shared_ptr<Track>>& tracks)
 {
-  if (!HaveEnoughMatches(frame1, frame2, tracks))
+  auto transform = TryMakeKeyframeTransform(frame1, frame2, tracks);
+  if (!transform.HaveEnoughMatches())
   {
-    auto transform = KeyframeTransform::Invalid(frame1, frame2);
+    // Too few matches likely means high feature loss, so we need to initialize a new keyframe to keep tracking
+    // In this case, a visual only solution will yield wrong results, so hopefully, IMU or LiDAR data can help us
+    std::cout << " Not enough matches " << std::endl;
     keyframe_transforms_.push_back(transform);
     return;
   }
-  std::vector<std::shared_ptr<Track>> valid_tracks;
-  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-  std::vector<uchar> inlier_mask;
-  auto transform = TryMakeKeyframeTransform(frame1, frame2, tracks, inlier_mask, init);
   if (transform.Valid())
   {
     std::cout << "Adding new keyframe transform " << frame1->id << " -> " << frame2->id << std::endl;
-    UpdateTrackInlierOutlierCounts(valid_tracks, inlier_mask);
+    transform.UpdateTrackInlierOutlierCounts();
     if (!keyframe_transforms_.empty() && keyframe_transforms_.back().Valid())
     {
       ChooseBestHomographyDecomposition(transform, keyframe_transforms_.back());
@@ -77,93 +76,36 @@ void KeyframeTracker::ChooseBestHomographyDecomposition(KeyframeTransform& trans
   }
 }
 
-// TODO simplify this with better bookkeeping in the frame struct
-void KeyframeTracker::GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                const std::vector<std::shared_ptr<Track>>& tracks, std::vector<cv::Point2f>& points1,
-                                std::vector<cv::Point2f>& points2, bool init)
-{
-  for (auto& track : tracks)
-  {
-    int num_features = static_cast<int>(track->features.size());
-    std::shared_ptr<Feature> feat1 = nullptr;
-    std::shared_ptr<Feature> feat2 = nullptr;
-    for (int i = num_features - 1; i >= 0; --i)
-    {
-      if (track->features[i]->frame->id == frame1->id)
-      {
-        feat1 = track->features[i];
-      }
-      if (track->features[i]->frame->id == frame2->id)
-      {
-        feat2 = track->features[i];
-      }
-    }
-    assert(feat1 != nullptr);
-    assert(feat2 != nullptr);
-    if (init)
-    {
-      track->key_features.push_back(feat1);
-    }
-    track->key_features.push_back(feat2);
-
-    points1.push_back(feat1->pt);
-    points2.push_back(feat2->pt);
-  }
-}
-
-// TODO: Also remove this one with better bookkeeping
-void KeyframeTracker::GetPointsSafe(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                    const std::vector<std::shared_ptr<Track>>& tracks,
-                                    std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2)
-{
-  for (const auto& track : tracks)
-  {
-    if (track->features.empty())
-    {
-      continue;
-    }
-    int num_features = static_cast<int>(track->features.size());
-    std::shared_ptr<Feature> feat1 = nullptr;
-    std::shared_ptr<Feature> feat2 = nullptr;
-    for (int i = num_features - 1; i >= 0; --i)
-    {
-      if (track->features[i]->frame->id == frame1->id)
-      {
-        feat1 = track->features[i];
-      }
-      if (track->features[i]->frame->id == frame2->id)
-      {
-        feat2 = track->features[i];
-      }
-    }
-    if (!feat1 || !feat2)
-    {
-      continue;
-    }
-
-    points1.push_back(feat1->pt);
-    points2.push_back(feat2->pt);
-  }
-}
-
 KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_ptr<Frame>& frame1,
                                                             const std::shared_ptr<Frame>& frame2,
-                                                            const std::vector<std::shared_ptr<Track>>& tracks,
-                                                            std::vector<uchar>& inlier_mask, bool init)
+                                                            const std::vector<std::shared_ptr<Track>>& tracks)
 {
   if (frame1->stationary && frame2->stationary)
   {
     return KeyframeTransform::Invalid(frame1, frame2);
   }
-  std::vector<std::shared_ptr<Track>> valid_tracks;
-  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
+  std::vector<uchar> inlier_mask;
 
+  auto feature_matches = frame1->GetFeatureMatches(frame2);
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  GetPoints(frame1, frame2, valid_tracks, points1, points2, init);
-  assert(valid_tracks.size() == points1.size());
-
+  for (const auto& match : feature_matches)
+  {
+    auto feature1 = match.first.lock();
+    auto feature2 = match.second.lock();
+    if (feature1 && feature2)
+    {
+      points1.push_back(feature1->pt);
+      points2.push_back(feature2->pt);
+    }
+  }
   assert(points1.size() == points2.size());
+
+  if (!KeyframeTransform::EnoughMatches(feature_matches.size()))
+  {
+    return KeyframeTransform::Invalid(frame1, frame2);
+  }
+
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
   assert(inlier_mask.size() == points1.size());
   auto H = cv::findHomography(points1, points2, cv::RANSAC, 3);
@@ -185,7 +127,7 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
   cv::Mat K = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0., GlobalParams::CamFy(),
                GlobalParams::CamV0(), 0., 0., 1.);
 
-  auto transform = KeyframeTransform(frame1, frame2, F, S_H, S_F, R_H);
+  auto transform = KeyframeTransform(frame1, frame2, feature_matches, F, S_H, S_F, R_H, inlier_mask);
   if (!transform.FundamentalMatGood())
   {
     return KeyframeTransform::Invalid(frame1, frame2);
@@ -259,7 +201,15 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
         {
           return KeyframeTransform::Invalid(frame1, frame2);
         }
-        valid_tracks[i]->max_parallax = std::max(valid_tracks[i]->max_parallax, rotation_compensated_parallaxes[i]);
+        auto feature = feature_matches[i].second.lock();
+        if (feature)
+        {
+          auto track = feature->track.lock();
+          if (track)
+          {
+            track->max_parallax = std::max(track->max_parallax, rotation_compensated_parallaxes[i]);
+          }
+        }
       }
     }
 
@@ -349,17 +299,6 @@ std::vector<KeyframeTransform> KeyframeTracker::GetKeyframeTransforms() const
   return keyframe_transforms_;
 }
 
-std::vector<KeyframeTransform> KeyframeTracker::GetGoodKeyframeTransforms() const
-{
-  std::vector<KeyframeTransform> transforms;
-  if (GetNumberOfGoodTransforms() > 0)
-  {
-    int i = GetMostRecentBadTransformIdx();
-    std::copy(keyframe_transforms_.begin() + i + 1, keyframe_transforms_.end(), std::back_inserter(transforms));
-  }
-  return transforms;
-}
-
 bool KeyframeTracker::GoodForInitialization() const
 {
   if (GetNumberOfGoodTransforms() < GlobalParams::NumGoodKeyframesForInitialization())
@@ -377,66 +316,6 @@ bool KeyframeTracker::GoodForInitialization() const
     }
   }
   return true;
-}
-
-bool KeyframeTracker::HaveEnoughMatches(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                        const std::vector<std::shared_ptr<Track>>& tracks)
-{
-  std::vector<std::shared_ptr<Track>> valid_tracks;
-  OnlyValidTracks(frame1, frame2, tracks, valid_tracks);
-
-  std::vector<cv::Point2f> points1;
-  std::vector<cv::Point2f> points2;
-  GetPointsSafe(frame1, frame2, valid_tracks, points1, points2);
-  return points1.size() >= 8 && points2.size() >= 8;
-}
-
-void KeyframeTracker::OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                      const std::vector<std::shared_ptr<Track>>& tracks,
-                                      std::vector<std::shared_ptr<Track>>& valid_tracks)
-{
-  for (auto& track : tracks)
-  {
-    if (track->features.empty())
-    {
-      continue;
-    }
-    bool have_point1 = false;
-    bool have_point2 = false;
-    int num_features = static_cast<int>(track->features.size());
-    for (int i = num_features - 1; i >= 0 && !(have_point1 && have_point2); --i)
-    {
-      if (track->features[i]->frame->id == frame1->id)
-      {
-        have_point1 = true;
-      }
-      if (track->features[i]->frame->id == frame2->id)
-      {
-        have_point2 = true;
-      }
-    }
-    if (have_point1 && have_point2)
-    {
-      valid_tracks.push_back(track);
-    }
-  }
-}
-
-void KeyframeTracker::UpdateTrackInlierOutlierCounts(const std::vector<std::shared_ptr<Track>>& tracks,
-                                                     const std::vector<uchar>& inlier_mask)
-{
-  assert(tracks.size() == inlier_mask.size());
-  for (int i = 0; i < tracks.size(); ++i)
-  {
-    if (inlier_mask[i])
-    {
-      tracks[i]->inlier_count++;
-    }
-    else
-    {
-      tracks[i]->outlier_count++;
-    }
-  }
 }
 
 KeyframeTransform KeyframeTracker::GetNewestKeyframeTransform() const

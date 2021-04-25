@@ -12,6 +12,8 @@
 // Forward declaration b/c of circular dependency
 struct Feature;
 
+typedef std::pair<std::weak_ptr<Feature>, std::weak_ptr<Feature>> FeatureMatch;
+
 struct Frame
 {
   cv::Mat image;
@@ -20,8 +22,7 @@ struct Frame
   double timestamp;
   bool stationary;
 
-  void GetFeatureMatches(const std::shared_ptr<Frame>& target,
-                         std::vector<std::pair<std::shared_ptr<Feature>, std::shared_ptr<Feature>>>& matches);
+  std::vector<FeatureMatch> GetFeatureMatches(const std::shared_ptr<Frame>& target);
 };
 
 #endif

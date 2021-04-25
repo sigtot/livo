@@ -73,7 +73,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       {
         if (inlier_mask[i])
         {
-          auto new_feature = std::make_shared<Feature>(new_frame, new_points[i]);
+          auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
           new_frame->features[active_tracks_[i]->id] = new_feature;
           active_tracks_[i]->features.push_back(std::move(new_feature));
         }
@@ -144,9 +144,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_undistorted, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      auto new_feature = std::make_shared<Feature>(new_frame, corner);
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ std::move(new_feature) });
+      auto new_track = std::make_shared<Track>(
+          std::vector<std::shared_ptr<Feature>>{ std::make_shared<Feature>(new_frame, corner) });
       new_frame->features[new_track->id] = new_track->features.back();
+      new_track->features.back()->track = new_track;
       active_tracks_.push_back(std::move(new_track));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
@@ -179,8 +180,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
-    if (active_tracks_[i]->key_features.size() >= GlobalParams::MinTrackLengthForSmoothing() &&
-        active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
+    if (active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
     {
       active_tracks_.erase(active_tracks_.begin() + i);
     }

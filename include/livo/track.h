@@ -9,7 +9,6 @@
 struct Track
 {
   std::vector<std::shared_ptr<Feature>> features;
-  std::vector<std::shared_ptr<Feature>> key_features;
   int id;
 
   int inlier_count = 0;

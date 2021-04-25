@@ -15,20 +15,13 @@ private:
   static void GetPoints(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
                         const std::vector<std::shared_ptr<Track>>& tracks, std::vector<cv::Point2f>& points1,
                         std::vector<cv::Point2f>& points2, bool init = false);
-  static void GetPointsSafe(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                            const std::vector<std::shared_ptr<Track>>& tracks, std::vector<cv::Point2f>& points1,
-                            std::vector<cv::Point2f>& points2);
-  static void OnlyValidTracks(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                              const std::vector<std::shared_ptr<Track>>& tracks,
-                              std::vector<std::shared_ptr<Track>>& valid_tracks);
   static KeyframeTransform TryMakeKeyframeTransform(const std::shared_ptr<Frame>& frame1,
                                                     const std::shared_ptr<Frame>& frame2,
-                                                    const std::vector<std::shared_ptr<Track>>& tracks,
-                                                    std::vector<uchar>& inlier_mask, bool init = false);
+                                                    const std::vector<std::shared_ptr<Track>>& tracks);
   static void UpdateTrackInlierOutlierCounts(const std::vector<std::shared_ptr<Track>>& tracks,
                                              const std::vector<uchar>& inlier_mask);
   void TryAddFrame(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                   const std::vector<std::shared_ptr<Track>>& tracks, bool init = false);
+                   const std::vector<std::shared_ptr<Track>>& tracks);
   // Check if plane with normal n is in from of the camera
   static int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv);
   static void ChooseBestHomographyDecomposition(KeyframeTransform& transform, KeyframeTransform& reference_transform);
@@ -40,11 +33,8 @@ public:
   void TryAddFrameSafe(const std::shared_ptr<Frame>& frame2, const std::vector<std::shared_ptr<Track>>& tracks);
   explicit KeyframeTracker(std::shared_ptr<Frame> frame1);
   std::vector<KeyframeTransform> GetKeyframeTransforms() const;
-  std::vector<KeyframeTransform> GetGoodKeyframeTransforms() const;
   KeyframeTransform GetNewestKeyframeTransform() const;
   bool GoodForInitialization() const;
-  static bool HaveEnoughMatches(const std::shared_ptr<Frame>& frame1, const std::shared_ptr<Frame>& frame2,
-                                const std::vector<std::shared_ptr<Track>>& tracks);
   int GetMostRecentBadTransformIdx() const;
   int GetNumberOfGoodTransforms() const;
 };
