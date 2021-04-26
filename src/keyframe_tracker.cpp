@@ -181,59 +181,61 @@ KeyframeTransform KeyframeTracker::TryMakeKeyframeTransform(const std::shared_pt
   transform.homography_decomposition_result = boost::optional<HomographyDecompositionResult>(homography_decomp_result);
 
   auto R12 = transform.GetRotation();
-  if (R12)
+  if (!R12)
   {
-    std::vector<double> rotation_compensated_parallaxes;
-    std::vector<double> uncompensated_parallaxes;
-    ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallaxForKeyframe(),
-                           rotation_compensated_parallaxes);
-    auto num_high_motion = ComputePointParallaxes(points1, points2, cv::Mat::eye(3, 3, CV_64F), K,
-                                                  GlobalParams::MinParallaxForKeyframe(), uncompensated_parallaxes);
+    return KeyframeTransform::Invalid(frame1, frame2);
+  }
+  std::vector<double> rotation_compensated_parallaxes;
+  std::vector<double> uncompensated_parallaxes;
+  ComputePointParallaxes(points1, points2, *R12, K, GlobalParams::MinParallaxForKeyframe(),
+                         rotation_compensated_parallaxes);
+  auto num_high_motion = ComputePointParallaxes(points1, points2, cv::Mat::eye(3, 3, CV_64F), K,
+                                                GlobalParams::MinParallaxForKeyframe(), uncompensated_parallaxes);
 
-    for (int i = 0; i < rotation_compensated_parallaxes.size(); ++i)
+  for (int i = 0; i < rotation_compensated_parallaxes.size(); ++i)
+  {
+    if (inlier_mask[i])
     {
-      if (inlier_mask[i])
+      // Simple check to avoid bad rotation estimates (e.g. due to very low motion):
+      // Rotation compensation should only correct the parallax by a reasonable amount
+      if (std::abs(uncompensated_parallaxes[i] - rotation_compensated_parallaxes[i]) >
+          GlobalParams::MaxParallaxRotationCompensation())
       {
-        // Simple check to avoid bad rotation estimates (e.g. due to very low motion):
-        // Rotation compensation should only correct the parallax by a reasonable amount
-        if (std::abs(uncompensated_parallaxes[i] - rotation_compensated_parallaxes[i]) >
-            GlobalParams::MaxParallaxRotationCompensation())
+        return KeyframeTransform::Invalid(frame1, frame2);
+      }
+      auto feature = feature_matches[i].second.lock();
+      if (feature)
+      {
+        auto track = feature->track.lock();
+        if (track)
         {
-          return KeyframeTransform::Invalid(frame1, frame2);
-        }
-        auto feature = feature_matches[i].second.lock();
-        if (feature)
-        {
-          auto track = feature->track.lock();
-          if (track)
-          {
-            track->max_parallax = std::max(track->max_parallax, rotation_compensated_parallaxes[i]);
-          }
+          track->max_parallax = std::max(track->max_parallax, rotation_compensated_parallaxes[i]);
         }
       }
-    }
-
-    if (num_high_motion > GlobalParams::NumHighParallaxPointsForKeyframe())
-    {
-      int inlier_count = 0;
-      int outlier_count = 0;
-      for (const auto& inlier : inlier_mask)
-      {
-        if (inlier)
-        {
-          ++inlier_count;
-        }
-        else
-        {
-          ++outlier_count;
-        }
-      }
-      std::cout << inlier_count << "/" << outlier_count << " inliers/outliers" << std::endl;
-      return transform;
     }
   }
 
-  return KeyframeTransform::Invalid(frame1, frame2);
+  if (num_high_motion <= GlobalParams::NumHighParallaxPointsForKeyframe())
+  {
+    return KeyframeTransform::Invalid(frame1, frame2);
+  }
+
+  int inlier_count = 0;
+  int outlier_count = 0;
+  for (const auto& inlier : inlier_mask)
+  {
+    if (inlier)
+    {
+      ++inlier_count;
+    }
+    else
+    {
+      ++outlier_count;
+    }
+  }
+  std::cout << inlier_count << "/" << outlier_count << " inliers/outliers" << std::endl;
+
+  return transform;
 }
 
 int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& points1,
