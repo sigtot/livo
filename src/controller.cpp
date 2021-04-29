@@ -5,18 +5,34 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <pose3_stamped.h>
 
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_types.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/conversions.h>
+#include <pcl_ros/transforms.h>
+
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, Smoother& backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
-                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
-                       ros::Publisher& landmark_publisher)
+Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, Smoother& backend,
+                       IMUGroundTruthSmoother& imu_ground_truth_smoother, ros::Publisher& path_publisher,
+                       ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
   : frontend_(frontend)
+  , lidar_frame_manager_(lidar_frame_manager)
   , backend_(backend)
   , imu_ground_truth_smoother_(imu_ground_truth_smoother)
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
   , landmark_publisher_(landmark_publisher)
 {
+}
+
+void Controller::LidarCallback(const sensor_msgs::PointCloud2& msg)
+{
+  pcl::PCLPointCloud2 pcl_pc2;
+  pcl_conversions::toPCL(msg, pcl_pc2);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromPCLPointCloud2(pcl_pc2, *cloud);
+  lidar_frame_manager_.LidarCallback(cloud, msg.header.stamp.toSec());
 }
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)

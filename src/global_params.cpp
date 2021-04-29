@@ -119,6 +119,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_imu_quat", GetInstance().body_p_imu_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_imu_vec", GetInstance().body_p_imu_vec_);
+  ReadVectorVariable(nh, "/orb_test_node/body_p_lidar_quat", GetInstance().body_p_lidar_quat_);
+  ReadVectorVariable(nh, "/orb_test_node/body_p_lidar_vec", GetInstance().body_p_lidar_vec_);
 
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
@@ -127,6 +129,15 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
 
   ReadVectorVariable(nh, "/orb_test_node/distortion_model/coeffs", GetInstance().distortion_coeffs_);
   ReadVariable(nh, "/orb_test_node/distortion_model/type", GetInstance().distortion_model_);
+
+  ReadVariable(nh, "/orb_test_node/lidar_depth/enabled", GetInstance().lidar_depth_enabled_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/calc_mode", GetInstance().lidar_depth_calc_mode_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/search_window_width", GetInstance().lidar_depth_search_window_width_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/search_window_height", GetInstance().lidar_depth_search_window_height_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/min_non_zero_neighbors",
+               GetInstance().lidar_depth_min_non_zero_neighbors_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/max_allowed_feature_distance",
+               GetInstance().lidar_depth_max_allowed_feature_distance_);
 }
 
 // Implement parameter accessors here
@@ -254,6 +265,14 @@ std::vector<double> GlobalParams::BodyPImuVec()
 {
   return GetInstance().body_p_imu_vec_;
 }
+std::vector<double> GlobalParams::BodyPLidarQuat()
+{
+  return GetInstance().body_p_lidar_quat_;
+}
+std::vector<double> GlobalParams::BodyPLidarVec()
+{
+  return GetInstance().body_p_lidar_vec_;
+}
 
 double GlobalParams::CamFx()
 {
@@ -374,4 +393,28 @@ double GlobalParams::PriorNoiseVelocity()
 double GlobalParams::NoiseFeature()
 {
   return GetInstance().noise_feature_;
+}
+bool GlobalParams::LidarDepthEnabled()
+{
+  return GetInstance().lidar_depth_enabled_;
+}
+int GlobalParams::LidarDepthCalcMode()
+{
+  return GetInstance().lidar_depth_calc_mode_;
+}
+int GlobalParams::LidarDepthSearchWindowWidth()
+{
+  return GetInstance().lidar_depth_search_window_width_;
+}
+int GlobalParams::LidarDepthSearchWindowHeight()
+{
+  return GetInstance().lidar_depth_search_window_height_;
+}
+int GlobalParams::LidarDepthMinNonZeroNeighbors()
+{
+  return GetInstance().lidar_depth_min_non_zero_neighbors_;
+}
+double GlobalParams::LidarDepthMaxAllowedFeatureDistance()
+{
+  return GetInstance().lidar_depth_max_allowed_feature_distance_;
 }

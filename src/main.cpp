@@ -42,7 +42,8 @@ int main(int argc, char** argv)
 
   auto debug_added_landmarks_image_pub = nh.advertise<sensor_msgs::Image>("/debug_added_landmarks_image", 1000);
   auto reprojection_error_image_pub = nh.advertise<sensor_msgs::Image>("/debug_reprojection_error_image", 1000);
-  DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub, reprojection_error_image_pub);
+  auto depth_image_pub = nh.advertise<sensor_msgs::Image>("/debug_depth_image", 1000);
+  DebugImagePublisher::SetPublishers(debug_added_landmarks_image_pub, reprojection_error_image_pub, depth_image_pub);
 
   DebugValuePublisher::SetPublishers(nh);
 
@@ -57,8 +58,10 @@ int main(int argc, char** argv)
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   FeatureExtractor feature_extractor(tracks_pub);
   Smoother smoother(imu_queue);
+  LidarFrameManager lidar_frame_manager;
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
-  Controller controller(feature_extractor, smoother, imu_ground_truth_smoother, path_pub, posearr_pub, landmarks_pub);
+  Controller controller(feature_extractor, lidar_frame_manager, smoother, imu_ground_truth_smoother, path_pub,
+                        posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);

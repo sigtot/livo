@@ -7,10 +7,12 @@ DebugImagePublisher& DebugImagePublisher::GetInstance()
 }
 
 void DebugImagePublisher::SetPublishers(const ros::Publisher& new_landmarks_publisher,
-                                        const ros::Publisher& reprojection_error_publisher)
+                                        const ros::Publisher& reprojection_error_publisher,
+                                        const ros::Publisher& depth_image_publisher)
 {
   GetInstance().new_landmarks_publisher_ = new_landmarks_publisher;
   GetInstance().reprojection_error_publisher_ = reprojection_error_publisher;
+  GetInstance().depth_image_publisher_ = depth_image_publisher;
 }
 
 void DebugImagePublisher::PublishNewLandmarksImage(const cv::Mat& image,
@@ -58,4 +60,12 @@ void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image, co
   }
 
   GetInstance().reprojection_error_publisher_.publish(out_img.toImageMsg());
+}
+
+void DebugImagePublisher::PublishDepthImage(const cv::Mat& image, double timestamp)
+{
+  cv_bridge::CvImage out_img;
+  out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  out_img.header.stamp = ros::Time(timestamp);
+  GetInstance().depth_image_publisher_.publish(out_img.toImageMsg());
 }

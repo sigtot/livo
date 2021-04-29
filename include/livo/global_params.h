@@ -80,10 +80,21 @@ private:
   std::vector<double> body_p_imu_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_imu_vec_ = { 0., 0., 0. };
 
+  std::vector<double> body_p_lidar_quat_ = { 0., 0., 0., 1. };
+  std::vector<double> body_p_lidar_vec_ = { 0., 0., 0.};
+
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
   double cam_v0_ = 238.52694868;
+
+  bool lidar_depth_enabled_ = true;
+  int lidar_depth_calc_mode_ = 0; // 0 = patch, 1 = line
+  int lidar_depth_search_window_width_ = 7;
+  int lidar_depth_search_window_height_ = 7;
+  int lidar_depth_min_non_zero_neighbors_ = 10;
+  double lidar_depth_max_allowed_feature_distance_ = 20.;
+
 
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
@@ -156,6 +167,9 @@ public:
   static std::vector<double> BodyPImuQuat();
   static std::vector<double> BodyPImuVec();
 
+  static std::vector<double> BodyPLidarQuat();
+  static std::vector<double> BodyPLidarVec();
+
   static double CamFx();
   static double CamFy();
   static double CamU0();
@@ -163,6 +177,13 @@ public:
 
   static std::vector<double> DistortionCoefficients();
   static std::string DistortionModel();
+
+  static bool LidarDepthEnabled();
+  static int LidarDepthCalcMode();
+  static int LidarDepthSearchWindowWidth();
+  static int LidarDepthSearchWindowHeight();
+  static int LidarDepthMinNonZeroNeighbors();
+  static double LidarDepthMaxAllowedFeatureDistance();
 };
 
 #endif
