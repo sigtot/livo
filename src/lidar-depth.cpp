@@ -11,7 +11,7 @@ boost::optional<cv::Point2f> bearingToPixel(const Eigen::Vector3d& vec, const Ei
     return boost::none;
   const Eigen::Vector2d vec2d = Eigen::Vector2d(vec(0) / vec(2), vec(1) / vec(2));
 
-  boost::optional<cv::Point2f> c;
+  boost::optional<cv::Point2f> c = cv::Point2f();
   // Shift origin and scale
   c->x = static_cast<float>(K(0, 0) * vec2d(0) + K(0, 2));
   c->y = static_cast<float>(K(1, 1) * vec2d(1) + K(1, 2));
@@ -32,7 +32,7 @@ tf::Transform getLidar2CameraTF()
                              GlobalParams::BodyPCamVec()[2]);
   tf::Transform body_to_cam(body_p_cam_quat.inverse(), -body_p_cam_vec);  // Inverse to get body -> cam tf
 
-  return lidar_to_body * body_to_cam;
+  return body_to_cam * lidar_to_body;
 }
 
 void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, const tf::Transform& lidar2cameraTF,
@@ -45,7 +45,6 @@ void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, con
     return;
   }
   // Loop through LiDAR points
-  float* matPtr = (float*)dImg.data;
   for (const auto& pt : cloud->points)
   {
     // Check if point is good
@@ -76,22 +75,13 @@ void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, con
     if (px.x > 0 && px.y > 0 && px.x < dImg.cols && px.y < dImg.rows)
     {
       // Calculate range w.r.t Camera Frame
-      float range =
-          std::sqrt(pt_cam.getX() * pt_cam.getX() + pt_cam.getY() * pt_cam.getY() + pt_cam.getZ() * pt_cam.getZ());
+      auto range = static_cast<float>(
+          std::sqrt(pt_cam.getX() * pt_cam.getX() + pt_cam.getY() * pt_cam.getY() + pt_cam.getZ() * pt_cam.getZ()));
       // If not assigned i.e. 0 - assign depth
-      if (matPtr[px.y * dImg.cols + px.x] == 0)
-        matPtr[px.y * dImg.cols + px.x] = range;  // current row * number of coloumns offset + current coloumn
-      else if (range < matPtr[px.y * dImg.cols + px.x])
-        matPtr[px.y * dImg.cols + px.x] = range;  // If already assigned - re-assign nearest depth
-      // TODO Do it always
-      /*
-      if (doFrameVisualisation_)
+      if (dImg.at<float>(px.y, px.x) <= 0.0001 || range < dImg.at<uchar>(px.y, px.x))
       {
-        float red = (3.0 * range / maxAllowedFeatureDistance_) * 255.0;
-        red = (red > 255) ? 255 : red;
-        cv::circle(drawImg_, px, 1, cv::Scalar(0, (255 - (int)red), (int)red), -1);
+        dImg.at<float>(px.y, px.x) = range;
       }
-       */
     }
   }
 }

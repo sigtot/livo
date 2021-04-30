@@ -1,5 +1,6 @@
 imu_sub_topic: /camera/imu
 cam_sub_topic: /camera/infra1/image_rect_raw
+lidar_sub_topic: /os1_cloud_node/points
 
 resize_factor: 1.0
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
@@ -40,6 +41,8 @@ body_p_imu_vec: [ 0, 0, 0 ]
 body_p_lidar_quat: [ 0, 0, 0.9238795, 0.3826834 ]
 body_p_lidar_vec: [ 0, 0, 0 ] # TODO fix
 
+image_width: 848
+image_height: 480
 cam_fx: 431.38739114
 cam_fy: 430.24961762
 cam_u0: 427.4407802

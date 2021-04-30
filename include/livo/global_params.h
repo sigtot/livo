@@ -17,6 +17,7 @@ private:
   // Add parameters here
   std::string imu_sub_topic_ = "/imu";
   std::string cam_sub_topic_ = "/camera";
+  std::string lidar_sub_topic_ = "/os1_cloud_node/points";
 
   int max_features_per_cell_ = 10;
   double resize_factor_ = 1.f;
@@ -83,6 +84,8 @@ private:
   std::vector<double> body_p_lidar_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_lidar_vec_ = { 0., 0., 0.};
 
+  int image_width_ = 480;
+  int image_height_ = 848;
   double cam_fx_ = 431.38739114;
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
@@ -107,6 +110,7 @@ public:
   // Add parameter accessors here
   static std::string IMUSubTopic();
   static std::string CameraSubTopic();
+  static std::string LidarSubTopic();
 
   static int MaxFeaturesPerCell();
   static double ResizeFactor();
@@ -170,6 +174,8 @@ public:
   static std::vector<double> BodyPLidarQuat();
   static std::vector<double> BodyPLidarVec();
 
+  static int ImageHeight();
+  static int ImageWidth();
   static double CamFx();
   static double CamFy();
   static double CamU0();

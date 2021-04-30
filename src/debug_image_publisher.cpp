@@ -65,7 +65,8 @@ void DebugImagePublisher::PublishReprojectionErrorImage(const cv::Mat& image, co
 void DebugImagePublisher::PublishDepthImage(const cv::Mat& image, double timestamp)
 {
   cv_bridge::CvImage out_img;
-  out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  out_img.image = image;
+  out_img.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
   out_img.header.stamp = ros::Time(timestamp);
   GetInstance().depth_image_publisher_.publish(out_img.toImageMsg());
 }

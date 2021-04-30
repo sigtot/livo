@@ -48,6 +48,8 @@ noise_params:
   prior_velocity: 0.4
   feature: 3.0
 
+image_width: 752
+image_height: 480
 cam_fx: 458.654
 cam_fy: 457.296
 cam_u0: 367.215

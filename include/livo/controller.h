@@ -29,7 +29,7 @@ public:
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
   void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp);
-  void LidarCallback(const sensor_msgs::PointCloud2& msg);
+  void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
 };
 
 #endif

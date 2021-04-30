@@ -63,11 +63,18 @@ int main(int argc, char** argv)
   Controller controller(feature_extractor, lidar_frame_manager, smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);
 
-  QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> queued_measurement_processor(
+  QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 4);
-  auto sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
-                          &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
-                          &queued_measurement_processor);
+  auto img_sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
+                              &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
+                              &image_messages_processor);
+
+  QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>> lidar_messages_processor(
+      std::bind(&Controller::LidarCallback, &controller, std::placeholders::_1), 1);
+  auto lidar_sub =
+      nh.subscribe(GlobalParams::LidarSubTopic(), 1000,
+                   &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>>::addMeasurement,
+                   &lidar_messages_processor);
 
   ROS_INFO("Starting up");
   if (!GlobalParams::GroundTruthFile().empty())

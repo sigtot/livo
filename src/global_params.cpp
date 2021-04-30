@@ -55,6 +55,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   // Add ReadVariable calls here
   ReadVariable(nh, "/orb_test_node/imu_sub_topic", GetInstance().imu_sub_topic_);
   ReadVariable(nh, "/orb_test_node/cam_sub_topic", GetInstance().cam_sub_topic_);
+  ReadVariable(nh, "/orb_test_node/lidar_sub_topic", GetInstance().lidar_sub_topic_);
 
   ReadVariable(nh, "/orb_test_node/max_features_per_cell", GetInstance().max_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/resize_factor", GetInstance().resize_factor_);
@@ -122,6 +123,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVectorVariable(nh, "/orb_test_node/body_p_lidar_quat", GetInstance().body_p_lidar_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_lidar_vec", GetInstance().body_p_lidar_vec_);
 
+  ReadVariable(nh, "/orb_test_node/image_width", GetInstance().image_width_);
+  ReadVariable(nh, "/orb_test_node/image_height", GetInstance().image_height_);
   ReadVariable(nh, "/orb_test_node/cam_fx", GetInstance().cam_fx_);
   ReadVariable(nh, "/orb_test_node/cam_fy", GetInstance().cam_fy_);
   ReadVariable(nh, "/orb_test_node/cam_u0", GetInstance().cam_u0_);
@@ -148,6 +151,10 @@ std::string GlobalParams::IMUSubTopic()
 std::string GlobalParams::CameraSubTopic()
 {
   return GetInstance().cam_sub_topic_;
+}
+std::string GlobalParams::LidarSubTopic()
+{
+  return GetInstance().lidar_sub_topic_;
 }
 int GlobalParams::MaxFeaturesPerCell()
 {
@@ -274,6 +281,14 @@ std::vector<double> GlobalParams::BodyPLidarVec()
   return GetInstance().body_p_lidar_vec_;
 }
 
+int GlobalParams::ImageHeight()
+{
+  return GetInstance().image_height_;
+}
+int GlobalParams::ImageWidth()
+{
+  return GetInstance().image_width_;
+}
 double GlobalParams::CamFx()
 {
   return GetInstance().cam_fx_;

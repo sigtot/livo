@@ -26,13 +26,13 @@ Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_fram
 {
 }
 
-void Controller::LidarCallback(const sensor_msgs::PointCloud2& msg)
+void Controller::LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
   pcl::PCLPointCloud2 pcl_pc2;
-  pcl_conversions::toPCL(msg, pcl_pc2);
+  pcl_conversions::toPCL(*msg, pcl_pc2);
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromPCLPointCloud2(pcl_pc2, *cloud);
-  lidar_frame_manager_.LidarCallback(cloud, msg.header.stamp.toSec());
+  lidar_frame_manager_.LidarCallback(cloud, msg->header.stamp.toSec());
 }
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
