@@ -1,6 +1,8 @@
 #ifndef ORB_TEST_FEATUREEXTRACTOR_CPP_FRAME_H_
 #define ORB_TEST_FEATUREEXTRACTOR_CPP_FRAME_H_
 
+#include "lidar_frame.h"
+
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <opencv2/core/core.hpp>
@@ -8,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <boost/optional.hpp>
 
 // Forward declaration b/c of circular dependency
 struct Feature;

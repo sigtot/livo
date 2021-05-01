@@ -95,7 +95,7 @@ private:
   int lidar_depth_calc_mode_ = 0; // 0 = patch, 1 = line
   int lidar_depth_search_window_width_ = 7;
   int lidar_depth_search_window_height_ = 7;
-  int lidar_depth_min_non_zero_neighbors_ = 10;
+  int lidar_depth_min_non_zero_neighbors_ = 3;
   double lidar_depth_max_allowed_feature_distance_ = 20.;
 
 

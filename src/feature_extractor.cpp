@@ -6,12 +6,14 @@
 #include "global_params.h"
 #include "Initializer.h"
 #include "radtan_undistorter.h"
+#include "lidar-depth.h"
 
 #include <algorithm>
 #include <utility>
 #include <memory>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub) : tracks_pub_(tracks_pub)
+FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager)
+  : tracks_pub_(tracks_pub), lidar_frame_manager_(lidar_frame_manager)
 {
 }
 
@@ -63,7 +65,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       }
     }
 
-    // Discard RANSAC outliers
+    auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
+    // Discard RANSAC outliers and add the rest as new features
     vector<uchar> inlier_mask;
     if (new_points.size() >= 8)
     {
@@ -74,6 +77,14 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
         if (inlier_mask[i])
         {
           auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
+          if (lidar_frame)
+          {
+            new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+            if (new_feature->depth)
+            {
+              std::cout << "got depth " << *new_feature->depth << " for track " << active_tracks_[i]->id << std::endl;
+            }
+          }
           new_frame->features[active_tracks_[i]->id] = new_feature;
           active_tracks_[i]->features.push_back(std::move(new_feature));
         }

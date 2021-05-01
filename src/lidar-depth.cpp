@@ -86,7 +86,8 @@ void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, con
   }
 }
 
-float getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol)
+boost::optional<float> getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc,
+                                               float tol)
 {
   // Loop though non-zero points
   static const cv::Point2i ctrPt(GlobalParams::LidarDepthSearchWindowWidth() / 2,
@@ -106,7 +107,7 @@ float getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::P
   meanDep /= ROInonZeroLoc.size();
   // Single Beam - No information of planarity
   if (topCount < 2 || bottomCount < 2)
-    return -1;
+    return boost::none;
   // Calculate Std.Dev
   float stdDev = 0.0;
   for (auto& roiPt : ROInonZeroLoc)
@@ -115,11 +116,12 @@ float getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::P
   stdDev = std::sqrt(stdDev);
   // Check if patch has large Std.Dev
   if (stdDev > tol)
-    return -1;
+    return boost::none;
   return meanDep;
 }
 
-float getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol)
+boost::optional<float> getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc,
+                                              float tol)
 {
   // Loop though non-zero points
   static const cv::Point2i ctrPt(GlobalParams::LidarDepthSearchWindowWidth() / 2,
@@ -139,7 +141,7 @@ float getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Po
   meanDep /= ROInonZeroLoc.size();
   // Single Beam - Balanced Neighborhoods
   if (leftCount < 2 || rightCount < 2)
-    return -1;
+    return boost::none;
   // Calculate Max depth difference between consective points
   float maxDepDiff = 0.0;
   for (int i = 1; i < ROInonZeroLoc.size(); ++i)
@@ -150,11 +152,11 @@ float getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Po
   }
   // Check if line has large depth differences
   if (maxDepDiff > tol)
-    return -1;
+    return boost::none;
   return meanDep;
 }
 
-float getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, const int& feaID, float tol)
+boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, float tol)
 {
   // Define look-up window and center point
   static const int hWinHalf = GlobalParams::LidarDepthSearchWindowWidth() / 2;
@@ -165,9 +167,13 @@ float getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, con
   int vMin = pt.y - vWinHalf;
   // Check if ROI boundaries are valid
   if (uMin < 0 || vMin < 0)
-    return -1;
+  {
+    return boost::none;
+  }
   if ((pt.x + hWinHalf) > depthImg.cols - 1 || (pt.y + vWinHalf) > depthImg.rows - 1)
-    return -1;
+  {
+    return boost::none;
+  }
   // Count Non-Zero depth points in the ROI
   cv::Rect ROI(uMin, vMin, GlobalParams::LidarDepthSearchWindowWidth(), GlobalParams::LidarDepthSearchWindowWidth());
   cv::Mat depthPatch(depthImg, ROI);
@@ -177,19 +183,26 @@ float getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, con
   cv::findNonZero(countPatch, ROInonZeroLoc);
   // If not enough non-zero depth points neighbor present
   if (ROInonZeroLoc.size() < GlobalParams::LidarDepthMinNonZeroNeighbors())
-    return -1;
+  {
+    return boost::none;
+  }
+  // TODO: we should also check if the variance among the non-zero depth points within the ROI
   // Get Depth
-  float depth = -1;
+  boost::optional<float> depth = 0;
   if (GlobalParams::LidarDepthCalcMode() == 0)
     depth = getDirectDepthFromPatch(depthPatch, ROInonZeroLoc, tol);
   else if (GlobalParams::LidarDepthCalcMode() == 1)
     depth = getDirectDepthFromLine(depthPatch, ROInonZeroLoc, tol);
   else
+  {
     ROS_WARN_STREAM("=== ROVIO - INVALID DEPTH CALCULATION MODE SET IT SHOUD BE EITHER 0(PATCH) or 1(LINE)===");
-  if (depth > GlobalParams::LidarDepthMaxAllowedFeatureDistance())
-    return -1;
+    return boost::none;
+  }
+  if (depth && *depth > GlobalParams::LidarDepthMaxAllowedFeatureDistance())
+  {
+    return boost::none;
+  }
   // DEBUG
-  //  std::cout << "FeaID: " << feaID
   //            << ", MODE: " << (lidarDepthCalcMode_ == 0 ? "PATCH" : "LINE")
   //            << ", NonZero:" << ROInonZeroLoc.size()
   //            << ", depth: " << depth << std::endl;

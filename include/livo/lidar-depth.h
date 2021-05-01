@@ -29,7 +29,7 @@ void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, con
  *  @param tol - Tolereance of Std.Dev of depth patch
  *  @return - Mean Patch Depth, -1 if invalid patch
  */
-float getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol = 0.1);
+boost::optional<float> getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol = 0.1);
 
 /** \brief Get LiDAR depth using a LINE nearest to the camera feature
  *
@@ -38,16 +38,15 @@ float getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::P
  *  @param tol - Tolereance of Max depth difference between consective points on the line
  *  @return - Mean Line Depth, -1 if invalid
  */
-float getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol = 0.1);
+boost::optional<float> getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol = 0.1);
 
 /** \brief Get LiDAR depth surrounding a camera feature from the depth image created by projectPCLtoImgFrame
  *
  *  @param ptf - Pixel Coordinates of camera feature
  *  @param depthImg - Depth Image for depth look-up
- *  @param feaID - ID of feature
  *  @param tol - Tolereance of Std.Dev of depth patch
  *  @return - Mean Patch Depth, -1 if invalid patch
  */
-float getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, const int& feaID, float tol = 0.1);
+boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg, float tol = 0.1);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_LIDAR_DEPTH_H_

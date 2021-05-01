@@ -7,6 +7,7 @@
 #include "track.h"
 #include "imu_queue.h"
 #include "keyframe_transform.h"
+#include "lidar_frame_manager.h"
 
 #include <memory>
 #include <vector>

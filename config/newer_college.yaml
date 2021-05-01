@@ -57,5 +57,5 @@ lidar_depth:
   calc_mode: 0
   search_window_width: 7
   search_window_height: 7
-  min_non_zero_neighbors: 10
+  min_non_zero_neighbors: 3
   max_allowed_feature_distance: 20.

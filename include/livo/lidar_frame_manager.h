@@ -3,16 +3,26 @@
 
 #include "lidar_frame.h"
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 #include <map>
+#include <boost/optional.hpp>
+#include <memory>
+
+// Forward declarations to avoid referencing pcl in header
+namespace pcl
+{
+template <class T>
+class PointCloud;
+
+class PointXYZI;
+}  // namespace pcl
 
 class LidarFrameManager
 {
 private:
-  std::map<double, LidarFrame> lidar_frames_;  // <timestamp, frame>
+  std::map<double, std::shared_ptr<LidarFrame>> lidar_frames_;  // <timestamp, frame>
 public:
-  void LidarCallback(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, double timestamp);
+  void LidarCallback(const boost::shared_ptr<pcl::PointCloud<pcl::PointXYZI>>& cloud, double timestamp);
+  boost::optional<std::shared_ptr<LidarFrame>> At(double timestamp) const;
 };
 
 #endif  // ORB_TEST_SRC_LIDAR_FRAME_MANAGER_H_

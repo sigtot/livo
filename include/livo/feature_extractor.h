@@ -5,6 +5,7 @@
 #include "track.h"
 #include "keyframe_transform.h"
 #include "keyframe_tracker.h"
+#include "lidar_frame_manager.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -22,6 +23,7 @@ private:
   ros::Publisher tracks_pub_;
   vector<shared_ptr<Frame>> frames;
   int frame_count_ = 0;
+  const LidarFrameManager& lidar_frame_manager_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
   std::vector<std::shared_ptr<Track>> old_tracks_;
@@ -41,7 +43,7 @@ private:
   static void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image);
 
 public:
-  explicit FeatureExtractor(const ros::Publisher& tracks_pub);
+  explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager);
 
   shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 

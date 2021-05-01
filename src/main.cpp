@@ -56,9 +56,9 @@ int main(int argc, char** argv)
   auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
   auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000, true);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
-  FeatureExtractor feature_extractor(tracks_pub);
-  Smoother smoother(imu_queue);
   LidarFrameManager lidar_frame_manager;
+  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
+  Smoother smoother(imu_queue);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);

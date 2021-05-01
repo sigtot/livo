@@ -2,6 +2,7 @@
 #define ORB_TEST_INCLUDE_LIVO_FEATURE_H_
 
 #include <utility>
+#include <boost/optional.hpp>
 
 #include "frame.h"
 
@@ -17,6 +18,7 @@ struct Feature
   std::weak_ptr<Track> track;
   std::shared_ptr<Frame> frame;
   cv::Point2f pt;
+  boost::optional<float> depth;
   bool in_smoother = false;
 };
 
