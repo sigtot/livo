@@ -1,11 +1,18 @@
 #include "smoother.h"
 #include "gtsam_conversions.h"
-#include "pose3_stamped.h"
 #include "global_params.h"
 #include "newer_college_ground_truth.h"
 #include "gtsam_helpers.h"
 #include "debug_image_publisher.h"
 #include "debug_value_publisher.h"
+
+#include "frame.h"
+#include "track.h"
+#include "keyframe_transform.h"
+#include "pose3_stamped.h"
+#include "point3.h"
+#include "feature.h"
+#include "imu_queue.h"
 
 #include <iostream>
 #include <utility>

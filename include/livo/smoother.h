@@ -1,17 +1,20 @@
 #ifndef ORB_TEST_SRC_SMOOTHER_H_
 #define ORB_TEST_SRC_SMOOTHER_H_
 
-#include "pose3_stamped.h"
-#include "point3.h"
-#include "feature.h"
-#include "track.h"
-#include "imu_queue.h"
-#include "keyframe_transform.h"
-#include "lidar_frame_manager.h"
-
 #include <memory>
 #include <vector>
 #include <map>
+#include <boost/optional.hpp>
+#include <boost/shared_ptr.hpp>
+
+// Forward declarations
+class Track;
+class Frame;
+class KeyframeTransform;
+class Pose3Stamped;
+class Point3;
+class Feature;
+class IMUQueue;
 
 // GTSAM forward declarations to speed up compilation time
 namespace gtsam
@@ -21,7 +24,6 @@ class ISAM2;
 class ISAM2Result;
 class NonlinearFactorGraph;
 class Values;
-class Marginals;
 class Pose3;
 class NavState;
 class CombinedImuFactor;
@@ -80,7 +82,7 @@ private:
 
   void WaitForAndIntegrateIMU(double timestamp1, double timestamp2);
   void PublishReprojectionErrorImages();
-  void PublishNewReprojectionErrorImage(const gtsam::Values& values, const shared_ptr<Frame>& frame);
+  void PublishNewReprojectionErrorImage(const gtsam::Values& values, const std::shared_ptr<Frame>& frame);
   std::shared_ptr<gtsam::PreintegrationType> MakeIMUIntegrator();
   void RefineInitialNavstate(int new_frame_id, gtsam::NavState& navstate, const gtsam::CombinedImuFactor& imu_factor);
   void RemoveTrack(int track_id);
@@ -108,7 +110,7 @@ public:
   void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
   void GetLandmarkEstimates(std::map<int, Point3>& landmark_estimates);
   int GetLastFrameId() const;
-  void RefineInitialNavstate(int new_frame_id, const vector<Track>& new_tracks);
+  void RefineInitialNavstate(int new_frame_id, const std::vector<Track>& new_tracks);
 };
 
 #endif
