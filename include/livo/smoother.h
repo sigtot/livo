@@ -59,8 +59,6 @@ private:
   gtsam::ISAM2* isam2;
   gtsam::NonlinearFactorGraph* graph_;
   gtsam::Values* values_;
-  gtsam::Marginals* marginals_ = nullptr;
-  boost::shared_ptr<gtsam::RangeFactor<gtsam::Pose3, gtsam::Pose3, double>> range_factor_;
   boost::shared_ptr<gtsam::Cal3_S2> K_;
   boost::shared_ptr<gtsam::Pose3> body_p_cam_;
   boost::shared_ptr<gtsam::Pose3> body_p_imu_;
