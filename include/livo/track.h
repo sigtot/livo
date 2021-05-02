@@ -16,16 +16,9 @@ struct Track
 
   double max_parallax = 0.;
 
-  explicit Track(std::vector<std::shared_ptr<Feature>> features) : features(std::move(features))
-  {
-    static int counter = 0;
-    id = counter++;
-  }
+  explicit Track(std::vector<std::shared_ptr<Feature>> features);
 
-  double InlierRatio() const
-  {
-    return static_cast<double>(inlier_count) / static_cast<double>(inlier_count + outlier_count);
-  }
+  double InlierRatio() const;
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_
