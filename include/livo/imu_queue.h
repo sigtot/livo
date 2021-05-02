@@ -8,8 +8,6 @@
 
 #include "rot3.h"
 
-using namespace std;
-
 // Forward declarations for gtsam
 namespace gtsam
 {
@@ -20,8 +18,8 @@ typedef TangentPreintegration PreintegrationType;
 class IMUQueue
 {
 private:
-  map<double, sensor_msgs::Imu> imuMap;
-  mutex mu;
+  std::map<double, sensor_msgs::Imu> imuMap;
+  std::mutex mu;
 
 public:
   void addMeasurement(const sensor_msgs::Imu& measurement);

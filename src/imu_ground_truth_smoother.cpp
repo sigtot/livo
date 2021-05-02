@@ -2,7 +2,6 @@
 #include "global_params.h"
 #include "ground_truth.h"
 #include "pose3_stamped.h"
-#include "point3.h"
 #include "gtsam_conversions.h"
 
 #include <gtsam/nonlinear/ISAM2.h>
