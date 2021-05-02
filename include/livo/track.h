@@ -19,6 +19,8 @@ struct Track
   explicit Track(std::vector<std::shared_ptr<Feature>> features);
 
   double InlierRatio() const;
+
+  bool HasDepth() const;
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_

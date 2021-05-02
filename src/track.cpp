@@ -10,3 +10,10 @@ double Track::InlierRatio() const
 {
   return static_cast<double>(inlier_count) / static_cast<double>(inlier_count + outlier_count);
 }
+
+bool Track::HasDepth() const
+{
+  return std::find_if(features.begin(), features.end(), [](const std::shared_ptr<Feature>& feature) -> bool {
+           return feature->depth.is_initialized();
+         }) != features.end();
+}
