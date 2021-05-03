@@ -186,7 +186,6 @@ boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::M
   {
     return boost::none;
   }
-  // TODO: we should also check if the variance among the non-zero depth points within the ROI
   // Get Depth
   boost::optional<float> depth = 0;
   if (GlobalParams::LidarDepthCalcMode() == 0)

@@ -144,24 +144,15 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp)
-
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp src/depth_triangulation.cpp)
 target_link_libraries(${PROJECT_NAME}_node
     gtsam
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
 )
+
+catkin_add_gtest(livo_tests tests/tests.cpp tests/depth_triangulation_tests.cpp src/depth_triangulation.cpp)
+target_link_libraries(livo_tests gtsam ${catkin_LIBRARIES})
 
 #############
 ## Install ##
