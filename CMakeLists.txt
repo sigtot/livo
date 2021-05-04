@@ -155,6 +155,9 @@ catkin_add_gtest(livo_tests
         tests/tests.cpp
         tests/depth_triangulation_tests.cpp
         tests/graph_manager_tests.cpp
+        tests/graph_manager_tests_landmarks.cpp
+        tests/helpers.cpp
+        tests/helpers.h
         src/graph_manager.cpp
         src/depth_triangulation.cpp)
 target_link_libraries(livo_tests gtsam ${catkin_LIBRARIES})
