@@ -17,6 +17,9 @@ imu_gyro_noise_density: 0.00174528 # rad / s
 imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
 imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
 
+noise_params:
+  range: 0.5
+
 use_isam: true
 use_dogleg: false
 isam_relinearize_thresh: 0.1
@@ -30,7 +33,7 @@ track_count_lower_thresh: 150
 min_parallax_for_keyframe: 15
 min_parallax_for_smoothing: 10
 num_high_parallax_points_for_keyframe: 30
-min_track_length_for_smoothing: 3
+min_track_length_for_smoothing: 2
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
 body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]

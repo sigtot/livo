@@ -30,6 +30,7 @@ noise_params:
   prior_accel: 0.1
   prior_velocity: 0.1
   feature: 1.0
+  range: 0.5
 
 imu_cam_quat: [0, 0, 0, 1]
 imu_cam_vector: [0, 0, 0]

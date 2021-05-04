@@ -59,6 +59,7 @@ private:
   double prior_noise_accel_ = 0.1;
   double prior_noise_velocity = 0.1;
   double noise_feature_ = 1.0;
+  double noise_range_ = 0.5;  // meters
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -151,6 +152,7 @@ public:
   static double PriorNoiseAccel();
   static double PriorNoiseVelocity();
   static double NoiseFeature();
+  static double NoiseRange();
 
   static double TimeshiftCamImu();  // t_imu = t_cam + shift
   static double IMUG();

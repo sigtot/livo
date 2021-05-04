@@ -94,6 +94,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/noise_params/prior_accel", GetInstance().prior_noise_accel_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_velocity", GetInstance().prior_noise_velocity);
   ReadVariable(nh, "/orb_test_node/noise_params/feature", GetInstance().noise_feature_);
+  ReadVariable(nh, "/orb_test_node/noise_params/range", GetInstance().noise_range_);
 
   ReadVariable(nh, "/orb_test_node/feature_extraction_interval", GetInstance().feature_extraction_interval_);
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
@@ -408,6 +409,10 @@ double GlobalParams::PriorNoiseVelocity()
 double GlobalParams::NoiseFeature()
 {
   return GetInstance().noise_feature_;
+}
+double GlobalParams::NoiseRange()
+{
+  return GetInstance().noise_range_;
 }
 bool GlobalParams::LidarDepthEnabled()
 {
