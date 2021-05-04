@@ -112,10 +112,10 @@ find_package(PCL REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES orb_test
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES orb_test
+        #  CATKIN_DEPENDS other_catkin_pkg
+        #  DEPENDS system_lib
 )
 
 ###########
@@ -125,10 +125,10 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-include/livo
-include/ORB_SLAM
-${catkin_INCLUDE_DIRS}
-${OpenCV_INCLUDE_DIRS}
+        include/livo
+        include/ORB_SLAM
+        ${catkin_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -144,14 +144,19 @@ ${OpenCV_INCLUDE_DIRS}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp src/depth_triangulation.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp src/depth_triangulation.cpp src/graph_manager.cpp)
 target_link_libraries(${PROJECT_NAME}_node
-    gtsam
-    ${catkin_LIBRARIES}
-    ${OpenCV_LIBS}
-)
+        gtsam
+        ${catkin_LIBRARIES}
+        ${OpenCV_LIBS}
+        )
 
-catkin_add_gtest(livo_tests tests/tests.cpp tests/depth_triangulation_tests.cpp src/depth_triangulation.cpp)
+catkin_add_gtest(livo_tests
+        tests/tests.cpp
+        tests/depth_triangulation_tests.cpp
+        tests/graph_manager_tests.cpp
+        src/graph_manager.cpp
+        src/depth_triangulation.cpp)
 target_link_libraries(livo_tests gtsam ${catkin_LIBRARIES})
 
 #############
