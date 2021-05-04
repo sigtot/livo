@@ -17,4 +17,5 @@ TEST(GraphManager, SmokeTest)
   gtsam::NavState nav_state;
   gtsam::imuBias::ConstantBias bias;
   graph_manager.SetInitNavstate(1, nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager.Update();
 }

@@ -28,6 +28,10 @@ void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& na
   values_->insert(X(first_frame_id), nav_state.pose());
   values_->insert(V(first_frame_id), nav_state.velocity());
   values_->insert(B(first_frame_id), bias);
+
+  graph_->addPrior(X(first_frame_id), nav_state.pose(), noise_x);
+  graph_->addPrior(V(first_frame_id), nav_state.velocity(), noise_v);
+  graph_->addPrior(B(first_frame_id), bias, noise_b);
 }
 
 gtsam::ISAM2Result GraphManager::Update()
