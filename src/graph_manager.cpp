@@ -66,6 +66,31 @@ void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasuremen
   last_frame_id_ = id;
 }
 
+void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
+                                             const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                             const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
+{
+  auto smart_factor = gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
+  smart_factor->add(feature, X(frame_id));
+  graph_->add(smart_factor);
+  smart_factors_[lmk_id] = std::move(smart_factor);
+}
+
+void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
+                                          const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                          const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
+{
+  auto smart_factor = smart_factors_.find(lmk_id);
+  if (smart_factor != smart_factors_.end())
+  {
+    smart_factor->second->add(feature, X(frame_id));
+  }
+  else
+  {
+    std::cout << "NOT IMPLEMENTED" << std::endl;
+  }
+}
+
 gtsam::Pose3 GraphManager::GetPose(int frame_id) const
 {
   return isam2_->calculateEstimate<gtsam::Pose3>(X(frame_id));
@@ -86,12 +111,3 @@ gtsam::Values GraphManager::GetValues() const
   return isam2_->calculateEstimate();
 }
 
-void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
-                                const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
-{
-  auto smart_factor = gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
-  smart_factor->add(feature, X(frame_id));
-  graph_->add(smart_factor);
-  smart_factors_[lmk_id] = std::move(smart_factor);
-}
