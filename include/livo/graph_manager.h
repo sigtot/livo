@@ -3,6 +3,7 @@
 
 #include <map>
 #include <boost/shared_ptr.hpp>
+#include <Eigen/Core>
 
 namespace gtsam
 {
@@ -29,6 +30,8 @@ template <typename A1, typename A2, typename T>
 class RangeFactor;
 
 typedef std::uint64_t FactorIndex;
+typedef std::uint64_t Key;
+typedef Eigen::Vector3d Vector3;
 
 namespace noiseModel
 {
@@ -63,6 +66,9 @@ public:
                        const boost::shared_ptr<gtsam::noiseModel::Isotropic>& noise_v,
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b);
   gtsam::ISAM2Result Update();
+  gtsam::Pose3 GetPose(int frame_id);
+  gtsam::Vector3 GetVelocity(int frame_id);
+  gtsam::imuBias::ConstantBias GetBias(int frame_id);
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_

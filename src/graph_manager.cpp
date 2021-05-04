@@ -1,6 +1,7 @@
 #include "graph_manager.h"
 
 #include <memory>
+#include <gtsam/base/Vector.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
@@ -40,4 +41,19 @@ gtsam::ISAM2Result GraphManager::Update()
   graph_->resize(0);
   values_->clear();
   return result;
+}
+
+gtsam::Pose3 GraphManager::GetPose(int frame_id)
+{
+  return isam2_->calculateEstimate<gtsam::Pose3>(X(frame_id));
+}
+
+gtsam::Vector3 GraphManager::GetVelocity(int frame_id)
+{
+  return isam2_->calculateEstimate<gtsam::Vector3>(V(frame_id));
+}
+
+gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id)
+{
+  return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
 }
