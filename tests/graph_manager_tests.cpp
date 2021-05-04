@@ -5,11 +5,22 @@
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/base/TestableAssertions.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
 
 #include "graph_manager.h"
 
+boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> PimParams()
+{
+  auto p = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU();
+  p->gyroscopeCovariance = 0.0001 * 0.0001 * gtsam::I_3x3;
+  p->accelerometerCovariance = 0.0001 * 0.0001 * gtsam::I_3x3;
+  p->integrationCovariance = 0.0001 * gtsam::I_3x3;
+  return p;
+}
+
 TEST(GraphManager, SmokeTest)
 {
+  // Arrange
   GraphManager graph_manager((gtsam::ISAM2Params()));
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
@@ -18,9 +29,26 @@ TEST(GraphManager, SmokeTest)
       (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
   gtsam::NavState nav_state;
   gtsam::imuBias::ConstantBias bias;
+
+  gtsam::PreintegratedCombinedMeasurements pim(PimParams());
+
+  gtsam::Vector3 measured_acc(1.0, 0.0, 9.81);
+  gtsam::Vector3 measured_omega(0.0, 0.0, 0.0);
+  double delta_t = 1.0;
+  pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
+
+  // Act
   graph_manager.SetInitNavstate(1, nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager.AddFrame(2, pim, pim.predict(nav_state, bias), bias);
+
   auto isam_result = graph_manager.Update();
   auto pose = graph_manager.GetPose(1);
 
+  auto pose2 = graph_manager.GetPose(2);
+  auto vel2 = graph_manager.GetVelocity(2);
+
+  // Assert
   ASSERT_TRUE(gtsam::assert_equal(pose, gtsam::Pose3()));
+  ASSERT_TRUE(gtsam::assert_equal(pose2, gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(0.5, 0.0, 0.0))));  // x = 1/2 at^2
+  ASSERT_TRUE(gtsam::assert_equal(vel2, gtsam::Vector3(1.0, 0.0, 0.0)));                               // v = at
 }

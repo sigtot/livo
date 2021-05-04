@@ -8,6 +8,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/navigation/NavState.h>
 #include <gtsam/navigation/ImuBias.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
@@ -33,6 +34,8 @@ void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& na
   graph_->addPrior(X(first_frame_id), nav_state.pose(), noise_x);
   graph_->addPrior(V(first_frame_id), nav_state.velocity(), noise_v);
   graph_->addPrior(B(first_frame_id), bias, noise_b);
+
+  last_frame_id_ = first_frame_id;
 }
 
 gtsam::ISAM2Result GraphManager::Update()
@@ -41,6 +44,20 @@ gtsam::ISAM2Result GraphManager::Update()
   graph_->resize(0);
   values_->clear();
   return result;
+}
+
+void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim,
+                            const gtsam::NavState& initial_navstate, const gtsam::imuBias::ConstantBias& initial_bias)
+{
+  values_->insert(X(id), initial_navstate.pose());
+  values_->insert(V(id), initial_navstate.velocity());
+  values_->insert(B(id), initial_bias);
+
+  gtsam::CombinedImuFactor imu_factor(X(last_frame_id_), V(last_frame_id_), X(id), V(id), B(last_frame_id_), B(id),
+                                      pim);
+  graph_->add(imu_factor);
+
+  last_frame_id_ = id;
 }
 
 gtsam::Pose3 GraphManager::GetPose(int frame_id)

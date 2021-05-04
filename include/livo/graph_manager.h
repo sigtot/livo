@@ -17,6 +17,7 @@ class Point3;
 class NavState;
 class CombinedImuFactor;
 class ISAM2Params;
+class PreintegratedCombinedMeasurements;
 
 class SmartProjectionParams;
 
@@ -55,17 +56,19 @@ private:
   std::shared_ptr<gtsam::ISAM2> isam2_;
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
+  int last_frame_id_ = -1;
 
 public:
   explicit GraphManager(const gtsam::ISAM2Params& isam2_params);
 
 public:
-  void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state,
-                       const gtsam::imuBias::ConstantBias& bias,
+  void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state, const gtsam::imuBias::ConstantBias& bias,
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_x,
                        const boost::shared_ptr<gtsam::noiseModel::Isotropic>& noise_v,
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b);
   gtsam::ISAM2Result Update();
+  void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
+                const gtsam::imuBias::ConstantBias& initial_bias);
   gtsam::Pose3 GetPose(int frame_id);
   gtsam::Vector3 GetVelocity(int frame_id);
   gtsam::imuBias::ConstantBias GetBias(int frame_id);
