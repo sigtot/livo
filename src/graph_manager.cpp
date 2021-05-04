@@ -9,16 +9,19 @@
 #include <gtsam/navigation/NavState.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/slam/SmartFactorParams.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
 
-GraphManager::GraphManager(const gtsam::ISAM2Params& isam2_params)
+GraphManager::GraphManager(const gtsam::ISAM2Params& isam2_params,
+                           const gtsam::SmartProjectionParams& smart_factor_params)
   : isam2_(std::make_shared<gtsam::ISAM2>(isam2_params))
   , graph_(std::make_shared<gtsam::NonlinearFactorGraph>())
   , values_(std::make_shared<gtsam::Values>())
+  , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
 {
 }
 void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state,

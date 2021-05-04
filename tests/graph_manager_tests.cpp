@@ -7,6 +7,7 @@
 #include <gtsam/base/TestableAssertions.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/inference/Symbol.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
 
 #include "graph_manager.h"
 
@@ -24,7 +25,7 @@ boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> PimParams()
 TEST(GraphManager, IMUOnlyAddFrame)
 {
   // Arrange
-  GraphManager graph_manager((gtsam::ISAM2Params()));
+  GraphManager graph_manager((gtsam::ISAM2Params()), (gtsam::SmartProjectionParams()));
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
   auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1.);

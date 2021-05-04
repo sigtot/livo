@@ -56,10 +56,12 @@ private:
   std::shared_ptr<gtsam::ISAM2> isam2_;
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
+  std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
   int last_frame_id_ = -1;
 
 public:
-  explicit GraphManager(const gtsam::ISAM2Params& isam2_params);
+  explicit GraphManager(const gtsam::ISAM2Params& isam2_params,
+                        const gtsam::SmartProjectionParams& smart_factor_params);
 
 public:
   void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state, const gtsam::imuBias::ConstantBias& bias,
