@@ -3,6 +3,7 @@
 
 #include <map>
 #include <boost/shared_ptr.hpp>
+#include <boost/optional.hpp>
 #include <Eigen/Core>
 
 namespace gtsam
@@ -83,6 +84,7 @@ public:
   gtsam::Vector3 GetVelocity(int frame_id) const;
   gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
   gtsam::Values GetValues() const;
+  boost::optional<gtsam::Point3> GetLandmark(int lmk_id) const;
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_

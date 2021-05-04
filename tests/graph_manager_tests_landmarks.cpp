@@ -38,7 +38,7 @@ TEST(GraphManager, LandmarksWork)
 
   gtsam::Pose3 body_p_cam(gtsam::Rot3::Ypr(-M_PI_2, 0., -M_PI_2), gtsam::Point3::Zero());
   gtsam::Point3 landmark(4., 1., 1.);
-  auto K = gtsam::make_shared<gtsam::Cal3_S2>(650., 650., 0., 0., 0.);
+  auto K = gtsam::make_shared<gtsam::Cal3_S2>(650., 650., 0., 200., 200.);
 
   // Act
   graph_manager.SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
@@ -65,10 +65,12 @@ TEST(GraphManager, LandmarksWork)
   auto isam_result = graph_manager.Update();
 
   // Assert
-  auto pose = graph_manager.GetPose(1);
-  auto pose2 = graph_manager.GetPose(2);
-  auto vel2 = graph_manager.GetVelocity(2);
-  ASSERT_TRUE(gtsam::assert_equal(pose, gt_nav_states[0].pose()));
-  ASSERT_TRUE(gtsam::assert_equal(pose2, gt_nav_states[1].pose()));
-  ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetValues().at<gtsam::Pose3>(X(1)), pose));
+  auto pose_estimate = graph_manager.GetPose(1);
+  auto pose_estimate_2 = graph_manager.GetPose(2);
+  auto landmark_estimate = graph_manager.GetLandmark(1);
+  ASSERT_TRUE(gtsam::assert_equal(pose_estimate, gt_nav_states[0].pose()));
+  ASSERT_TRUE(gtsam::assert_equal(pose_estimate_2, gt_nav_states[1].pose()));
+  ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetValues().at<gtsam::Pose3>(X(1)), pose_estimate));
+  ASSERT_TRUE(landmark_estimate.is_initialized());
+  ASSERT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark));
 }

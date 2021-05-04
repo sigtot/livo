@@ -80,10 +80,9 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
                                           const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
-  auto smart_factor = smart_factors_.find(lmk_id);
-  if (smart_factor != smart_factors_.end())
+  if (smart_factors_.count(lmk_id))
   {
-    smart_factor->second->add(feature, X(frame_id));
+    smart_factors_[lmk_id]->add(feature, X(frame_id));
   }
   else
   {
@@ -106,8 +105,20 @@ gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
 }
 
+boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
+{
+  if (smart_factors_.count(lmk_id))
+  {
+    return smart_factors_.find(lmk_id)->second->point();
+  }
+  else
+  {
+    std::cout << "NOT IMPLEMENTED" << std::endl;
+    return boost::optional<gtsam::Point3>(gtsam::Point3::Zero());
+  }
+}
+
 gtsam::Values GraphManager::GetValues() const
 {
   return isam2_->calculateEstimate();
 }
-
