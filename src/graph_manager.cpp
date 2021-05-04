@@ -86,19 +86,12 @@ gtsam::Values GraphManager::GetValues() const
   return isam2_->calculateEstimate();
 }
 
-void GraphManager::InitLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
+void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
                                 const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
-                                const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam, bool smart)
+                                const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
-  if (smart)
-  {
-    auto smart_factor = gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
-    smart_factor->add(feature, X(frame_id));
-    graph_->add(smart_factor);
-    smart_factors_[lmk_id] = std::move(smart_factor);
-  }
-  else
-  {
-    // TODO implement
-  }
+  auto smart_factor = gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
+  smart_factor->add(feature, X(frame_id));
+  graph_->add(smart_factor);
+  smart_factors_[lmk_id] = std::move(smart_factor);
 }

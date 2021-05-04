@@ -43,8 +43,8 @@ TEST(GraphManager, LandmarksWork)
   // Act
   graph_manager.SetInitNavstate(1, nav_state, bias, noise_x, noise_v, noise_b);
 
-  auto feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager.InitLandmark(1, 1, feature, feature_noise, K, body_p_cam);
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager.InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
 
   for (int i = 2; i < 4; ++i)
   {

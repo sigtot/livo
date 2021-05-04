@@ -71,9 +71,9 @@ public:
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b);
   void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
                 const gtsam::imuBias::ConstantBias& initial_bias);
-  void InitLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                    const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
-                    const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam, bool smart = true);
+  void InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
+                                 const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                 const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;
