@@ -60,22 +60,22 @@ void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasuremen
   last_frame_id_ = id;
 }
 
-gtsam::Pose3 GraphManager::GetPose(int frame_id)
+gtsam::Pose3 GraphManager::GetPose(int frame_id) const
 {
   return isam2_->calculateEstimate<gtsam::Pose3>(X(frame_id));
 }
 
-gtsam::Vector3 GraphManager::GetVelocity(int frame_id)
+gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
 {
   return isam2_->calculateEstimate<gtsam::Vector3>(V(frame_id));
 }
 
-gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id)
+gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
 {
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
 }
 
-gtsam::Values GraphManager::GetValues()
+gtsam::Values GraphManager::GetValues() const
 {
   return isam2_->calculateEstimate();
 }

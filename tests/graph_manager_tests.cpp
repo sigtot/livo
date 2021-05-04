@@ -21,7 +21,7 @@ boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> PimParams()
   return p;
 }
 
-TEST(GraphManager, SmokeTest)
+TEST(GraphManager, IMUOnlyAddFrame)
 {
   // Arrange
   GraphManager graph_manager((gtsam::ISAM2Params()));

@@ -66,13 +66,14 @@ public:
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_x,
                        const boost::shared_ptr<gtsam::noiseModel::Isotropic>& noise_v,
                        const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b);
-  gtsam::ISAM2Result Update();
   void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
                 const gtsam::imuBias::ConstantBias& initial_bias);
-  gtsam::Pose3 GetPose(int frame_id);
-  gtsam::Vector3 GetVelocity(int frame_id);
-  gtsam::imuBias::ConstantBias GetBias(int frame_id);
-  gtsam::Values GetValues();
+  gtsam::ISAM2Result Update();
+
+  gtsam::Pose3 GetPose(int frame_id) const;
+  gtsam::Vector3 GetVelocity(int frame_id) const;
+  gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
+  gtsam::Values GetValues() const;
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_
