@@ -74,3 +74,8 @@ gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id)
 {
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
 }
+
+gtsam::Values GraphManager::GetValues()
+{
+  return isam2_->calculateEstimate();
+}

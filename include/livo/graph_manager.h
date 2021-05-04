@@ -72,6 +72,7 @@ public:
   gtsam::Pose3 GetPose(int frame_id);
   gtsam::Vector3 GetVelocity(int frame_id);
   gtsam::imuBias::ConstantBias GetBias(int frame_id);
+  gtsam::Values GetValues();
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_
