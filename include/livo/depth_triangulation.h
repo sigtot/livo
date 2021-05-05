@@ -11,14 +11,14 @@ class Point2;
 class Cal3_S2;
 
 template <class T>
-class PinholeCamera;
+class PinholeBaseK;
 }  // namespace gtsam
 
 class DepthTriangulation
 {
 public:
   static gtsam::Point3 PixelAndDepthToPoint3(const gtsam::Point2& pt, double depth,
-                                             const gtsam::PinholeCamera<gtsam::Cal3_S2>& camera);
+                                             const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEPTH_TRIANGULATION_H_
