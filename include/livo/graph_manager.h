@@ -86,6 +86,18 @@ public:
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   void AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
+  /**
+   * Adds a range observation to an existing landmark. If a landmark is currently represented as a smart factor, it will
+   * be converted to a regular projection factor.\n
+   *
+   * WARNING: Must not be called after a call to AddLandmarkObservation
+   * @param lmk_id id of landmark to add range factor to
+   * @param frame_id if of frame in which range measurement was obtained
+   * @param range measured distance from body to landmark
+   * @param range_noise noise model for the range factor
+   */
+  void AddRangeObservation(int lmk_id, int frame_id, double range,
+                           const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;

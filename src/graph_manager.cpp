@@ -1,4 +1,5 @@
 #include "graph_manager.h"
+#include "depth_triangulation.h"
 
 #include <memory>
 #include <gtsam/base/Vector.h>
@@ -14,6 +15,7 @@
 #include <gtsam/slam/SmartFactorParams.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/ProjectionFactor.h>
+#include <gtsam/sam/RangeFactor.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
@@ -101,6 +103,41 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
     ProjectionFactor proj_factor(feature, landmark_noise_models_[lmk_id], X(frame_id), L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
   }
+}
+
+void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
+                                       const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise)
+{
+  if (smart_factors_.count(lmk_id))
+  {
+    // aka "ConvertSmartFactorToProjectionFactor(lmk_id)"
+    auto smart_factor = smart_factors_[lmk_id];
+    if (smart_factor->isValid())
+    {
+      values_->insert(L(lmk_id), *smart_factor->point());
+    }
+    else
+    {
+      auto measurement = smart_factor->measured().front();
+      auto camera = smart_factor->cameras(GetValues()).front();  // fails if AddLandmarkObservation called first
+      auto initial_point_estimate_from_range = DepthTriangulation::PixelAndDepthToPoint3(measurement, range, camera);
+      values_->insert(L(lmk_id), initial_point_estimate_from_range);
+    }
+    for (int i = 0; i < smart_factor->keys().size(); ++i)
+    {
+      auto feature = smart_factor->measured()[i];
+      auto frame_key = smart_factor->keys()[i];
+      auto K = smart_factor->calibration();
+      auto body_p_cam = smart_factor->body_P_sensor();
+      ProjectionFactor proj_factor(feature, landmark_noise_models_[lmk_id], frame_key, L(lmk_id), K, body_p_cam);
+      graph_->add(proj_factor);
+    }
+    smart_factor.reset();          // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
+    smart_factors_.erase(lmk_id);  // Removes the nullptr from our bookkeeping
+  }
+
+  RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);
+  graph_->add(range_factor);
 }
 
 gtsam::Pose3 GraphManager::GetPose(int frame_id) const
