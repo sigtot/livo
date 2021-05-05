@@ -182,3 +182,64 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   EXPECT_TRUE(landmark_estimate);
   EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark, 1e-2));
 }
+
+TEST_F(GraphManagerTest, SmartFactorsDogLeg)
+{
+  // Arrange
+  gtsam::ISAM2Params isam2_params;
+  isam2_params.optimizationParams = gtsam::ISAM2DoglegParams();
+  SetUp(isam2_params);
+
+  // Act
+  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
+
+  std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
+
+  for (int i = 2; i < 4; ++i)
+  {
+    pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
+    auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
+    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    pim.resetIntegration();
+
+    gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
+    auto feature = camera.project(landmark);
+    graph_manager->AddLandmarkObservation(1, i, feature, feature_noise, K, body_p_cam);
+
+    gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
+  }
+
+  auto isam_result = graph_manager->Update();
+
+  // Perform a few incremental updates
+  for (int i = 4; i < 7; ++i)
+  {
+    pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
+    auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
+    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    pim.resetIntegration();
+
+    gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
+    auto feature = camera.project(landmark);
+    graph_manager->AddLandmarkObservation(1, i, feature, feature_noise, K, body_p_cam);
+
+    gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
+
+    graph_manager->Update();
+  }
+
+  // Assert
+  for (int i = 0; i < gt_nav_states.size(); ++i)
+  {
+    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(
+        gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
+  }
+
+  auto landmark_estimate = graph_manager->GetLandmark(1);
+  EXPECT_TRUE(landmark_estimate);
+  EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark));
+}
