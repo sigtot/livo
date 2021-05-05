@@ -6,7 +6,7 @@
 #include <gtsam/base/make_shared.h>
 #include <gtsam/geometry/Cal3_S2.h>
 
-gtsam::ISAM2Params MakeIsam2Params()
+gtsam::ISAM2Params MakeISAM2Params()
 {
   gtsam::ISAM2Params params;
   params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
@@ -28,6 +28,6 @@ NewSmoother::NewSmoother()
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                           GlobalParams::CamV0()))
   , graph_manager(GraphManager(
-        MakeIsam2Params(), gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5)))
+        MakeISAM2Params(), gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5)))
 {
 }
