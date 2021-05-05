@@ -13,6 +13,7 @@
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/SmartFactorParams.h>
 #include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/slam/ProjectionFactor.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
@@ -76,6 +77,16 @@ void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gts
   smart_factors_[lmk_id] = std::move(smart_factor);
 }
 
+void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
+                                          const gtsam::Point3& initial_estimate,
+                                          const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                          const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
+{
+  ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
+  graph_->add(proj_factor);
+  values_->insert(L(lmk_id), initial_estimate);
+}
+
 void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
                                           const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
@@ -86,7 +97,8 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   }
   else
   {
-    std::cout << "NOT IMPLEMENTED" << std::endl;
+    ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
+    graph_->add(proj_factor);
   }
 }
 
@@ -111,11 +123,11 @@ boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
   {
     return smart_factors_.find(lmk_id)->second->point();
   }
-  else
+  else if (isam2_->valueExists(L(lmk_id)));
   {
-    std::cout << "NOT IMPLEMENTED" << std::endl;
-    return boost::optional<gtsam::Point3>(gtsam::Point3::Zero());
+    return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
   }
+  return boost::none;
 }
 
 gtsam::Values GraphManager::GetValues() const
