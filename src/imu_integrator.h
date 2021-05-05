@@ -8,8 +8,11 @@
 namespace gtsam
 {
 class TangentPreintegration;
-typedef TangentPreintegration PreintegrationType;
 class PreintegrationCombinedParams;
+class NavState;
+
+typedef TangentPreintegration PreintegrationType;
+
 namespace imuBias
 {
 class ConstantBias;
@@ -26,6 +29,11 @@ public:
   IMUIntegrator(std::shared_ptr<IMUQueue> imu_queue,
                 const boost::shared_ptr<gtsam::PreintegrationCombinedParams>& pim_params,
                 const gtsam::imuBias::ConstantBias& init_bias);
+  void WaitAndIntegrate(double timestamp1, double timestamp2);
+  void ResetIntegration();
+  gtsam::NavState PredictNavState(const gtsam::NavState& prev_nav_state,
+                                  const gtsam::imuBias::ConstantBias& prev_bias) const;
+  std::shared_ptr<gtsam::PreintegrationType> GetPim() const;
 };
 
 #endif  // ORB_TEST_SRC_IMU_INTEGRATOR_H_
