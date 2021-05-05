@@ -32,7 +32,6 @@ class GenericProjectionFactor;
 template <typename A1, typename A2, typename T>
 class RangeFactor;
 
-typedef std::uint64_t FactorIndex;
 typedef std::uint64_t Key;
 typedef Eigen::Vector3d Vector3;
 
