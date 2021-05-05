@@ -75,6 +75,7 @@ void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gts
   smart_factor->add(feature, X(frame_id));
   graph_->add(smart_factor);
   smart_factors_[lmk_id] = std::move(smart_factor);
+  landmark_noise_models_[lmk_id] = feature_noise;
 }
 
 void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
@@ -85,10 +86,10 @@ void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam:
   ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
   graph_->add(proj_factor);
   values_->insert(L(lmk_id), initial_estimate);
+  landmark_noise_models_[lmk_id] = feature_noise;
 }
 
 void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                          const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
   if (smart_factors_.count(lmk_id))
@@ -97,7 +98,7 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   }
   else
   {
-    ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
+    ProjectionFactor proj_factor(feature, landmark_noise_models_[lmk_id], X(frame_id), L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
   }
 }
@@ -123,7 +124,7 @@ boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
   {
     return smart_factors_.find(lmk_id)->second->point();
   }
-  else if (isam2_->valueExists(L(lmk_id)));
+  else if (isam2_->valueExists(L(lmk_id)))
   {
     return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
   }

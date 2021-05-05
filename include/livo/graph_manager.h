@@ -55,6 +55,11 @@ class GraphManager
 {
 private:
   std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
+
+  // We make each landmark use the same noise model for all observations.
+  // GTSAM forces this for smart factors, we also enforce it for regular projection factors.
+  std::map<int, boost::shared_ptr<gtsam::noiseModel::Isotropic>> landmark_noise_models_;
+
   std::shared_ptr<gtsam::ISAM2> isam2_;
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
@@ -80,7 +85,6 @@ public:
                               const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   void AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                              const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   gtsam::ISAM2Result Update();
 
