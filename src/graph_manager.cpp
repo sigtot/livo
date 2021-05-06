@@ -188,6 +188,16 @@ boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
   return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
 }
 
+std::map<int, boost::optional<gtsam::Point3>> GraphManager::GetLandmarks() const
+{
+  std::map<int, boost::optional<gtsam::Point3>> landmarks;
+  for (const auto& landmark_in_smoother : added_landmarks_)
+  {
+    landmarks[landmark_in_smoother.first] = GetLandmark(landmark_in_smoother.first);
+  }
+  return landmarks;
+}
+
 gtsam::Values GraphManager::GetValues() const
 {
   return isam2_->calculateEstimate();

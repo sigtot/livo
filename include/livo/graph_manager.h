@@ -104,6 +104,7 @@ public:
   gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
   gtsam::Values GetValues() const;
   boost::optional<gtsam::Point3> GetLandmark(int lmk_id) const;
+  std::map<int, boost::optional<gtsam::Point3>> GetLandmarks() const;
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_
