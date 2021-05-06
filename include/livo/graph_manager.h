@@ -106,6 +106,7 @@ public:
   gtsam::Values GetValues() const;
   boost::optional<gtsam::Point3> GetLandmark(int lmk_id) const;
   std::map<int, boost::optional<gtsam::Point3>> GetLandmarks() const;
+  bool IsLandmarkTracked(int lmk_id) const;
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_

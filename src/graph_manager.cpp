@@ -211,3 +211,8 @@ gtsam::Values GraphManager::GetValues() const
 {
   return isam2_->calculateEstimate();
 }
+
+bool GraphManager::IsLandmarkTracked(int lmk_id) const
+{
+  return added_landmarks_.count(lmk_id) != 0;
+}

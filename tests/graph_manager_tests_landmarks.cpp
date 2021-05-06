@@ -375,5 +375,7 @@ TEST_F(GraphManagerTest, RangeFactors)
 
     EXPECT_TRUE(landmark_estimates[j + 1]);
     EXPECT_TRUE(gtsam::assert_equal(*landmark_estimates[j + 1], landmarks[j], 0.15));
+    EXPECT_TRUE(graph_manager->IsLandmarkTracked(j + 1));
   }
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(99));
 }
