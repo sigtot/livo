@@ -123,6 +123,25 @@ TEST_F(GraphManagerTest, SmartFactors)
   EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark));
 }
 
+TEST_F(GraphManagerTest, GetDegenerateSmartFactor)
+{
+  // Arrange
+  SetUp(gtsam::ISAM2Params());
+
+  // Act
+  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
+
+  std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
+
+  auto isam_result = graph_manager->Update();
+
+  EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(1), gt_nav_states[0].pose(), 1e-2));
+  EXPECT_EQ(graph_manager->GetLandmark(1), boost::none);
+}
+
 TEST_F(GraphManagerTest, ProjectionLandmarks)
 {
   // Arrange

@@ -183,6 +183,10 @@ boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
   }
   if (landmark_in_smoother->second.smart_factor)
   {
+    if (!(*landmark_in_smoother->second.smart_factor)->isValid())
+    {
+      return boost::none;
+    }
     return *(*landmark_in_smoother->second.smart_factor)->point();
   }
   return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
