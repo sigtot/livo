@@ -111,6 +111,7 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
         std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
         graph_manager_.InitStructurelessLandmark(lmk_id, frame->id, gtsam_pt, feature_noise_, K_, *body_p_cam_);
       }
+      feature->in_smoother = true;
     }
   }
 
@@ -118,6 +119,37 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
   initialized_ = true;
+}
+
+void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
+{
+  imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
+  auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
+  auto prev_bias = graph_manager_.GetBias(last_frame_id_);
+  auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
+  auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
+  graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
+
+  for (auto& feature_pair : frame->features)
+  {
+    auto lmk_id = feature_pair.first;
+    auto feature = feature_pair.second.lock();
+    if (!feature || !graph_manager_.IsLandmarkTracked(lmk_id))
+    {
+      continue;
+    }
+    gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
+    if (feature->depth)
+    {
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+    }
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
+    feature->in_smoother = true;
+  }
+  graph_manager_.Update();
+
+  added_frames_[frame->id] = frame;
+  last_frame_id_ = frame->id;
 }
 
 void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses) const

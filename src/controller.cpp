@@ -41,6 +41,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend_.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
+
+  if (new_backend_.IsInitialized())
+  {
+    new_backend_.AddFrame(new_frame);
+  }
+
   if (!new_backend_.IsInitialized() && new_frame->HasDepth())
   {
     if (new_frame->stationary)
