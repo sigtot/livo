@@ -1,6 +1,8 @@
 #ifndef ORB_TEST_SRC_GRAPH_MANAGER_H_
 #define ORB_TEST_SRC_GRAPH_MANAGER_H_
 
+#include "landmark_in_smoother.h"
+
 #include <map>
 #include <boost/shared_ptr.hpp>
 #include <boost/optional.hpp>
@@ -53,11 +55,9 @@ typedef gtsam::RangeFactor<gtsam::Pose3, gtsam::Point3, double> RangeFactor;
 class GraphManager
 {
 private:
-  std::map<int, boost::shared_ptr<SmartFactor>> smart_factors_;
-
   // We make each landmark use the same noise model for all observations.
   // GTSAM forces this for smart factors, we also enforce it for regular projection factors.
-  std::map<int, boost::shared_ptr<gtsam::noiseModel::Isotropic>> landmark_noise_models_;
+  std::map<int, LandmarkInSmoother> added_landmarks_;
 
   std::shared_ptr<gtsam::ISAM2> isam2_;
   std::shared_ptr<gtsam::Values> values_;

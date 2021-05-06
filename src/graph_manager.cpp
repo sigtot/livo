@@ -73,11 +73,13 @@ void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gts
                                              const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                                              const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
-  auto smart_factor = gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
-  smart_factor->add(feature, X(frame_id));
-  graph_->add(smart_factor);
-  smart_factors_[lmk_id] = std::move(smart_factor);
-  landmark_noise_models_[lmk_id] = feature_noise;
+  LandmarkInSmoother landmark_in_smoother;
+  landmark_in_smoother.smart_factor =
+      gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
+  landmark_in_smoother.noise_model = feature_noise;
+  (*landmark_in_smoother.smart_factor)->add(feature, X(frame_id));
+  graph_->add(*landmark_in_smoother.smart_factor);
+  added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
 void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
@@ -85,22 +87,31 @@ void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam:
                                           const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
+  LandmarkInSmoother landmark_in_smoother;
+  landmark_in_smoother.noise_model = feature_noise;
   ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
   graph_->add(proj_factor);
   values_->insert(L(lmk_id), initial_estimate);
-  landmark_noise_models_[lmk_id] = feature_noise;
+  added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
 void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
-  if (smart_factors_.count(lmk_id))
+  auto landmark_in_smoother = added_landmarks_.find(lmk_id);
+  if (landmark_in_smoother == added_landmarks_.end())
   {
-    smart_factors_[lmk_id]->add(feature, X(frame_id));
+    std::cout << "WARN (graph manager): attempted to add observation for non-existing landmark " << lmk_id << std::endl;
+    return;
+  }
+  if (landmark_in_smoother->second.smart_factor)
+  {
+    (*landmark_in_smoother->second.smart_factor)->add(feature, X(frame_id));
   }
   else
   {
-    ProjectionFactor proj_factor(feature, landmark_noise_models_[lmk_id], X(frame_id), L(lmk_id), K, body_p_cam);
+    ProjectionFactor proj_factor(feature, landmark_in_smoother->second.noise_model, X(frame_id), L(lmk_id), K,
+                                 body_p_cam);
     graph_->add(proj_factor);
   }
 }
@@ -108,10 +119,16 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
 void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
                                        const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise)
 {
-  if (smart_factors_.count(lmk_id))
+  auto landmark_in_smoother = added_landmarks_.find(lmk_id);
+  if (landmark_in_smoother == added_landmarks_.end())
+  {
+    std::cout << "WARN (graph manager): attempted to add range for non-existing landmark " << lmk_id << std::endl;
+    return;
+  }
+  if (landmark_in_smoother->second.smart_factor)
   {
     // aka "ConvertSmartFactorToProjectionFactor(lmk_id)"
-    auto smart_factor = smart_factors_[lmk_id];
+    boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother->second.smart_factor;
     if (smart_factor->isValid())
     {
       values_->insert(L(lmk_id), *smart_factor->point());
@@ -129,11 +146,12 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
       auto frame_key = smart_factor->keys()[i];
       auto K = smart_factor->calibration();
       auto body_p_cam = smart_factor->body_P_sensor();
-      ProjectionFactor proj_factor(feature, landmark_noise_models_[lmk_id], frame_key, L(lmk_id), K, body_p_cam);
+      ProjectionFactor proj_factor(feature, landmark_in_smoother->second.noise_model, frame_key, L(lmk_id), K,
+                                   body_p_cam);
       graph_->add(proj_factor);
     }
     smart_factor.reset();          // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
-    smart_factors_.erase(lmk_id);  // Removes the nullptr from our bookkeeping
+    landmark_in_smoother->second.smart_factor = boost::none; // Remove nullptr smart factor from our bookkeeping
   }
 
   RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);
@@ -157,15 +175,17 @@ gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
 
 boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
 {
-  if (smart_factors_.count(lmk_id))
+  auto landmark_in_smoother = added_landmarks_.find(lmk_id);
+  if (landmark_in_smoother == added_landmarks_.end())
   {
-    return smart_factors_.find(lmk_id)->second->point();
+    std::cout << "WARN (graph manager): attempted to get point for non-existing landmark " << lmk_id << std::endl;
+    return boost::none;
   }
-  else if (isam2_->valueExists(L(lmk_id)))
+  if (landmark_in_smoother->second.smart_factor)
   {
-    return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
+    return *(*landmark_in_smoother->second.smart_factor)->point();
   }
-  return boost::none;
+  return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
 }
 
 gtsam::Values GraphManager::GetValues() const
