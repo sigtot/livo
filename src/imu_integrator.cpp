@@ -1,9 +1,11 @@
 #include "imu_integrator.h"
 
 #include <utility>
-#include <gtsam/navigation/CombinedImuFactor.h>
 #include <thread>
 #include <chrono>
+
+#include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/navigation/TangentPreintegration.h>
 
 IMUIntegrator::IMUIntegrator(std::shared_ptr<IMUQueue> imu_queue,
                              const boost::shared_ptr<gtsam::PreintegrationCombinedParams>& pim_params,

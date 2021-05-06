@@ -9,6 +9,7 @@ namespace gtsam
 {
 class TangentPreintegration;
 class PreintegrationCombinedParams;
+class PreintegratedCombinedMeasurements;
 class NavState;
 
 typedef TangentPreintegration PreintegrationType;
