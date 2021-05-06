@@ -1,4 +1,5 @@
 #include "imu_integrator.h"
+#include "gtsam_conversions.h"
 
 #include <utility>
 #include <thread>
@@ -41,4 +42,9 @@ gtsam::NavState IMUIntegrator::PredictNavState(const gtsam::NavState& prev_nav_s
 std::shared_ptr<gtsam::PreintegrationType> IMUIntegrator::GetPim() const
 {
   return pim_;
+}
+
+gtsam::Rot3 IMUIntegrator::RefineInitialAttitude(double start, double end, const gtsam::Rot3& initial_attitude) const
+{
+  return ToGtsamRot(imu_queue_->RefineInitialAttitude(start, end, ToRot(initial_attitude)));
 }

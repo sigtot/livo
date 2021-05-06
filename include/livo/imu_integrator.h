@@ -11,6 +11,7 @@ class TangentPreintegration;
 class PreintegrationCombinedParams;
 class PreintegratedCombinedMeasurements;
 class NavState;
+class Rot3;
 
 typedef TangentPreintegration PreintegrationType;
 
@@ -35,6 +36,7 @@ public:
   gtsam::NavState PredictNavState(const gtsam::NavState& prev_nav_state,
                                   const gtsam::imuBias::ConstantBias& prev_bias) const;
   std::shared_ptr<gtsam::PreintegrationType> GetPim() const;
+  gtsam::Rot3 RefineInitialAttitude(double start, double end, const gtsam::Rot3& init_rot) const;
 };
 
 #endif  // ORB_TEST_SRC_IMU_INTEGRATOR_H_
