@@ -3,7 +3,9 @@
 #include "ground_truth.h"
 #include "gtsam_conversions.h"
 #include "depth_triangulation.h"
+#include "gtsam_helpers.h"
 
+#include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/slam/SmartFactorParams.h>
 #include <gtsam/base/make_shared.h>
@@ -96,29 +98,36 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
 
   graph_manager_.SetInitNavstate(frame->id, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  for (auto& feature_pair : frame->features)
+  int added_count = 0;
+  int max_features = 30;
+  for (auto& feature_pair : SortFeatures(frame->features))
   {
+    if (added_count++ > max_features)
+    {
+      break;
+    }
     auto lmk_id = feature_pair.first;
     auto feature = feature_pair.second.lock();
-    if (feature)
+    if (!feature)
     {
-      gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
-      if (feature->depth)
-      {
-        std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
-        gtsam::PinholeCamera<gtsam::Cal3_S2> camera(refined_init_pose * *body_p_cam_, *K_);
-        auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(gtsam_pt, *feature->depth, camera);
-        graph_manager_.InitProjectionLandmark(lmk_id, frame->id, gtsam_pt, initial_landmark_estimate, feature_noise_,
-                                              K_, *body_p_cam_);
-        graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
-      }
-      else
-      {
-        std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
-        graph_manager_.InitStructurelessLandmark(lmk_id, frame->id, gtsam_pt, feature_noise_, K_, *body_p_cam_);
-      }
-      feature->in_smoother = true;
+      continue;
     }
+    gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
+    if (feature->depth)
+    {
+      std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
+      gtsam::PinholeCamera<gtsam::Cal3_S2> camera(refined_init_pose * *body_p_cam_, *K_);
+      auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(gtsam_pt, *feature->depth, camera);
+      graph_manager_.InitProjectionLandmark(lmk_id, frame->id, gtsam_pt, initial_landmark_estimate, feature_noise_, K_,
+                                            *body_p_cam_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+    }
+    else
+    {
+      std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
+      graph_manager_.InitStructurelessLandmark(lmk_id, frame->id, gtsam_pt, feature_noise_, K_, *body_p_cam_);
+    }
+    feature->in_smoother = true;
   }
 
   graph_manager_.Update();
