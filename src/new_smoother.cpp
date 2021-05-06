@@ -46,13 +46,19 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
   return imu_params;
 }
 
+gtsam::SmartProjectionParams MakeSmartFactorParams()
+{
+  auto smart_factor_params = gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-5);
+  smart_factor_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
+  return smart_factor_params;
+}
+
 NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
   , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
   , range_noise_(gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange()))
-  , graph_manager_(GraphManager(
-        MakeISAM2Params(), gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5)))
+  , graph_manager_(GraphManager(MakeISAM2Params(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
