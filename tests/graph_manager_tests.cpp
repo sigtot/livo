@@ -47,4 +47,5 @@ TEST(GraphManager, IMUOnlyAddFrame)
   ASSERT_TRUE(gtsam::assert_equal(pose2, gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(0.5, 0.0, 0.0))));  // x = 1/2 at^2
   ASSERT_TRUE(gtsam::assert_equal(vel2, gtsam::Vector3(1.0, 0.0, 0.0)));                               // v = at
   ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetValues().at<gtsam::Pose3>(X(1)), pose));
+  ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetNavState(1), nav_state));
 }

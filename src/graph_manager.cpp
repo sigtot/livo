@@ -168,6 +168,11 @@ gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
   return isam2_->calculateEstimate<gtsam::Vector3>(V(frame_id));
 }
 
+gtsam::NavState GraphManager::GetNavState(int frame_id) const
+{
+  return gtsam::NavState(GetPose(frame_id), GetVelocity(frame_id));
+}
+
 gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
 {
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));

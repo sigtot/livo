@@ -101,6 +101,7 @@ public:
 
   gtsam::Pose3 GetPose(int frame_id) const;
   gtsam::Vector3 GetVelocity(int frame_id) const;
+  gtsam::NavState GetNavState(int frame_id) const;
   gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
   gtsam::Values GetValues() const;
   boost::optional<gtsam::Point3> GetLandmark(int lmk_id) const;
