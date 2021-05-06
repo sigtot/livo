@@ -120,7 +120,7 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
   initialized_ = true;
 }
 
-void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses)
+void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses) const
 {
   for (const auto& frame : added_frames_)
   {
@@ -128,7 +128,7 @@ void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses)
   }
 }
 
-void NewSmoother::GetLandmarks(map<int, Point3>& landmarks)
+void NewSmoother::GetLandmarks(map<int, Point3>& landmarks) const
 {
   for (const auto& landmark : graph_manager_.GetLandmarks())
   {
@@ -139,7 +139,7 @@ void NewSmoother::GetLandmarks(map<int, Point3>& landmarks)
   }
 }
 
-bool NewSmoother::IsInitialized()
+bool NewSmoother::IsInitialized() const
 {
   return initialized_;
 }
