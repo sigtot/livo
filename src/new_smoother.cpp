@@ -29,5 +29,7 @@ NewSmoother::NewSmoother()
                           GlobalParams::CamV0()))
   , graph_manager(GraphManager(
         MakeISAM2Params(), gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5)))
+  , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
+  , range_noise_(gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange()))
 {
 }

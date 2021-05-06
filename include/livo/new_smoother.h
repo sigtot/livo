@@ -37,6 +37,8 @@ private:
   int last_frame_id_ = -1;
   std::map<int, std::shared_ptr<Frame>> added_frames_;
   GraphManager graph_manager;
+  boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
+  boost::shared_ptr<gtsam::noiseModel::Isotropic> range_noise_;
 };
 
 #endif  // ORB_TEST_SRC_NEW_SMOOTHER_H_
