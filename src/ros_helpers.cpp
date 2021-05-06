@@ -11,6 +11,10 @@ namespace ros_helpers
 {
 void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher, const ros::Publisher& pa_pub)
 {
+  if (poses.empty())
+  {
+    return; // Nothing to publish
+  }
   nav_msgs::Path pathMsg;
   geometry_msgs::PoseArray pose_arr;
   for (auto& pose_stamped : poses)
@@ -32,6 +36,10 @@ void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& 
 
 void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp, const ros::Publisher& publisher)
 {
+  if (landmarks.empty())
+  {
+    return; // Nothing to publish
+  }
   visualization_msgs::MarkerArray markerArray;
   std::cout << "got " << landmarks.size() << " landmarks from smoother" << std::endl;
   for (auto& landmark_pair : landmarks)

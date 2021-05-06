@@ -43,7 +43,26 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   std::cout << "frame " << new_frame->id << std::endl;
   if (!new_backend_.IsInitialized())
   {
-    new_backend_.Initialize(new_frame);
+    if (new_frame->stationary)
+    {
+      if (frontend_.GetFramesForIMUAttitudeInitialization(new_frame->id))
+      {
+        auto imu_init_frames = frontend_.GetFramesForIMUAttitudeInitialization(new_frame->id);
+        // We wait until we have > 1.0 seconds of imu integration before using it for gravity alignment
+        if (imu_init_frames && std::abs(imu_init_frames->first->timestamp - imu_init_frames->second->timestamp) > 1.0)
+        {
+          std::cout << "Initializing with gravity alignment" << std::endl;
+          new_backend_.Initialize(new_frame, std::pair<double, double>{ imu_init_frames->first->timestamp,
+                                                                        imu_init_frames->second->timestamp });
+        }
+      }
+    }
+    else
+    {
+      // Not stationary, no point in waiting for more stationary imu messages. Initialize immediately.
+      std::cout << "Initializing without gravity alignment" << std::endl;
+      new_backend_.Initialize(new_frame);
+    }
   }
 
   std::map<int, Pose3Stamped> pose_estimates;
