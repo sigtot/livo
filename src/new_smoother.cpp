@@ -2,6 +2,7 @@
 #include "global_params.h"
 #include "ground_truth.h"
 #include "gtsam_conversions.h"
+#include "depth_triangulation.h"
 
 #include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/slam/SmartFactorParams.h>
@@ -53,6 +54,10 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   , graph_manager_(GraphManager(
         MakeISAM2Params(), gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::IGNORE_DEGENERACY, false, true, 1e-5)))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
+  , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
+        gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
+                                GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
+        gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2])))
 {
 }
 void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
@@ -84,6 +89,31 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
   gtsam::NavState init_nav_state(refined_init_pose, init_velocity);
 
   graph_manager_.SetInitNavstate(frame->id, init_nav_state, init_bias, noise_x, noise_v, noise_b);
+
+  for (auto& feature_pair : frame->features)
+  {
+    auto lmk_id = feature_pair.first;
+    auto feature = feature_pair.second.lock();
+    if (feature)
+    {
+      gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
+      if (feature->depth)
+      {
+        std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
+        gtsam::PinholeCamera<gtsam::Cal3_S2> camera(refined_init_pose * *body_p_cam_, *K_);
+        auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(gtsam_pt, *feature->depth, camera);
+        graph_manager_.InitProjectionLandmark(lmk_id, frame->id, gtsam_pt, initial_landmark_estimate, feature_noise_,
+                                              K_, *body_p_cam_);
+        graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      }
+      else
+      {
+        std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
+        graph_manager_.InitStructurelessLandmark(lmk_id, frame->id, gtsam_pt, feature_noise_, K_, *body_p_cam_);
+      }
+    }
+  }
+
   graph_manager_.Update();
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
@@ -100,7 +130,7 @@ void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses)
 
 void NewSmoother::GetLandmarks(map<int, Point3>& landmarks)
 {
-  for (const auto & landmark : graph_manager_.GetLandmarks())
+  for (const auto& landmark : graph_manager_.GetLandmarks())
   {
     if (landmark.second)
     {

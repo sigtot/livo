@@ -80,10 +80,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
           if (lidar_frame)
           {
             new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-            if (new_feature->depth)
-            {
-              std::cout << "got depth " << *new_feature->depth << " for track " << active_tracks_[i]->id << std::endl;
-            }
           }
           new_frame->features[active_tracks_[i]->id] = new_feature;
           active_tracks_[i]->features.push_back(std::move(new_feature));

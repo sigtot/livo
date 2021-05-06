@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "feature.h"
 
 std::vector<FeatureMatch> Frame::GetFeatureMatches(const std::shared_ptr<Frame>& target)
 {
@@ -13,4 +14,17 @@ std::vector<FeatureMatch> Frame::GetFeatureMatches(const std::shared_ptr<Frame>&
     }
   }
   return matches;
+}
+
+bool Frame::HasDepth()
+{
+  for (const auto & feature_pair : features)
+  {
+    auto feature = feature_pair.second.lock();
+    if (feature && feature->depth)
+    {
+      return true;
+    }
+  }
+  return false;
 }

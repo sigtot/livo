@@ -41,6 +41,7 @@ private:
   std::map<int, std::shared_ptr<Frame>> added_frames_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> range_noise_;
+  boost::shared_ptr<gtsam::Pose3> body_p_cam_;
 
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;

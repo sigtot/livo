@@ -24,6 +24,7 @@ struct Frame
   bool stationary;
 
   std::vector<FeatureMatch> GetFeatureMatches(const std::shared_ptr<Frame>& target);
+  bool HasDepth();
 };
 
 #endif
