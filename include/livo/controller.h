@@ -5,6 +5,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include "feature_extractor.h"
 #include "smoother.h"
+#include "new_smoother.h"
 #include "point3.h"
 #include "pose3_stamped.h"
 #include "imu_ground_truth_smoother.h"
@@ -16,13 +17,14 @@ private:
   FeatureExtractor& frontend_;
   LidarFrameManager& lidar_frame_manager_;
   Smoother& backend_;
+  NewSmoother& new_backend_;
   IMUGroundTruthSmoother& imu_ground_truth_smoother_;
   ros::Publisher path_publisher_;
   ros::Publisher landmark_publisher_;
   ros::Publisher pose_arr_publisher_;
 
 public:
-  explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, Smoother& backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
+  explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, Smoother& backend, NewSmoother& new_backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                       ros::Publisher& landmark_publisher);
 

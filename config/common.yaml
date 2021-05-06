@@ -32,14 +32,14 @@ noise_params:
   feature: 1.0
   range: 0.5
 
-imu_cam_quat: [0, 0, 0, 1]
-imu_cam_vector: [0, 0, 0]
+imu_cam_quat: [ 0, 0, 0, 1 ]
+imu_cam_vector: [ 0, 0, 0 ]
 
-body_p_imu_quat: [0, 0, 0, 1]
-body_p_imu_vec: [0, 0, 0]
+body_p_imu_quat: [ 0, 0, 0, 1 ]
+body_p_imu_vec: [ 0, 0, 0 ]
 
-body_p_lidar_quat: [0, 0, 0, 1]
-body_p_lidar_vec: [0, 0, 0]
+body_p_lidar_quat: [ 0, 0, 0, 1 ]
+body_p_lidar_vec: [ 0, 0, 0 ]
 
 do_initial_gravity_alignment: false
 dynamic_outlier_rejection_threshold: 8.0
@@ -52,7 +52,7 @@ min_track_length_for_smoothing: 5
 image_edge_padding_percent: .05
 stationary_thresh: 0.5
 
-idar_depth:
+lidar_depth:
   enabled: true
   calc_mode: 0
   search_window_width: 7

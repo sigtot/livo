@@ -14,11 +14,13 @@
 #include <global_params.h>
 
 Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, Smoother& backend,
-                       IMUGroundTruthSmoother& imu_ground_truth_smoother, ros::Publisher& path_publisher,
-                       ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
+                       NewSmoother& new_backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
+                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
+                       ros::Publisher& landmark_publisher)
   : frontend_(frontend)
   , lidar_frame_manager_(lidar_frame_manager)
   , backend_(backend)
+  , new_backend_(new_backend)
   , imu_ground_truth_smoother_(imu_ground_truth_smoother)
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
@@ -39,6 +41,24 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto new_frame = frontend_.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
+  if (!new_backend_.IsInitialized())
+  {
+    new_backend_.Initialize(new_frame);
+  }
+
+  std::map<int, Pose3Stamped> pose_estimates;
+  new_backend_.GetPoses(pose_estimates);
+  std::vector<Pose3Stamped> pose_estimates_vector;
+  for (const auto & pose_estimate : pose_estimates)
+  {
+    pose_estimates_vector.push_back(pose_estimate.second);
+  }
+  PublishPoses(pose_estimates_vector);
+
+  std::map<int, Point3> landmark_estimates;
+  new_backend_.GetLandmarks(landmark_estimates);
+  PublishLandmarks(landmark_estimates, new_frame->timestamp);
+
   /*
 
   if (!imu_ground_truth_smoother_.IsInitialized() && !frontend_.GetKeyframeTransforms().empty())
@@ -65,6 +85,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
    */
 
+  /*
   if (backend_.GetStatus() == kUninitialized && frontend_.ReadyForInitialization())
   {
     {
@@ -112,6 +133,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     PublishPoses(pose_estimates);
     PublishLandmarks(landmark_estimates, new_frame->timestamp);
   }
+   */
 }
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)

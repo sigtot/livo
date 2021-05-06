@@ -6,8 +6,9 @@
 #include "graph_manager.h"
 #include "imu_integrator.h"
 #include "imu_queue.h"
+#include "pose3_stamped.h"
+#include "point3.h"
 
-#include <vector>
 #include <utility>
 #include <map>
 
@@ -44,12 +45,14 @@ private:
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
 
-
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
-  void Initialize(const std::vector<std::shared_ptr<Frame>>& frames,
-                  const std::vector<std::shared_ptr<Track>>& tracks,
-                  const std::pair<double, double>& imu_gravity_alignment_timestamps);
+  void Initialize(const std::shared_ptr<Frame>& frame,
+                  const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
+  void GetPoses(std::map<int, Pose3Stamped>& poses);
+  void GetLandmarks(std::map<int, Point3>& landmarks);
+
+  bool IsInitialized();
 };
 
 #endif  // ORB_TEST_SRC_NEW_SMOOTHER_H_
