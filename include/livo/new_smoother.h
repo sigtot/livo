@@ -47,7 +47,7 @@ private:
   IMUIntegrator imu_integrator_;
 
 public:
-  NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
+  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
   void AddFrame(const std::shared_ptr<Frame>& frame);
