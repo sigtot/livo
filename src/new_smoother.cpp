@@ -144,6 +144,7 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
   graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
+  imu_integrator_.ResetIntegration();
 
   for (auto& feature_pair : frame->features)
   {
