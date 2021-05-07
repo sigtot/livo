@@ -68,6 +68,24 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
         gtsam::Point3(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1], GlobalParams::BodyPCamVec()[2])))
 {
 }
+
+void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, const gtsam::Point2& pt, double depth,
+                                              const gtsam::Pose3& init_pose)
+{
+  std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
+  gtsam::PinholeCamera<gtsam::Cal3_S2> camera(init_pose * *body_p_cam_, *K_);
+  auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
+  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, initial_landmark_estimate, feature_noise_, K_,
+                                        *body_p_cam_);
+  graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
+}
+
+void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& pt)
+{
+  std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
+  graph_manager_.InitStructurelessLandmark(lmk_id, frame_id, pt, feature_noise_, K_, *body_p_cam_);
+}
+
 void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
                              const boost::optional<pair<double, double>>& imu_gravity_alignment_timestamps)
 {
@@ -115,17 +133,11 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
-      std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
-      gtsam::PinholeCamera<gtsam::Cal3_S2> camera(refined_init_pose * *body_p_cam_, *K_);
-      auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(gtsam_pt, *feature->depth, camera);
-      graph_manager_.InitProjectionLandmark(lmk_id, frame->id, gtsam_pt, initial_landmark_estimate, feature_noise_, K_,
-                                            *body_p_cam_);
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      InitializeLandmarkWithDepth(lmk_id, frame->id, gtsam_pt, *feature->depth, refined_init_pose);
     }
     else
     {
-      std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
-      graph_manager_.InitStructurelessLandmark(lmk_id, frame->id, gtsam_pt, feature_noise_, K_, *body_p_cam_);
+      InitializeStructurelessLandmark(lmk_id, frame->id, gtsam_pt);
     }
     feature->in_smoother = true;
   }
