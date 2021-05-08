@@ -151,10 +151,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     FindGoodFeaturesToTrackGridded(img_undistorted, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     for (const auto& corner : corners)
     {
-      auto new_track = std::make_shared<Track>(
-          std::vector<std::shared_ptr<Feature>>{ std::make_shared<Feature>(new_frame, corner) });
-      new_frame->features[new_track->id] = new_track->features.back();
-      new_track->features.back()->track = new_track;
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{});
+      auto new_feature = std::make_shared<Feature>(new_frame, corner);
+      new_frame->features[new_track->id] = new_feature;
+      new_feature->track = new_track;
+      new_track->features.push_back(std::move(new_feature));
       active_tracks_.push_back(std::move(new_track));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());

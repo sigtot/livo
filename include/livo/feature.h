@@ -19,7 +19,7 @@ struct Feature
   std::shared_ptr<Frame> frame;
   cv::Point2f pt;
   boost::optional<float> depth;
-  bool in_smoother = false;
+  bool in_smoother = false; // CURRENTLY NOT USED. BUT MIGHT USE AGAIN FOR DRAWING PURPOSES?
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_H_

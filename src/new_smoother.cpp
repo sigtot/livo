@@ -139,7 +139,6 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
     {
       InitializeStructurelessLandmark(lmk_id, frame->id, gtsam_pt);
     }
-    feature->in_smoother = true;
   }
 
   graph_manager_.Update();
@@ -172,8 +171,118 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
     }
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
-    feature->in_smoother = true;
   }
+  graph_manager_.Update();
+
+  added_frames_[frame->id] = frame;
+  last_frame_id_ = frame->id;
+}
+
+void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
+{
+  imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
+  auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
+  auto prev_bias = graph_manager_.GetBias(last_frame_id_);
+  auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
+  auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
+  graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
+  imu_integrator_.ResetIntegration();
+
+  std::map<int, std::weak_ptr<Feature>> existing_features;
+  std::map<int, std::weak_ptr<Feature>> new_track_features;
+  for (const auto& feature_pair : frame->features)
+  {
+    if (graph_manager_.IsLandmarkTracked(feature_pair.first))
+    {
+      existing_features[feature_pair.first] = feature_pair.second;
+    }
+    else
+    {
+      new_track_features[feature_pair.first] = feature_pair.second;
+    }
+  }
+
+  auto sorted_new_track_features = SortFeatures(new_track_features);
+
+  std::vector<std::pair<int, std::weak_ptr<Track>>> new_tracks;
+  for (const auto& feature_pair : new_track_features)
+  {
+    auto feature = feature_pair.second.lock();
+    if (feature)
+    {
+      new_tracks.emplace_back(feature_pair.first, feature->track);
+    }
+  }
+
+  int added_count = 0;
+  int max_features = 30;
+  for (const auto& track_pair : new_tracks)
+  {
+    if (added_count++ > max_features)
+    {
+      break;
+    }
+    auto track = track_pair.second.lock();
+    if (!track)
+    {
+      continue;
+    }
+    if (track->HasDepth())
+    {
+      // If we have depth, find the first feature with depth, and use it to initialize the landmark
+      int frame_id_used_for_init = -1;
+      for (const auto& feature : track->features)
+      {
+        if (feature->depth && graph_manager_.CanAddObservationsForFrame(feature->frame->id))
+        {
+          auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
+                                                                   graph_manager_.GetPose(feature->frame->id);
+          InitializeLandmarkWithDepth(track->id, feature->frame->id, gtsam::Point2(feature->pt.x, feature->pt.y),
+                                      *feature->depth, pose_for_init);
+          frame_id_used_for_init = feature->frame->id;
+          break;
+        }
+      }
+      assert(frame_id_used_for_init != -1);
+
+      for (auto& feature : track->features)
+      {
+        if (feature->frame->id == frame_id_used_for_init ||
+            !graph_manager_.CanAddObservationsForFrame(feature->frame->id))
+        {
+          continue;
+        }
+        if (feature->depth)
+        {
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
+        }
+        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id,
+                                              gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
+      }
+    }
+    else
+    {
+      auto lmk_initialized = false;
+      for (const auto& feature : track->features)
+      {
+        if (!graph_manager_.CanAddObservationsForFrame(feature->frame->id))
+        {
+          continue;
+        }
+        if (lmk_initialized)
+        {
+          graph_manager_.AddLandmarkObservation(track->id, feature->frame->id,
+                                                gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
+        }
+        else
+        {
+          InitializeStructurelessLandmark(track->id, feature->frame->id, gtsam::Point2(feature->pt.x, feature->pt.y));
+          lmk_initialized = true;
+        }
+      }
+    }
+  }
+
   graph_manager_.Update();
 
   added_frames_[frame->id] = frame;

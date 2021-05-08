@@ -13,26 +13,24 @@ void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGr
 
 std::vector<std::pair<int, std::weak_ptr<Feature>>> SortFeatures(const std::map<int, std::weak_ptr<Feature>>& features)
 {
-  std::vector<std::pair<int, std::weak_ptr<Feature>>> sorted_features;
-  for (auto& feature_pair : features)
-  {
-    sorted_features.emplace_back(feature_pair);
-  }
+  std::vector<std::pair<int, std::weak_ptr<Feature>>> sorted_features(features.begin(), features.end());
 
-  // TODO first element has no depth. why?? something wrong with the sort function?
-  std::sort(sorted_features.begin(), sorted_features.end(),
-            [](const std::pair<int, std::weak_ptr<Feature>>& a, const std::pair<int, std::weak_ptr<Feature>>& b) {
-              auto feat_a = a.second.lock();
-              auto feat_b = b.second.lock();
-              if ((feat_a && feat_a->depth) && !(feat_b && feat_b->depth))
-              {
-                return 1;
-              }
-              else if (!(feat_a && feat_a->depth) && (feat_b && feat_b->depth))
-              {
-                return -1;
-              }
-              return 0;
-            });
+  std::sort(
+      sorted_features.begin(), sorted_features.end(),
+      [](const std::pair<int, std::weak_ptr<Feature>>& a, const std::pair<int, std::weak_ptr<Feature>>& b) -> bool {
+        auto a_ptr = a.second;
+        auto b_ptr = b.second;
+        auto feat_a = a_ptr.lock();
+        auto feat_b = b_ptr.lock();
+        if ((feat_a && feat_a->depth) && !(feat_b && feat_b->depth))
+        {
+          return true;
+        }
+        else if (!(feat_a && feat_a->depth) && (feat_b && feat_b->depth))
+        {
+          return false;
+        }
+        return false;  // Strict weak ordering :)
+      });
   return sorted_features;
 }

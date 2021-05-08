@@ -26,6 +26,8 @@ void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const st
   if (transform.Valid())
   {
     std::cout << "Adding new keyframe transform " << frame1->id << " -> " << frame2->id << std::endl;
+    frame1->is_keyframe = true;
+    frame2->is_keyframe = true;
     transform.UpdateTrackInlierOutlierCounts();
     if (!keyframe_transforms_.empty() && keyframe_transforms_.back().Valid())
     {

@@ -22,6 +22,7 @@ struct Frame
   std::map<int, std::weak_ptr<Feature>> features;
   double timestamp;
   bool stationary;
+  bool is_keyframe = false;
 
   std::vector<FeatureMatch> GetFeatureMatches(const std::shared_ptr<Frame>& target);
   bool HasDepth();
