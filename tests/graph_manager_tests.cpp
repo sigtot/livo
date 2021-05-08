@@ -16,7 +16,6 @@ using gtsam::symbol_shorthand::X;
 
 TEST(GraphManager, IMUOnlyAddFrame)
 {
-  // Arrange
   GraphManager graph_manager((gtsam::ISAM2Params()), (gtsam::SmartProjectionParams()));
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
@@ -33,13 +32,14 @@ TEST(GraphManager, IMUOnlyAddFrame)
   double delta_t = 1.0;
   pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
 
-  // Act
   graph_manager.SetInitNavstate(1, nav_state, bias, noise_x, noise_v, noise_b);
   graph_manager.AddFrame(2, pim, pim.predict(nav_state, bias), bias);
 
+  ASSERT_FALSE(graph_manager.IsFrameTracked(1));
+  ASSERT_TRUE(graph_manager.CanAddObservationsForFrame(1));
+
   auto isam_result = graph_manager.Update();
 
-  // Assert
   auto pose = graph_manager.GetPose(1);
   auto pose2 = graph_manager.GetPose(2);
   auto vel2 = graph_manager.GetVelocity(2);
@@ -48,4 +48,7 @@ TEST(GraphManager, IMUOnlyAddFrame)
   ASSERT_TRUE(gtsam::assert_equal(vel2, gtsam::Vector3(1.0, 0.0, 0.0)));                               // v = at
   ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetValues().at<gtsam::Pose3>(X(1)), pose));
   ASSERT_TRUE(gtsam::assert_equal(graph_manager.GetNavState(1), nav_state));
+  ASSERT_TRUE(graph_manager.IsFrameTracked(1));
+  ASSERT_TRUE(graph_manager.IsFrameTracked(2));
+  ASSERT_FALSE(graph_manager.IsFrameTracked(3));
 }

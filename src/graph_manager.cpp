@@ -216,3 +216,13 @@ bool GraphManager::IsLandmarkTracked(int lmk_id) const
 {
   return added_landmarks_.count(lmk_id) != 0;
 }
+
+bool GraphManager::IsFrameTracked(int frame_id) const
+{
+  return isam2_->valueExists(X(frame_id));
+}
+
+bool GraphManager::CanAddObservationsForFrame(int frame_id) const
+{
+  return IsFrameTracked(frame_id) || values_->exists(X(frame_id));
+}
