@@ -21,6 +21,7 @@ class Point2;
 class NavState;
 class CombinedImuFactor;
 class ISAM2Params;
+class ISAM2UpdateParams;
 class PreintegratedCombinedMeasurements;
 
 class SmartProjectionParams;
@@ -98,6 +99,7 @@ public:
   void AddRangeObservation(int lmk_id, int frame_id, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise);
   gtsam::ISAM2Result Update();
+  gtsam::ISAM2Result Update(const gtsam::ISAM2UpdateParams& update_params);
 
   gtsam::Pose3 GetPose(int frame_id) const;
   gtsam::Vector3 GetVelocity(int frame_id) const;

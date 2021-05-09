@@ -5,6 +5,7 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/base/make_shared.h>
 #include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
@@ -49,7 +50,12 @@ void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& na
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result = isam2_->update(*graph_, *values_);
+  return Update(gtsam::ISAM2UpdateParams());
+}
+
+gtsam::ISAM2Result GraphManager::Update(const gtsam::ISAM2UpdateParams& update_params)
+{
+  auto result = isam2_->update(*graph_, *values_, update_params);
   graph_->resize(0);
   values_->clear();
   return result;
