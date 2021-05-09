@@ -33,9 +33,9 @@ GraphManager::GraphManager(const gtsam::ISAM2Params& isam2_params,
 }
 void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state,
                                    const gtsam::imuBias::ConstantBias& bias,
-                                   const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_x,
-                                   const boost::shared_ptr<gtsam::noiseModel::Isotropic>& noise_v,
-                                   const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b)
+                                   const boost::shared_ptr<gtsam::noiseModel::Base>& noise_x,
+                                   const boost::shared_ptr<gtsam::noiseModel::Base>& noise_v,
+                                   const boost::shared_ptr<gtsam::noiseModel::Base>& noise_b)
 {
   values_->insert(X(first_frame_id), nav_state.pose());
   values_->insert(V(first_frame_id), nav_state.velocity());
@@ -76,7 +76,7 @@ void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasuremen
 }
 
 void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                             const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                             const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
                                              const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
   LandmarkInSmoother landmark_in_smoother;
@@ -90,7 +90,7 @@ void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gts
 
 void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
                                           const gtsam::Point3& initial_estimate,
-                                          const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                          const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
   LandmarkInSmoother landmark_in_smoother;
@@ -123,7 +123,7 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
 }
 
 void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
-                                       const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise)
+                                       const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise)
 {
   auto landmark_in_smoother = added_landmarks_.find(lmk_id);
   if (landmark_in_smoother == added_landmarks_.end())
@@ -156,8 +156,8 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
                                    body_p_cam);
       graph_->add(proj_factor);
     }
-    smart_factor.reset();          // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
-    landmark_in_smoother->second.smart_factor = boost::none; // Remove nullptr smart factor from our bookkeeping
+    smart_factor.reset();  // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
+    landmark_in_smoother->second.smart_factor = boost::none;  // Remove nullptr smart factor from our bookkeeping
   }
 
   RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);

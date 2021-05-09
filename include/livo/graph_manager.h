@@ -40,8 +40,7 @@ typedef Eigen::Vector3d Vector3;
 
 namespace noiseModel
 {
-class Isotropic;
-class Diagonal;
+class Base;
 }  // namespace noiseModel
 namespace imuBias
 {
@@ -72,17 +71,17 @@ public:
 
 public:
   void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state, const gtsam::imuBias::ConstantBias& bias,
-                       const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_x,
-                       const boost::shared_ptr<gtsam::noiseModel::Isotropic>& noise_v,
-                       const boost::shared_ptr<gtsam::noiseModel::Diagonal>& noise_b);
+                       const boost::shared_ptr<gtsam::noiseModel::Base>& noise_x,
+                       const boost::shared_ptr<gtsam::noiseModel::Base>& noise_v,
+                       const boost::shared_ptr<gtsam::noiseModel::Base>& noise_b);
   void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
                 const gtsam::imuBias::ConstantBias& initial_bias);
   void InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                 const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                                 const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
                                  const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   void InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
                               const gtsam::Point3& initial_estimate,
-                              const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+                              const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   void AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
@@ -97,7 +96,7 @@ public:
    * @param range_noise noise model for the range factor
    */
   void AddRangeObservation(int lmk_id, int frame_id, double range,
-                           const boost::shared_ptr<gtsam::noiseModel::Isotropic>& range_noise);
+                           const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
   gtsam::ISAM2Result Update();
   gtsam::ISAM2Result Update(const gtsam::ISAM2UpdateParams& update_params);
 

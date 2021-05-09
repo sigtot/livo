@@ -13,7 +13,7 @@ class SmartProjectionPoseFactor;
 
 namespace noiseModel
 {
-class Isotropic;
+class Base;
 }
 }  // namespace gtsam
 
@@ -21,7 +21,7 @@ typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 struct LandmarkInSmoother
 {
-  boost::shared_ptr<gtsam::noiseModel::Isotropic> noise_model;
+  boost::shared_ptr<gtsam::noiseModel::Base> noise_model;
   boost::optional<boost::shared_ptr<SmartFactor>> smart_factor;
 };
 
