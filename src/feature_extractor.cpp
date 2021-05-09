@@ -32,6 +32,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   new_frame->timestamp = msg->header.stamp.toSec();
   new_frame->stationary = true;  // Assume stationary at first
 
+  auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
   if (!frames.empty())
   {
     // Obtain prev image and points
@@ -65,7 +66,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       }
     }
 
-    auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
     // Discard RANSAC outliers and add the rest as new features
     vector<uchar> inlier_mask;
     if (new_points.size() >= 8)
@@ -153,6 +153,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{});
       auto new_feature = std::make_shared<Feature>(new_frame, corner);
+      if (lidar_frame)
+      {
+        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+      }
       new_frame->features[new_track->id] = new_feature;
       new_feature->track = new_track;
       new_track->features.push_back(std::move(new_feature));
