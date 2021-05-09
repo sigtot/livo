@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
+#include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/slam/SmartFactorParams.h>
 #include <gtsam/base/make_shared.h>
 #include <gtsam/geometry/Cal3_S2.h>
@@ -116,14 +117,8 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
 
   graph_manager_.SetInitNavstate(frame->id, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  int added_count = 0;
-  int max_features = 30;
   for (auto& feature_pair : SortFeatures(frame->features))
   {
-    if (added_count++ > max_features)
-    {
-      break;
-    }
     auto lmk_id = feature_pair.first;
     auto feature = feature_pair.second.lock();
     if (!feature)
@@ -214,14 +209,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     }
   }
 
-  int added_count = 0;
-  int max_features = 30;
   for (const auto& track_pair : new_tracks)
   {
-    if (added_count++ > max_features)
-    {
-      break;
-    }
     auto track = track_pair.second.lock();
     if (!track)
     {
@@ -283,7 +272,28 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     }
   }
 
-  graph_manager_.Update();
+  for (auto& feature_pair : existing_features)
+  {
+    auto lmk_id = feature_pair.first;
+    auto feature = feature_pair.second.lock();
+    if (!feature || !graph_manager_.IsLandmarkTracked(lmk_id))
+    {
+      continue;
+    }
+    gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
+    if (feature->depth)
+    {
+      const auto tukey_range = gtsam::noiseModel::mEstimator::Tukey::Create(GlobalParams::TukeyRangeK());
+      const auto range_noise = gtsam::noiseModel::Robust::Create(tukey_range, range_noise_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise);
+    }
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
+  }
+
+  gtsam::ISAM2UpdateParams update_params;
+  update_params.force_relinearize = true;
+
+  graph_manager_.Update(update_params);
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;

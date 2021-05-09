@@ -18,21 +18,28 @@ imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
 imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
 
 noise_params:
+  prior_X_yaw: 0.001
+  prior_X_roll_pitch: 0.001
+  prior_X_translation: 0.00001
+  prior_gyro: 0.1
+  prior_accel: 0.1
+  prior_velocity: 0.1
+  feature: 2.5
   range: 0.5
 
 use_isam: true
 use_dogleg: false
-isam_relinearize_thresh: 0.1
+isam_relinearize_thresh: 0.01
 init_range_factor_length: 1.0
 
 num_good_keyframes_for_initialization: 2
-track_nms_squared_dist_thresh: 400.
-max_features_per_cell: 6
-track_count_lower_thresh: 150
+track_nms_squared_dist_thresh: 800.
+max_features_per_cell: 3
+track_count_lower_thresh: 50
 
 min_parallax_for_keyframe: 15
 min_parallax_for_smoothing: 10
-num_high_parallax_points_for_keyframe: 30
+num_high_parallax_points_for_keyframe: 10
 min_track_length_for_smoothing: 2
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
@@ -60,8 +67,8 @@ lidar_depth:
   calc_mode: 0
   search_window_width: 7
   search_window_height: 7
-  min_non_zero_neighbors: 3
-  max_allowed_feature_distance: 20.
+  min_non_zero_neighbors: 2
+  max_allowed_feature_distance: 30.
 
 dynamic_outlier_rejection_threshold: 8.0
 landmark_distance_threshold: 15.0
