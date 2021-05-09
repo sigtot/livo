@@ -75,6 +75,7 @@ private:
 
   bool do_initial_gravity_alignment_ = false;
   double dynamic_outlier_rejection_threshold_ = 8.0;
+  double landmark_distance_threshold_ = 15.;
 
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
@@ -166,6 +167,7 @@ public:
 
   static bool DoInitialGravityAlignment();
   static double DynamicOutlierRejectionThreshold();
+  static double LandmarkDistanceThreshold();
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();

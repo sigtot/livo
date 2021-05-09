@@ -116,6 +116,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/do_initial_gravity_alignment", GetInstance().do_initial_gravity_alignment_);
   ReadVariable(nh, "/orb_test_node/dynamic_outlier_rejection_threshold",
                GetInstance().dynamic_outlier_rejection_threshold_);
+  ReadVariable(nh, "/orb_test_node/landmark_distance_threshold", GetInstance().landmark_distance_threshold_);
 
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
@@ -255,6 +256,10 @@ bool GlobalParams::DoInitialGravityAlignment()
 double GlobalParams::DynamicOutlierRejectionThreshold()
 {
   return GetInstance().dynamic_outlier_rejection_threshold_;
+}
+double GlobalParams::LandmarkDistanceThreshold()
+{
+  return GetInstance().landmark_distance_threshold_;
 }
 
 std::vector<double> GlobalParams::BodyPCamQuat()

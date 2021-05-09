@@ -62,3 +62,6 @@ lidar_depth:
   search_window_height: 7
   min_non_zero_neighbors: 3
   max_allowed_feature_distance: 20.
+
+dynamic_outlier_rejection_threshold: 8.0
+landmark_distance_threshold: 15.0
