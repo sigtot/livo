@@ -255,7 +255,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
                                               gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
       }
     }
-    else if (track->features.size() > GlobalParams::MinTrackLengthForSmoothing())
+    else if (track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
+             track->max_parallax > GlobalParams::MinParallaxForSmoothing())
     {
       auto lmk_initialized = false;
       for (const auto& feature : track->features)
