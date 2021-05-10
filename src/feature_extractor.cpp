@@ -164,7 +164,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       active_tracks_.push_back(std::move(new_track));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
-    new_frame->is_keyframe = true;
   }
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
@@ -183,7 +182,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   frames.push_back(new_frame);
 
-  /*
   if (keyframe_tracker_)
   {
     keyframe_tracker_->TryAddFrameSafe(new_frame, active_tracks_);
@@ -192,7 +190,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
   }
-   */
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {

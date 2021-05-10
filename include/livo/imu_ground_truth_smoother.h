@@ -20,7 +20,7 @@ class IMUGroundTruthSmoother
 {
 public:
   explicit IMUGroundTruthSmoother(const std::shared_ptr<IMUQueue>& imu_queue);
-  void Initialize(double stamp1, double stamp2, std::vector<Pose3Stamped>& pose_estimates);
+  void Initialize(double stamp1, std::vector<Pose3Stamped>& pose_estimates);
   void IMUPredict(double stamp, std::vector<Pose3Stamped>& pose_estimates);
   void GroundTruthUpdate(double stamp, std::vector<Pose3Stamped>& pose_estimates);
   bool IsInitialized();

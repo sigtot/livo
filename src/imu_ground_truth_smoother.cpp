@@ -66,9 +66,9 @@ IMUGroundTruthSmoother::IMUGroundTruthSmoother(const std::shared_ptr<IMUQueue>& 
 {
 }
 
-void IMUGroundTruthSmoother::Initialize(double stamp1, double stamp2, std::vector<Pose3Stamped>& pose_estimates)
+void IMUGroundTruthSmoother::Initialize(double stamp1, std::vector<Pose3Stamped>& pose_estimates)
 {
-  std::cout << "Initializing between timestamps " << stamp1 << " and " << stamp2 << std::endl;
+  std::cout << "Initializing at timestamp " << stamp1 << std::endl;
 
   auto prior_noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3(GlobalParams::PriorNoiseXRollPitch(), GlobalParams::PriorNoiseXRollPitch(),
@@ -83,8 +83,8 @@ void IMUGroundTruthSmoother::Initialize(double stamp1, double stamp2, std::vecto
 
   auto init_pose = ToGtsamPose(GroundTruth::At(stamp1));
   auto init_velocity = gtsam::Vector3(0.000001, 0.000002, 0.000001);
-  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(-0.025266, 0.136696, 0.075593),
-                                         gtsam::Vector3(-0.003172, 0.021267, 0.078502));
+  gtsam::imuBias::ConstantBias init_bias(gtsam::Vector3(0.000001, 0.000001, 0.00001),
+                                         gtsam::Vector3(0.000001, 0.000001, 0.00001));
 
   graph_->addPrior(X(1), init_pose, prior_noise_x);
   graph_->addPrior(V(1), init_velocity, prior_noise_v);
@@ -94,27 +94,13 @@ void IMUGroundTruthSmoother::Initialize(double stamp1, double stamp2, std::vecto
   values_->insert(V(1), init_velocity);
   values_->insert(B(1), init_bias);
 
-  auto second_pose = ToGtsamPose(GroundTruth::At(stamp2));
-  values_->insert(X(2), second_pose);
-  values_->insert(V(2), init_velocity);  // Assume v1 == v2
-  values_->insert(B(2), init_bias);
-
-  imu_measurements_->resetIntegrationAndSetBias(init_bias);
-
-  WaitForAndIntegrateIMU(stamp1, stamp2);
-
-  auto imu_combined = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_measurements_);
-  gtsam::CombinedImuFactor imu_factor(X(1), V(1), X(2), V(2), B(1), B(2), imu_combined);
-  graph_->add(imu_factor);
-
   PerformIsamUpdate();
 
   // Make us ready for the next iteration
-  auto new_bias = isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(2));
+  auto new_bias = isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(1));
   imu_measurements_->resetIntegrationAndSetBias(new_bias);
   added_frame_timestamps_[1] = stamp1;
-  added_frame_timestamps_[2] = stamp2;
-  last_frame_id_added_ = 2;
+  last_frame_id_added_ = 1;
   graph_->resize(0);
   values_->clear();
   initialized_ = true;

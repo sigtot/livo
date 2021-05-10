@@ -83,6 +83,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
   ReadVariable(nh, "/orb_test_node/use_dogleg", GetInstance().use_dogleg_);
   ReadVariable(nh, "/orb_test_node/isam_relinearize_thresh", GetInstance().isam_relinearize_thresh_);
+  ReadVariable(nh, "/orb_test_node/isam_relinearize_skip", GetInstance().isam_relinearize_skip_);
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
   ReadVariable(nh, "/orb_test_node/min_keyframes_for_nominal", GetInstance().min_keyframes_for_nominal_);
@@ -451,4 +452,8 @@ int GlobalParams::LidarDepthMinNonZeroNeighbors()
 double GlobalParams::LidarDepthMaxAllowedFeatureDistance()
 {
   return GetInstance().lidar_depth_max_allowed_feature_distance_;
+}
+int GlobalParams::IsamRelinearizeSkip()
+{
+  return GetInstance().isam_relinearize_skip_;
 }

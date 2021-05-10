@@ -48,6 +48,7 @@ private:
   bool use_isam_ = true;
   bool use_dogleg_ = false;  // Only applies when using ISAM2. true = DogLeg, false = GN
   double isam_relinearize_thresh_ = 0.1;
+  int isam_relinearize_skip_ = 10;
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.;  // Give negative value to use value calculated from estimate
   int min_keyframes_for_nominal_ = 20;
@@ -137,6 +138,7 @@ public:
   static bool UseIsam();
   static bool UseDogLeg();
   static double IsamRelinearizeThresh();
+  static int IsamRelinearizeSkip();
   static bool SaveFactorGraphsToFile();
   static double InitRangeFactorLength();
   static int MinKeyframesForNominal();

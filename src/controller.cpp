@@ -93,16 +93,9 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
   /*
 
-  if (!imu_ground_truth_smoother_.IsInitialized() && !frontend_.GetKeyframeTransforms().empty())
+  if (imu_ground_truth_smoother_.IsInitialized())
   {
-    auto transform = frontend_.GetNewestKeyframeTransform();
-    std::vector<Pose3Stamped> pose_estimates;
-    imu_ground_truth_smoother_.Initialize(transform.frame1->timestamp, transform.frame2->timestamp, pose_estimates);
-    PublishPoses(pose_estimates);
-  }
-  else if (imu_ground_truth_smoother_.IsInitialized())
-  {
-    if (new_frame->id == frontend_.GetNewestKeyframeTransform().frame2->id)
+    if (new_frame->is_keyframe)
     {
       std::vector<Pose3Stamped> pose_estimates;
       imu_ground_truth_smoother_.GroundTruthUpdate(new_frame->timestamp, pose_estimates);
@@ -114,6 +107,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       imu_ground_truth_smoother_.IMUPredict(new_frame->timestamp, pose_estimates);
       PublishPoses(pose_estimates);
     }
+  }
+  else
+  {
+    std::vector<Pose3Stamped> pose_estimates;
+    imu_ground_truth_smoother_.Initialize(new_frame->timestamp, pose_estimates);
+    PublishPoses(pose_estimates);
   }
    */
 

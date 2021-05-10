@@ -18,7 +18,7 @@ gtsam::ISAM2Params MakeISAM2Params()
 {
   gtsam::ISAM2Params params;
   params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
-  params.relinearizeSkip = 10;
+  params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.evaluateNonlinearError = true;
   if (GlobalParams::UseDogLeg())
   {
@@ -255,7 +255,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
                                               gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
       }
     }
-    else
+    else if (track->features.size() > GlobalParams::MinTrackLengthForSmoothing())
     {
       auto lmk_initialized = false;
       for (const auto& feature : track->features)

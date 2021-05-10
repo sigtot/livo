@@ -24,23 +24,24 @@ noise_params:
   prior_gyro: 0.1
   prior_accel: 0.1
   prior_velocity: 0.1
-  feature: 2.5
+  feature: 0.5
   range: 0.5
 
 use_isam: true
 use_dogleg: false
-isam_relinearize_thresh: 0.01
+isam_relinearize_thresh: 0.1
+isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 800.
-max_features_per_cell: 3
+max_features_per_cell: 4
 track_count_lower_thresh: 50
 
-min_parallax_for_keyframe: 15
+min_parallax_for_keyframe: 20
 min_parallax_for_smoothing: 10
-num_high_parallax_points_for_keyframe: 10
-min_track_length_for_smoothing: 2
+num_high_parallax_points_for_keyframe: 15
+min_track_length_for_smoothing: 10
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
 body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]
@@ -65,10 +66,10 @@ distortion_model:
 lidar_depth:
   enabled: true
   calc_mode: 0
-  search_window_width: 7
-  search_window_height: 7
+  search_window_width: 30
+  search_window_height: 30
   min_non_zero_neighbors: 2
-  max_allowed_feature_distance: 30.
+  max_allowed_feature_distance: 50
 
-dynamic_outlier_rejection_threshold: 8.0
-landmark_distance_threshold: 15.0
+dynamic_outlier_rejection_threshold: 15.0
+landmark_distance_threshold: 30
