@@ -31,6 +31,8 @@ noise_params:
   prior_velocity: 0.1
   feature: 1.0
   range: 0.5
+  robust_feature_k: 5
+  robust_range_k: 5
 
 imu_cam_quat: [ 0, 0, 0, 1 ]
 imu_cam_vector: [ 0, 0, 0 ]

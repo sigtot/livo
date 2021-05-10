@@ -17,6 +17,7 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/sam/RangeFactor.h>
+#include <gtsam/linear/LossFunctions.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
@@ -75,27 +76,39 @@ void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasuremen
   last_frame_id_ = id;
 }
 
-void GraphManager::InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                             const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
-                                             const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
+void GraphManager::InitStructurelessLandmark(
+    int lmk_id, int frame_id, const gtsam::Point2& feature, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+    const gtsam::Pose3& body_p_cam, const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+    const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator)
 {
   LandmarkInSmoother landmark_in_smoother;
   landmark_in_smoother.smart_factor =
       gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
   landmark_in_smoother.noise_model = feature_noise;
+  if (m_estimator)
+  {
+    landmark_in_smoother.robust_noise_model = gtsam::noiseModel::Robust::Create(*m_estimator, feature_noise);
+  }
   (*landmark_in_smoother.smart_factor)->add(feature, X(frame_id));
   graph_->add(*landmark_in_smoother.smart_factor);
   added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
-void GraphManager::InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                          const gtsam::Point3& initial_estimate,
-                                          const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
-                                          const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
+void GraphManager::InitProjectionLandmark(
+    int lmk_id, int frame_id, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
+    const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
+    const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+    const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator)
 {
   LandmarkInSmoother landmark_in_smoother;
   landmark_in_smoother.noise_model = feature_noise;
-  ProjectionFactor proj_factor(feature, feature_noise, X(frame_id), L(lmk_id), K, body_p_cam);
+  if (m_estimator)
+  {
+    landmark_in_smoother.robust_noise_model = gtsam::noiseModel::Robust::Create(*m_estimator, feature_noise);
+  }
+  ProjectionFactor proj_factor(
+      feature, landmark_in_smoother.robust_noise_model ? *landmark_in_smoother.robust_noise_model : feature_noise,
+      X(frame_id), L(lmk_id), K, body_p_cam);
   graph_->add(proj_factor);
   values_->insert(L(lmk_id), initial_estimate);
   added_landmarks_[lmk_id] = landmark_in_smoother;
@@ -116,8 +129,10 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   }
   else
   {
-    ProjectionFactor proj_factor(feature, landmark_in_smoother->second.noise_model, X(frame_id), L(lmk_id), K,
-                                 body_p_cam);
+    auto noise_model = landmark_in_smoother->second.robust_noise_model ?
+                           *landmark_in_smoother->second.robust_noise_model :
+                           landmark_in_smoother->second.noise_model;
+    ProjectionFactor proj_factor(feature, noise_model, X(frame_id), L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
   }
 }
@@ -152,8 +167,10 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
       auto frame_key = smart_factor->keys()[i];
       auto K = smart_factor->calibration();
       auto body_p_cam = smart_factor->body_P_sensor();
-      ProjectionFactor proj_factor(feature, landmark_in_smoother->second.noise_model, frame_key, L(lmk_id), K,
-                                   body_p_cam);
+      auto noise_model = landmark_in_smoother->second.robust_noise_model ?
+                             *landmark_in_smoother->second.robust_noise_model :
+                             landmark_in_smoother->second.noise_model;
+      ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
       graph_->add(proj_factor);
     }
     smart_factor.reset();  // Makes the shared pointer within isam a nullptr, which makes isam drop the factor

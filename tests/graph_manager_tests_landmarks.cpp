@@ -32,6 +32,8 @@ protected:
     noise_b = gtsam::noiseModel::Diagonal::Sigmas(
         (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
     feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 0.2);
+    feature_m_estimator = gtsam::noiseModel::mEstimator::Huber::Create(15);
+    robust_noise = gtsam::noiseModel::Robust::Create(feature_m_estimator, feature_noise);
 
     init_nav_state = gtsam::NavState(gtsam::Pose3(), gtsam::Vector3(1., 0., 0.));
 
@@ -51,6 +53,8 @@ protected:
   boost::shared_ptr<gtsam::noiseModel::Isotropic> noise_v;
   boost::shared_ptr<gtsam::noiseModel::Diagonal> noise_b;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise;
+  boost::shared_ptr<gtsam::noiseModel::mEstimator::Base> feature_m_estimator;
+  boost::shared_ptr<gtsam::noiseModel::Robust::Base> robust_noise;
   gtsam::NavState init_nav_state;
   gtsam::imuBias::ConstantBias bias;
   gtsam::PreintegratedCombinedMeasurements pim;
@@ -73,7 +77,7 @@ TEST_F(GraphManagerTest, SmartFactors)
   graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager->InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -132,7 +136,7 @@ TEST_F(GraphManagerTest, GetDegenerateSmartFactor)
   graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager->InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -152,7 +156,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager->InitProjectionLandmark(1, 1, first_feature, landmark + offset, feature_noise, K, body_p_cam);
+  graph_manager->InitProjectionLandmark(1, 1, first_feature, landmark + offset, K, body_p_cam, feature_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -213,7 +217,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
   graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager->InitStructurelessLandmark(1, 1, first_feature, feature_noise, K, body_p_cam);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -284,14 +288,18 @@ TEST_F(GraphManagerTest, RangeFactors)
     first_features.push_back(feature);
   }
 
-  // Lmk 1 we will keep as a smart factor, as if no range measurements exist for it
-  graph_manager->InitStructurelessLandmark(1, 1, first_features[0], feature_noise, K, body_p_cam);
+  // Lmk 1 will be kept as a smart factor, as if no range measurements exist for it
+  graph_manager->InitStructurelessLandmark(1, 1, first_features[0], K, body_p_cam, feature_noise, feature_m_estimator);
 
   // Lmk 2 will be initialized as a smart factor, but then turned into a proj factor, as if range becomes available
-  graph_manager->InitStructurelessLandmark(2, 1, first_features[1], feature_noise, K, body_p_cam);
+  graph_manager->InitStructurelessLandmark(2, 1, first_features[1], K, body_p_cam, feature_noise, feature_m_estimator);
 
   // Lmk 3 will be initialized as a proj factor from the beginning
-  graph_manager->InitProjectionLandmark(3, 1, first_features[2], landmarks[2] + offset, feature_noise, K, body_p_cam);
+  graph_manager->InitProjectionLandmark(3, 1, first_features[2], landmarks[2] + offset, K, body_p_cam, feature_noise,
+                                        feature_m_estimator);
+
+  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
+  auto robust_range_noise = gtsam::noiseModel::Robust::Create(feature_m_estimator, range_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -325,11 +333,10 @@ TEST_F(GraphManagerTest, RangeFactors)
     if (i == 5)
     {
       // Scenario: At i=5, a point cloud comes in, providing range measurements for landmarks 2, 3 and 4, but not 1.
-      auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
       // Lmk 2 is a smart factor to begin with, so will be converted to a proj factor
       graph_manager->AddRangeObservation(2, i, pred_nav_state.pose().range(landmarks[1]), range_noise);
       // Lmk 3 is already a proj factor, so this just adds a range measurement to it
-      graph_manager->AddRangeObservation(3, i, pred_nav_state.pose().range(landmarks[2]), range_noise);
+      graph_manager->AddRangeObservation(3, i, pred_nav_state.pose().range(landmarks[2]), robust_range_noise);
       // Lmk 4 is a smart factor, but is currently degenerate, and so cannot give us an initial point3
       // This must be obtained from the first smart factor measurement and the given range instead.
       graph_manager->AddRangeObservation(4, i, pred_nav_state.pose().range(landmarks[3]), range_noise);
@@ -344,13 +351,13 @@ TEST_F(GraphManagerTest, RangeFactors)
 
     if (i == 4)
     {
-      // Scenario: At i=4, we obtain a new landmark, we immediately add it as a smart factor.
+      // Scenario: At i=4, we obtain a new landmark (lmk 4), we immediately add it as a smart factor.
       // Because it only has this one observation, it will be flagged as degenerate until more observations are added
       landmarks.emplace_back(10.0, 1.5, 1.0);
       gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
       auto feature = camera.project(landmarks.back());
-      graph_manager->InitStructurelessLandmark(static_cast<int>(landmarks.size()), i, feature, feature_noise, K,
-                                               body_p_cam);
+      graph_manager->InitStructurelessLandmark(static_cast<int>(landmarks.size()), i, feature, K, body_p_cam,
+                                               feature_noise);
     }
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth

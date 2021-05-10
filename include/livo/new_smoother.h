@@ -23,8 +23,12 @@ class Pose3;
 
 namespace noiseModel
 {
+class Base;
 class Isotropic;
-class Diagonal;
+namespace mEstimator
+{
+class Base;
+}
 }  // namespace noiseModel
 namespace imuBias
 {
@@ -40,7 +44,8 @@ private:
   int last_frame_id_ = -1;
   std::map<int, std::shared_ptr<Frame>> added_frames_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
-  boost::shared_ptr<gtsam::noiseModel::Isotropic> range_noise_;
+  boost::shared_ptr<gtsam::noiseModel::Base> range_noise_;
+  boost::shared_ptr<gtsam::noiseModel::mEstimator::Base> feature_m_estimator_;
   boost::shared_ptr<gtsam::Pose3> body_p_cam_;
 
   GraphManager graph_manager_;

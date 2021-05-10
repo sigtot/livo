@@ -18,7 +18,7 @@ gtsam::ISAM2Params MakeISAM2Params()
 {
   gtsam::ISAM2Params params;
   params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
-  params.relinearizeSkip = 1;
+  params.relinearizeSkip = 10;
   params.evaluateNonlinearError = true;
   if (GlobalParams::UseDogLeg())
   {
@@ -51,8 +51,10 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
 
 gtsam::SmartProjectionParams MakeSmartFactorParams()
 {
-  auto smart_factor_params = gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-5);
+  auto smart_factor_params = gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-3);
   smart_factor_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
+  smart_factor_params.setLandmarkDistanceThreshold(GlobalParams::LandmarkDistanceThreshold());
+  smart_factor_params.setRankTolerance(1);
   return smart_factor_params;
 }
 
@@ -60,7 +62,10 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
   , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
-  , range_noise_(gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange()))
+  , feature_m_estimator_(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustFeatureK()))
+  , range_noise_(
+        gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
+                                          gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
   , graph_manager_(GraphManager(MakeISAM2Params(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
@@ -76,15 +81,16 @@ void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, const gt
   std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
   gtsam::PinholeCamera<gtsam::Cal3_S2> camera(init_pose * *body_p_cam_, *K_);
   auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
-  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, initial_landmark_estimate, feature_noise_, K_,
-                                        *body_p_cam_);
+  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, initial_landmark_estimate, K_, *body_p_cam_,
+                                        feature_noise_, feature_m_estimator_);
   graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
 }
 
 void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& pt)
 {
   std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
-  graph_manager_.InitStructurelessLandmark(lmk_id, frame_id, pt, feature_noise_, K_, *body_p_cam_);
+  graph_manager_.InitStructurelessLandmark(lmk_id, frame_id, pt, K_, *body_p_cam_, feature_noise_,
+                                           feature_m_estimator_);
 }
 
 void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
@@ -283,9 +289,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
-      const auto tukey_range = gtsam::noiseModel::mEstimator::Tukey::Create(GlobalParams::TukeyRangeK());
-      const auto range_noise = gtsam::noiseModel::Robust::Create(tukey_range, range_noise_);
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
     }
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
   }

@@ -60,6 +60,8 @@ private:
   double prior_noise_velocity = 0.1;
   double noise_feature_ = 1.0;
   double noise_range_ = 0.5;  // meters
+  double robust_feature_k_ = 15;
+  double robust_range_k_ = 15;
 
   double timeshift_cam_imu_ = 0.01379378638037798;
 
@@ -154,6 +156,8 @@ public:
   static double PriorNoiseVelocity();
   static double NoiseFeature();
   static double NoiseRange();
+  static double RobustFeatureK();
+  static double RobustRangeK();
 
   static double TimeshiftCamImu();  // t_imu = t_cam + shift
   static double IMUG();

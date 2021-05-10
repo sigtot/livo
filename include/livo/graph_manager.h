@@ -40,7 +40,12 @@ typedef Eigen::Vector3d Vector3;
 
 namespace noiseModel
 {
+class Isotropic;
 class Base;
+namespace mEstimator
+{
+class Base;
+}
 }  // namespace noiseModel
 namespace imuBias
 {
@@ -76,13 +81,16 @@ public:
                        const boost::shared_ptr<gtsam::noiseModel::Base>& noise_b);
   void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
                 const gtsam::imuBias::ConstantBias& initial_bias);
-  void InitStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                                 const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
-                                 const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
-  void InitProjectionLandmark(int lmk_id, int frame_id, const gtsam::Point2& feature,
-                              const gtsam::Point3& initial_estimate,
-                              const boost::shared_ptr<gtsam::noiseModel::Base>& feature_noise,
-                              const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
+  void InitStructurelessLandmark(
+      int lmk_id, int frame_id, const gtsam::Point2& feature,
+      const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
+      const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+      const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
+  void InitProjectionLandmark(
+      int lmk_id, int frame_id, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
+      const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
+      const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+      const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
   void AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   /**

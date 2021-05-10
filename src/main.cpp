@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     int i = 0;
     for (auto& pose_pair : gt_poses_map)
     {
-      if (i % 50 == 0)
+      if (i % 3 == 0)
       {
         Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
         gt_poses_vec.push_back(stamped);
