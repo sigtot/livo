@@ -8,6 +8,7 @@
 #include "imu_queue.h"
 #include "pose3_stamped.h"
 #include "point3.h"
+#include "landmark_result.h"
 
 #include <utility>
 #include <map>
@@ -64,7 +65,7 @@ public:
   void AddKeyframe(const std::shared_ptr<Frame>& frame);
 
   void GetPoses(std::map<int, Pose3Stamped>& poses) const;
-  void GetLandmarks(std::map<int, Point3>& landmarks) const;
+  void GetLandmarks(std::map<int, LandmarkResult>& landmarks) const;
 
   bool IsInitialized() const;
 };

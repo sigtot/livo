@@ -4,6 +4,8 @@
 #include "gtsam_conversions.h"
 #include "depth_triangulation.h"
 #include "gtsam_helpers.h"
+#include "landmark_result.h"
+#include "landmark_result_gtsam.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -312,13 +314,13 @@ void NewSmoother::GetPoses(map<int, Pose3Stamped>& poses) const
   }
 }
 
-void NewSmoother::GetLandmarks(map<int, Point3>& landmarks) const
+void NewSmoother::GetLandmarks(std::map<int, LandmarkResult>& landmarks) const
 {
   for (const auto& landmark : graph_manager_.GetLandmarks())
   {
     if (landmark.second)
     {
-      landmarks[landmark.first] = ToPoint(*(landmark.second));
+      landmarks.insert({ landmark.first, (*(landmark.second)).ToLandmarkResult() });
     }
   }
 }

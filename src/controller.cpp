@@ -87,7 +87,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   }
   PublishPoses(pose_estimates_vector);
 
-  std::map<int, Point3> landmark_estimates;
+  std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);
   PublishLandmarks(landmark_estimates, new_frame->timestamp);
 
@@ -172,7 +172,7 @@ void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
   ros_helpers::PublishPoses(poses, path_publisher_, pose_arr_publisher_);
 }
 
-void Controller::PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp)
+void Controller::PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp)
 {
   ros_helpers::PublishLandmarks(landmarks, timestamp, landmark_publisher_);
 }

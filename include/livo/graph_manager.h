@@ -8,6 +8,8 @@
 #include <boost/optional.hpp>
 #include <Eigen/Core>
 
+struct LandmarkResultGtsam;
+
 namespace gtsam
 {
 class Cal3_S2;
@@ -113,8 +115,8 @@ public:
   gtsam::NavState GetNavState(int frame_id) const;
   gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
   gtsam::Values GetValues() const;
-  boost::optional<gtsam::Point3> GetLandmark(int lmk_id) const;
-  std::map<int, boost::optional<gtsam::Point3>> GetLandmarks() const;
+  boost::optional<LandmarkResultGtsam> GetLandmark(int lmk_id) const;
+  std::map<int, boost::optional<LandmarkResultGtsam>> GetLandmarks() const;
   bool IsLandmarkTracked(int lmk_id) const;
   bool IsFrameTracked(int frame_id) const;
   bool CanAddObservationsForFrame(int frame_id) const;

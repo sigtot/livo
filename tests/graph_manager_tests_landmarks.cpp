@@ -15,6 +15,7 @@
 
 #include "graph_manager.h"
 #include "helpers.h"
+#include "landmark_result_gtsam.h"
 
 using gtsam::symbol_shorthand::X;
 
@@ -124,7 +125,7 @@ TEST_F(GraphManagerTest, SmartFactors)
 
   auto landmark_estimate = graph_manager->GetLandmark(1);
   EXPECT_TRUE(landmark_estimate);
-  EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark));
+  EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmark));
 }
 
 TEST_F(GraphManagerTest, GetDegenerateSmartFactor)
@@ -203,7 +204,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
 
   auto landmark_estimate = graph_manager->GetLandmark(1);
   EXPECT_TRUE(landmark_estimate);
-  EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark, 1e-2));
+  EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmark, 1e-2));
 }
 
 TEST_F(GraphManagerTest, SmartFactorsDogLeg)
@@ -264,7 +265,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
 
   auto landmark_estimate = graph_manager->GetLandmark(1);
   EXPECT_TRUE(landmark_estimate);
-  EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmark));
+  EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmark));
 }
 
 TEST_F(GraphManagerTest, RangeFactors)
@@ -373,15 +374,18 @@ TEST_F(GraphManagerTest, RangeFactors)
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 0.15));
   }
 
+  std::vector<LandmarkType> expected_landmark_types{ SmartFactorType, ProjectionFactorType, ProjectionFactorType,
+                                                     ProjectionFactorType };
   auto landmark_estimates = graph_manager->GetLandmarks();
   for (int j = 0; j < landmarks.size(); ++j)
   {
     auto landmark_estimate = graph_manager->GetLandmark(j + 1);
     EXPECT_TRUE(landmark_estimate);
-    EXPECT_TRUE(gtsam::assert_equal(*landmark_estimate, landmarks[j], 0.15));
+    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmarks[j], 0.15));
+    EXPECT_EQ((*landmark_estimate).type, expected_landmark_types[j]);
 
     EXPECT_TRUE(landmark_estimates[j + 1]);
-    EXPECT_TRUE(gtsam::assert_equal(*landmark_estimates[j + 1], landmarks[j], 0.15));
+    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimates[j + 1]).pt, landmarks[j], 0.15));
     EXPECT_TRUE(graph_manager->IsLandmarkTracked(j + 1));
   }
   EXPECT_FALSE(graph_manager->IsLandmarkTracked(99));

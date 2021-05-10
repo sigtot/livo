@@ -1,5 +1,6 @@
 #include "ros_helpers.h"
 #include "ros_conversions.h"
+#include "landmark_result.h"
 
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseArray.h>
@@ -13,7 +14,7 @@ void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& 
 {
   if (poses.empty())
   {
-    return; // Nothing to publish
+    return;  // Nothing to publish
   }
   nav_msgs::Path pathMsg;
   geometry_msgs::PoseArray pose_arr;
@@ -34,11 +35,11 @@ void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& 
   pa_pub.publish(pose_arr);
 }
 
-void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp, const ros::Publisher& publisher)
+void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp, const ros::Publisher& publisher)
 {
   if (landmarks.empty())
   {
-    return; // Nothing to publish
+    return;  // Nothing to publish
   }
   visualization_msgs::MarkerArray markerArray;
   std::cout << "got " << landmarks.size() << " landmarks from smoother" << std::endl;
@@ -47,7 +48,7 @@ void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp, 
     auto landmark = landmark_pair.second;
 
     visualization_msgs::Marker marker;
-    marker.pose.position = ToPointMsg(landmark);
+    marker.pose.position = ToPointMsg(landmark.pt);
 
     marker.pose.orientation.x = 0.0;
     marker.pose.orientation.y = 0.0;
@@ -59,8 +60,8 @@ void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp, 
     marker.scale.z = 0.1;
 
     marker.color.r = 0.0f;
-    marker.color.g = 1.0f;
-    marker.color.b = 0.0f;
+    marker.color.g = landmark_pair.second.type == SmartFactorType ? 1.0f : 0.0f;
+    marker.color.b = landmark_pair.second.type == SmartFactorType ? 0.0f : 1.0f;
     marker.color.a = 1.0f;
 
     marker.action = visualization_msgs::Marker::ADD;

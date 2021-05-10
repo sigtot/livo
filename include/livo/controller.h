@@ -10,6 +10,7 @@
 #include "pose3_stamped.h"
 #include "imu_ground_truth_smoother.h"
 #include "lidar_frame_manager.h"
+#include "landmark_result.h"
 
 class Controller
 {
@@ -30,7 +31,7 @@ public:
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
-  void PublishLandmarks(const std::map<int, Point3>& landmarks, double timestamp);
+  void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
 };
 

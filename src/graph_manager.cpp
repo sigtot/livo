@@ -1,5 +1,6 @@
 #include "graph_manager.h"
 #include "depth_triangulation.h"
+#include "landmark_result_gtsam.h"
 
 #include <memory>
 #include <gtsam/base/Vector.h>
@@ -201,7 +202,7 @@ gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
 }
 
-boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
+boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
 {
   auto landmark_in_smoother = added_landmarks_.find(lmk_id);
   if (landmark_in_smoother == added_landmarks_.end())
@@ -215,14 +216,14 @@ boost::optional<gtsam::Point3> GraphManager::GetLandmark(int lmk_id) const
     {
       return boost::none;
     }
-    return *(*landmark_in_smoother->second.smart_factor)->point();
+    return LandmarkResultGtsam{ *(*landmark_in_smoother->second.smart_factor)->point(), SmartFactorType };
   }
-  return isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id));
+  return LandmarkResultGtsam{ isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id)), ProjectionFactorType };
 }
 
-std::map<int, boost::optional<gtsam::Point3>> GraphManager::GetLandmarks() const
+std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks() const
 {
-  std::map<int, boost::optional<gtsam::Point3>> landmarks;
+  std::map<int, boost::optional<LandmarkResultGtsam>> landmarks;
   for (const auto& landmark_in_smoother : added_landmarks_)
   {
     landmarks[landmark_in_smoother.first] = GetLandmark(landmark_in_smoother.first);
