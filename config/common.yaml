@@ -1,4 +1,7 @@
 max_features_per_cell: 10
+max_features: 100
+grid_cells_x: 9
+grid_cells_y: 7
 landmark_culling_frame_count: 20
 landmark_culling_observation_percentage: .40
 landmark_matching_window: 5

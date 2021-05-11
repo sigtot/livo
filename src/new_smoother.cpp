@@ -3,7 +3,7 @@
 #include "ground_truth.h"
 #include "gtsam_conversions.h"
 #include "depth_triangulation.h"
-#include "gtsam_helpers.h"
+#include "feature_helpers.h"
 #include "landmark_result.h"
 #include "landmark_result_gtsam.h"
 #include "debug_value_publisher.h"
@@ -127,7 +127,7 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
 
   graph_manager_.SetInitNavstate(frame->id, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  for (auto& feature_pair : SortFeatures(frame->features))
+  for (auto& feature_pair : SortFeatureMapByDepth(frame->features))
   {
     auto lmk_id = feature_pair.first;
     auto feature = feature_pair.second.lock();
@@ -216,7 +216,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     }
   }
 
-  auto sorted_new_track_features = SortFeatures(new_track_features);
+  // TODO no longer needed as we don't take the first n anymore. Remove.
+  auto sorted_new_track_features = SortFeatureMapByDepth(new_track_features);
 
   std::vector<std::pair<int, std::weak_ptr<Track>>> new_tracks;
   for (const auto& feature_pair : new_track_features)
@@ -268,7 +269,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
                                               gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
       }
     }
-    else
+    else if (track->features.size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
       auto lmk_initialized = false;
       for (const auto& feature : track->features)

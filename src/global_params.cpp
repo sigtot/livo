@@ -58,6 +58,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/lidar_sub_topic", GetInstance().lidar_sub_topic_);
 
   ReadVariable(nh, "/orb_test_node/max_features_per_cell", GetInstance().max_features_per_cell_);
+  ReadVariable(nh, "/orb_test_node/max_features", GetInstance().max_features_);
+  ReadVariable(nh, "/orb_test_node/grid_cells_x", GetInstance().grid_cells_x_);
+  ReadVariable(nh, "/orb_test_node/grid_cells_y", GetInstance().grid_cells_y_);
   ReadVariable(nh, "/orb_test_node/resize_factor", GetInstance().resize_factor_);
   ReadVariable(nh, "/orb_test_node/landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
   ReadVariable(nh, "/orb_test_node/landmark_culling_observation_percentage",
@@ -165,6 +168,18 @@ std::string GlobalParams::LidarSubTopic()
 int GlobalParams::MaxFeaturesPerCell()
 {
   return GetInstance().max_features_per_cell_;
+}
+int GlobalParams::MaxFeatures()
+{
+  return GetInstance().max_features_;
+}
+int GlobalParams::GridCellsX()
+{
+  return GetInstance().grid_cells_x_;
+}
+int GlobalParams::GridCellsY()
+{
+  return GetInstance().grid_cells_y_;
 }
 double GlobalParams::ResizeFactor()
 {

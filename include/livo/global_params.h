@@ -20,6 +20,9 @@ private:
   std::string lidar_sub_topic_ = "/os1_cloud_node/points";
 
   int max_features_per_cell_ = 10;
+  int max_features_ = 100;
+  int grid_cells_x_ = 9;
+  int grid_cells_y_ = 7;
   double resize_factor_ = 1.f;
   int landmark_culling_frame_count_ = 20;
   double landmark_culling_observation_percentage_ = .40;
@@ -119,6 +122,9 @@ public:
   static std::string LidarSubTopic();
 
   static int MaxFeaturesPerCell();
+  static int MaxFeatures();
+  static int GridCellsX();
+  static int GridCellsY();
   static double ResizeFactor();
   static int LandmarkCullingFrameCount();
   static double LandmarkCullingObservationPercentage();

@@ -19,7 +19,7 @@ struct Frame
 {
   cv::Mat image;
   int id;
-  std::map<int, std::weak_ptr<Feature>> features;
+  std::map<int, std::weak_ptr<Feature>> features; // map indexed on track id
   double timestamp;
   bool stationary;
   bool is_keyframe = false;

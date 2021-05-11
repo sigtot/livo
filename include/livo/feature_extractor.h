@@ -36,6 +36,8 @@ private:
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
+  void KeepOnlyNTracks(size_t n);
+
   static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);
 
   static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);

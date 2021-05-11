@@ -7,6 +7,7 @@
 #include "Initializer.h"
 #include "radtan_undistorter.h"
 #include "lidar-depth.h"
+#include "feature_helpers.h"
 
 #include <algorithm>
 #include <utility>
@@ -133,7 +134,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       //double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForKeyframe());
       double intensity = 255;
-      auto color = new_frame->stationary ? cv::Scalar(255, 0, 0) : cv::Scalar(0, intensity, 0);
+      auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
+      auto color = new_frame->stationary ? cv::Scalar(255, 255, 0) : non_stationary_color;
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
       {
         cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
@@ -149,21 +151,28 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
-    FindGoodFeaturesToTrackGridded(img_undistorted, corners, 9, 7, GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    FindGoodFeaturesToTrackGridded(img_undistorted, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
+                                   GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    std::vector<std::shared_ptr<Feature>> features;
     for (const auto& corner : corners)
     {
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{});
       auto new_feature = std::make_shared<Feature>(new_frame, corner);
       if (lidar_frame)
       {
         new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
       }
-      new_frame->features[new_track->id] = new_feature;
-      new_feature->track = new_track;
-      new_track->features.push_back(std::move(new_feature));
+      features.push_back(new_feature);
+    }
+    SortFeaturesByDepthInPlace(features);
+    for (const auto& feature : features)
+    {
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
+      new_frame->features[new_track->id] = feature;
+      feature->track = new_track;
       active_tracks_.push_back(std::move(new_track));
     }
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
+    KeepOnlyNTracks(GlobalParams::MaxFeatures());
   }
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
@@ -208,6 +217,8 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
 {
   int cell_w = img.cols / cell_count_x;
   int cell_h = img.rows / cell_count_y;
+  std::vector<std::vector<cv::Point2f>> best_corners_vectors; // One vector for each cell
+  size_t most_corners_in_cell = 0;
   for (int cell_x = 0; cell_x < cell_count_x; ++cell_x)
   {
     for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
@@ -235,7 +246,20 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
           best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
         }
       }
-      corners.insert(corners.begin(), best_corners.begin(), best_corners.end());
+      // TODO: Weave the features from different corners, so they that top left corners don't get undeserved priority
+      most_corners_in_cell = std::max(most_corners_in_cell, best_corners.size());
+      best_corners_vectors.push_back(best_corners);
+    }
+  }
+  for (size_t i = 0; i < most_corners_in_cell; ++i)
+  {
+    for (auto & best_corners_vector : best_corners_vectors)
+    {
+      if (i >= best_corners_vector.size())
+      {
+        continue;
+      }
+      corners.push_back(best_corners_vector[i]);
     }
   }
 }
@@ -255,12 +279,31 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
       double d2 = d_vec.dot(d_vec);
       if (d2 < squared_dist_thresh)
       {
+        for (const auto& feature : active_tracks_[j]->features)
+        {
+          feature->frame->features.erase(active_tracks_[j]->id);
+        }
         active_tracks_.erase(active_tracks_.begin() + j);
-
-        // TODO: Maybe, if track is of certain min length, add it to old_tracks_ instead of deleting
       }
     }
   }
+}
+
+void FeatureExtractor::KeepOnlyNTracks(size_t n)
+{
+  assert(n > 0);
+  if (n >= active_tracks_.size())
+  {
+    return;
+  }
+  for (size_t i = n - 1; i < active_tracks_.size(); ++i)
+  {
+    for (const auto& feature : active_tracks_[i]->features)
+    {
+      feature->frame->features.erase(active_tracks_[i]->id);
+    }
+  }
+  active_tracks_.resize(n);
 }
 
 bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
