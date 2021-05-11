@@ -48,10 +48,6 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
     {
       new_backend_.AddKeyframe(new_frame);
     }
-    else
-    {
-      new_backend_.AddFrame(new_frame);
-    }
   }
 
   if (!new_backend_.IsInitialized() && new_frame->HasDepth())
