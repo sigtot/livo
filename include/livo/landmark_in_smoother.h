@@ -25,6 +25,7 @@ struct LandmarkInSmoother
   boost::shared_ptr<gtsam::noiseModel::Isotropic> noise_model;
   boost::optional<boost::shared_ptr<gtsam::noiseModel::Base>> robust_noise_model; // Optional for proj factors
   boost::optional<boost::shared_ptr<SmartFactor>> smart_factor;
+  int newest_frame_id_seen; // Assumes frame id is strictly increasing
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_LANDMARK_IN_SMOOTHER_H_

@@ -11,9 +11,10 @@ enum LandmarkType
 
 struct LandmarkResult
 {
-  Point3 pt{};
+  Point3 pt;
   LandmarkType type = SmartFactorType;
-  LandmarkResult(const Point3& pt, LandmarkType type) : pt(pt), type(type)
+  bool active;
+  LandmarkResult(const Point3& pt, LandmarkType type, bool active) : pt(pt), type(type), active(active)
   {
   }
 };

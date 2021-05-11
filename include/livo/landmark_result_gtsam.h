@@ -11,12 +11,13 @@ struct LandmarkResultGtsam
 {
   gtsam::Point3 pt;
   LandmarkType type = SmartFactorType;
-  LandmarkResultGtsam(gtsam::Point3  pt, LandmarkType type) : pt(std::move(pt)), type(type)
+  bool active;
+  LandmarkResultGtsam(gtsam::Point3 pt, LandmarkType type, bool active) : pt(std::move(pt)), type(type), active(active)
   {
   }
   LandmarkResult ToLandmarkResult() const
   {
-    return { ToPoint(pt), type };
+    return { ToPoint(pt), type, active};
   }
 };
 

@@ -62,7 +62,7 @@ void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double tim
     marker.color.r = 0.0f;
     marker.color.g = landmark_pair.second.type == SmartFactorType ? 1.0f : 0.0f;
     marker.color.b = landmark_pair.second.type == SmartFactorType ? 0.0f : 1.0f;
-    marker.color.a = 1.0f;
+    marker.color.a = landmark_pair.second.active ? 1.0f : 0.15f;
 
     marker.action = visualization_msgs::Marker::ADD;
     marker.type = visualization_msgs::Marker::CUBE;

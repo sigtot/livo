@@ -83,6 +83,7 @@ void GraphManager::InitStructurelessLandmark(
     const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator)
 {
   LandmarkInSmoother landmark_in_smoother;
+  landmark_in_smoother.newest_frame_id_seen = frame_id;
   landmark_in_smoother.smart_factor =
       gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
   landmark_in_smoother.noise_model = feature_noise;
@@ -102,6 +103,7 @@ void GraphManager::InitProjectionLandmark(
     const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator)
 {
   LandmarkInSmoother landmark_in_smoother;
+  landmark_in_smoother.newest_frame_id_seen = frame_id;
   landmark_in_smoother.noise_model = feature_noise;
   if (m_estimator)
   {
@@ -124,6 +126,8 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
     std::cout << "WARN (graph manager): attempted to add observation for non-existing landmark " << lmk_id << std::endl;
     return;
   }
+  landmark_in_smoother->second.newest_frame_id_seen =
+      std::max(landmark_in_smoother->second.newest_frame_id_seen, frame_id);
   if (landmark_in_smoother->second.smart_factor)
   {
     (*landmark_in_smoother->second.smart_factor)->add(feature, X(frame_id));
@@ -147,6 +151,8 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
     std::cout << "WARN (graph manager): attempted to add range for non-existing landmark " << lmk_id << std::endl;
     return;
   }
+  landmark_in_smoother->second.newest_frame_id_seen =
+      std::max(landmark_in_smoother->second.newest_frame_id_seen, frame_id);
   if (landmark_in_smoother->second.smart_factor)
   {
     // aka "ConvertSmartFactorToProjectionFactor(lmk_id)"
@@ -210,15 +216,16 @@ boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
     std::cout << "WARN (graph manager): attempted to get point for non-existing landmark " << lmk_id << std::endl;
     return boost::none;
   }
+  auto active = landmark_in_smoother->second.newest_frame_id_seen >= last_frame_id_;
   if (landmark_in_smoother->second.smart_factor)
   {
     if (!(*landmark_in_smoother->second.smart_factor)->isValid())
     {
       return boost::none;
     }
-    return LandmarkResultGtsam{ *(*landmark_in_smoother->second.smart_factor)->point(), SmartFactorType };
+    return LandmarkResultGtsam{ *(*landmark_in_smoother->second.smart_factor)->point(), SmartFactorType, active };
   }
-  return LandmarkResultGtsam{ isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id)), ProjectionFactorType };
+  return LandmarkResultGtsam{ isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id)), ProjectionFactorType, active };
 }
 
 std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks() const
