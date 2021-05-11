@@ -6,6 +6,7 @@
 #include "gtsam_helpers.h"
 #include "landmark_result.h"
 #include "landmark_result_gtsam.h"
+#include "debug_value_publisher.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -175,7 +176,10 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
     }
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
   }
-  graph_manager_.Update();
+  auto isam_result = graph_manager_.Update();
+  DebugValuePublisher::PublishRelinearizedCliques(isam_result.variablesRelinearized);
+  DebugValuePublisher::PublishReeliminatedCliques(isam_result.variablesReeliminated);
+  DebugValuePublisher::PublishTotalCliques(isam_result.cliques);
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
@@ -296,10 +300,14 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
   }
 
+  // Because with keyframe insertion, we add new landmarks, we should relinearize regardless of relinearizeSkip
   gtsam::ISAM2UpdateParams update_params;
   update_params.force_relinearize = true;
 
-  graph_manager_.Update(update_params);
+  auto isam_result = graph_manager_.Update(update_params);
+  DebugValuePublisher::PublishRelinearizedCliques(isam_result.variablesRelinearized);
+  DebugValuePublisher::PublishReeliminatedCliques(isam_result.variablesReeliminated);
+  DebugValuePublisher::PublishTotalCliques(isam_result.cliques);
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
