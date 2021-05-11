@@ -9,7 +9,6 @@ boost::optional<cv::Point2f> bearingToPixel(const Eigen::Vector3d& vec, const Ei
   // Project
   if (vec(2) <= 0)
   {
-    std::cout << "z coordinate of bearing vector negative" << std::endl;
     return boost::none;
   }
   const Eigen::Vector2d vec2d = Eigen::Vector2d(vec(0) / vec(2), vec(1) / vec(2));
@@ -111,7 +110,6 @@ boost::optional<float> getDirectDepthFromPatch(const cv::Mat& depthPatch, const 
   // Single Beam - No information of planarity
   if (topCount < 2 || bottomCount < 2)
   {
-    std::cout << "topcount < 2 || bottomcount < 2" << std::endl;
     return boost::none;
   }
   // Calculate Std.Dev
@@ -123,7 +121,6 @@ boost::optional<float> getDirectDepthFromPatch(const cv::Mat& depthPatch, const 
   // Check if patch has large Std.Dev
   if (stdDev > tol)
   {
-    std::cout << "stddev " << stdDev << " too large" << std::endl;
     return boost::none;
   }
 
@@ -178,12 +175,10 @@ boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::M
   // Check if ROI boundaries are valid
   if (uMin < 0 || vMin < 0)
   {
-    std::cout << "roi boundaries not valid" << std::endl;
     return boost::none;
   }
   if ((pt.x + hWinHalf) > depthImg.cols - 1 || (pt.y + vWinHalf) > depthImg.rows - 1)
   {
-    std::cout << "point outside lidar cloud or whatever" << std::endl;
     return boost::none;
   }
   // Count Non-Zero depth points in the ROI
@@ -196,7 +191,6 @@ boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::M
   // If not enough non-zero depth points neighbor present
   if (ROInonZeroLoc.size() < GlobalParams::LidarDepthMinNonZeroNeighbors())
   {
-    std::cout << "too few neighboring depth points present (" << ROInonZeroLoc.size() << ")" << std::endl;
     return boost::none;
   }
   // Get Depth
@@ -212,7 +206,6 @@ boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::M
   }
   if (depth && *depth > GlobalParams::LidarDepthMaxAllowedFeatureDistance())
   {
-    std::cout << "lidar depth too large: " << *depth << std::endl;
     return boost::none;
   }
   // DEBUG
@@ -220,9 +213,5 @@ boost::optional<float> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::M
   //            << ", NonZero:" << ROInonZeroLoc.size()
   //            << ", depth: " << depth << std::endl;
   // DEBUG
-  if (depth)
-  {
-    std::cout << "successfully got depth " << *depth << std::endl;
-  }
   return depth;
 }
