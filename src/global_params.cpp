@@ -79,6 +79,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().max_parallax_rotation_compensation_);
   ReadVariable(nh, "/orb_test_node/num_high_parallax_points_for_keyframe",
                GetInstance().num_high_parallax_points_for_keyframe_);
+  ReadVariable(nh, "/orb_test_node/min_active_track_count", GetInstance().min_active_track_count_);
 
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
   ReadVariable(nh, "/orb_test_node/use_dogleg", GetInstance().use_dogleg_);
@@ -361,6 +362,10 @@ double GlobalParams::MinParallaxForSmoothing()
 double GlobalParams::NumHighParallaxPointsForKeyframe()
 {
   return GetInstance().num_high_parallax_points_for_keyframe_;
+}
+int GlobalParams::MinActiveTrackCount()
+{
+  return GetInstance().min_active_track_count_;
 }
 double GlobalParams::MaxParallaxRotationCompensation()
 {

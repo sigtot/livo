@@ -11,6 +11,7 @@
 #include "track.h"
 #include "essential_matrix_decomposition_result.h"
 #include "homography_decomposition_result.h"
+#include "global_params.h"
 
 struct KeyframeTransform
 {
@@ -123,7 +124,7 @@ struct KeyframeTransform
 
   static bool EnoughMatches(size_t match_count)
   {
-    return match_count >= 8;
+    return match_count >= GlobalParams::MinActiveTrackCount();
   }
 
   bool HaveEnoughMatches() const

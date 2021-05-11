@@ -11,6 +11,7 @@ min_parallax_for_keyframe: 10
 min_parallax_for_smoothing: 5
 max_parallax_rotation_compensation: 200
 num_high_parallax_points_for_keyframe: 15
+min_active_track_count: 20
 
 use_isam: true
 use_dogleg: false

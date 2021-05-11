@@ -38,12 +38,13 @@ init_range_factor_length: 1.0
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 800.
 max_features_per_cell: 4
-track_count_lower_thresh: 50
+track_count_lower_thresh: 70
 
 min_parallax_for_keyframe: 20
 min_parallax_for_smoothing: 10
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 10
+min_active_track_count: 30
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
 body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]

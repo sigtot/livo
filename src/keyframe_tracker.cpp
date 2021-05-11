@@ -18,7 +18,7 @@ void KeyframeTracker::TryAddFrame(const std::shared_ptr<Frame>& frame1, const st
   if (!transform.HaveEnoughMatches())
   {
     // Too few matches likely means high feature loss, so we need to initialize a new keyframe to keep tracking
-    // In this case, a visual only solution will yield wrong results, so hopefully, IMU or LiDAR data can help us
+    // In this case, a visual only solution could yield wrong results, so hopefully, IMU or LiDAR data can help us
     std::cout << " Not enough matches " << std::endl;
     keyframe_transforms_.push_back(transform);
     return;

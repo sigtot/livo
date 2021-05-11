@@ -44,6 +44,7 @@ private:
   int num_good_keyframes_for_initialization_ = 20;
   bool add_essential_matrix_constraints_ = false;
   double min_keyframe_feature_inlier_ratio_ = .75;
+  int min_active_track_count_ = 20;
 
   bool use_isam_ = true;
   bool use_dogleg_ = false;  // Only applies when using ISAM2. true = DogLeg, false = GN
@@ -134,6 +135,7 @@ public:
   static double MinParallaxForSmoothing();
   static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
+  static int MinActiveTrackCount();
 
   static bool UseIsam();
   static bool UseDogLeg();
