@@ -43,6 +43,13 @@ void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double tim
   }
   visualization_msgs::MarkerArray markerArray;
   std::cout << "got " << landmarks.size() << " landmarks from smoother" << std::endl;
+  {
+    visualization_msgs::Marker marker;
+    marker.id = 0;
+    marker.ns = "landmarks";
+    marker.action = visualization_msgs::Marker::DELETEALL;
+    markerArray.markers.push_back(marker);
+  }
   for (auto& landmark_pair : landmarks)
   {
     auto landmark = landmark_pair.second;
