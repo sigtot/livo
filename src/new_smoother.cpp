@@ -16,6 +16,7 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/nonlinear/ISAM2Result.h>
+#include <chrono>
 
 gtsam::ISAM2Params MakeISAM2Params()
 {
@@ -176,10 +177,16 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
     }
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
   }
+
+  auto time_before = chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
-  DebugValuePublisher::PublishRelinearizedCliques(isam_result.variablesRelinearized);
-  DebugValuePublisher::PublishReeliminatedCliques(isam_result.variablesReeliminated);
-  DebugValuePublisher::PublishTotalCliques(isam_result.cliques);
+  auto time_after = chrono::system_clock::now();
+  DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+  DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
+  DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+  auto millis = chrono::duration_cast<chrono::milliseconds>(time_after - time_before);
+  DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
+
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
@@ -304,10 +311,14 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   gtsam::ISAM2UpdateParams update_params;
   update_params.force_relinearize = true;
 
+  auto time_before = chrono::system_clock::now();
   auto isam_result = graph_manager_.Update(update_params);
-  DebugValuePublisher::PublishRelinearizedCliques(isam_result.variablesRelinearized);
-  DebugValuePublisher::PublishReeliminatedCliques(isam_result.variablesReeliminated);
-  DebugValuePublisher::PublishTotalCliques(isam_result.cliques);
+  auto time_after = chrono::system_clock::now();
+  DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
+  DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
+  DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
+  auto millis = chrono::duration_cast<chrono::milliseconds>(time_after - time_before);
+  DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;

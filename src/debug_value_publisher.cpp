@@ -14,6 +14,7 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().relinearized_cliques_pub_ = nh.advertise<std_msgs::Int32>("/relinearized_cliques", 1000);
   GetInstance().reeliminated_cliques_pub_ = nh.advertise<std_msgs::Int32>("/reeliminated_cliques", 1000);
   GetInstance().total_cliques_pub_ = nh.advertise<std_msgs::Int32>("/total_cliques", 1000);
+  GetInstance().update_duration_pub_ = nh.advertise<std_msgs::Int32>("/update_duration", 1000);
 
   GetInstance().bias_acc_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_x", 1000);
   GetInstance().bias_acc_y_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_y", 1000);
@@ -46,6 +47,11 @@ void DebugValuePublisher::PublishReeliminatedCliques(int reeliminated_cliques)
 void DebugValuePublisher::PublishTotalCliques(int total_cliques)
 {
   DebugValuePublisher::PublishIntValue(total_cliques, GetInstance().total_cliques_pub_);
+}
+
+void DebugValuePublisher::PublishUpdateDuration(int duration)
+{
+  DebugValuePublisher::PublishIntValue(duration, GetInstance().update_duration_pub_);
 }
 
 void DebugValuePublisher::PublishDoubleValue(double value, ros::Publisher& publisher)

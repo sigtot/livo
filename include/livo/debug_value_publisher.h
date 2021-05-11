@@ -10,6 +10,7 @@ private:
   ros::Publisher relinearized_cliques_pub_;
   ros::Publisher reeliminated_cliques_pub_;
   ros::Publisher total_cliques_pub_;
+  ros::Publisher update_duration_pub_;
 
   ros::Publisher bias_acc_x_pub_;
   ros::Publisher bias_acc_y_pub_;
@@ -39,6 +40,7 @@ public:
   static void PublishRelinearizedCliques(int relinearized_cliques);
   static void PublishReeliminatedCliques(int relinearized_cliques);
   static void PublishTotalCliques(int total_cliques);
+  static void PublishUpdateDuration(int duration);
   static void PublishBias(const std::vector<double>& acc_bias, const std::vector<double>& gyro_bias);
   static void PublishVelocityNormAverage(double velocity_norm_average);
   static void PublishFrameId(int frame_id);
