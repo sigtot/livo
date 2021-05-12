@@ -107,6 +107,8 @@ public:
    */
   void AddRangeObservation(int lmk_id, int frame_id, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
+  bool CanAddRangeObservation(int lmk_id);
+  void ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
   gtsam::ISAM2Result Update(const gtsam::ISAM2UpdateParams& update_params);
 

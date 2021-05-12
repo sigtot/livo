@@ -52,12 +52,13 @@ private:
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
 
-public:
-  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
-
+  gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
   void InitializeLandmarkWithDepth(int lmk_id, int frame_id, const gtsam::Point2& pt, double depth,
                                    const gtsam::Pose3& init_pose);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& pt);
+
+public:
+  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);

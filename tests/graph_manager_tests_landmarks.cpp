@@ -335,11 +335,19 @@ TEST_F(GraphManagerTest, RangeFactors)
     {
       // Scenario: At i=5, a point cloud comes in, providing range measurements for landmarks 2, 3 and 4, but not 1.
       // Lmk 2 is a smart factor to begin with, so will be converted to a proj factor
+      ASSERT_FALSE(graph_manager->CanAddRangeObservation(2));
+      graph_manager->ConvertSmartFactorToProjectionFactor(2, landmarks[1]);
+      ASSERT_TRUE(graph_manager->CanAddRangeObservation(2));
       graph_manager->AddRangeObservation(2, i, pred_nav_state.pose().range(landmarks[1]), range_noise);
+
       // Lmk 3 is already a proj factor, so this just adds a range measurement to it
+      ASSERT_TRUE(graph_manager->CanAddRangeObservation(3));
       graph_manager->AddRangeObservation(3, i, pred_nav_state.pose().range(landmarks[2]), robust_range_noise);
-      // Lmk 4 is a smart factor, but is currently degenerate, and so cannot give us an initial point3
-      // This must be obtained from the first smart factor measurement and the given range instead.
+
+      // Lmk 4 is a smart factor, and is currently degenerate. This makes no difference.
+      ASSERT_FALSE(graph_manager->CanAddRangeObservation(4));
+      graph_manager->ConvertSmartFactorToProjectionFactor(4, landmarks[3]);
+      ASSERT_TRUE(graph_manager->CanAddRangeObservation(4));
       graph_manager->AddRangeObservation(4, i, pred_nav_state.pose().range(landmarks[3]), range_noise);
     }
 
@@ -369,9 +377,9 @@ TEST_F(GraphManagerTest, RangeFactors)
   // Assert
   for (int i = 0; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 0.15));
+    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
     EXPECT_TRUE(
-        gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 0.15));
+        gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
   }
 
   std::vector<LandmarkType> expected_landmark_types{ SmartFactorType, ProjectionFactorType, ProjectionFactorType,
@@ -381,12 +389,26 @@ TEST_F(GraphManagerTest, RangeFactors)
   {
     auto landmark_estimate = graph_manager->GetLandmark(j + 1);
     EXPECT_TRUE(landmark_estimate);
-    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmarks[j], 0.15));
+    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmarks[j], 1e-2));
     EXPECT_EQ((*landmark_estimate).type, expected_landmark_types[j]);
 
     EXPECT_TRUE(landmark_estimates[j + 1]);
-    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimates[j + 1]).pt, landmarks[j], 0.15));
+    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimates[j + 1]).pt, landmarks[j], 1e-2));
     EXPECT_TRUE(graph_manager->IsLandmarkTracked(j + 1));
   }
   EXPECT_FALSE(graph_manager->IsLandmarkTracked(99));
+}
+
+TEST_F(GraphManagerTest, CanAddRangeObservation)
+{
+  SetUp(gtsam::ISAM2Params());
+
+  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
+
+  EXPECT_FALSE(graph_manager->CanAddRangeObservation(1));
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, landmark);
+  EXPECT_TRUE(graph_manager->CanAddRangeObservation(1));
 }

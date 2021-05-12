@@ -21,7 +21,12 @@
 gtsam::ISAM2Params MakeISAM2Params()
 {
   gtsam::ISAM2Params params;
-  params.relinearizeThreshold = GlobalParams::IsamRelinearizeThresh();
+  gtsam::FastMap<char, gtsam::Vector> thresholds;
+  thresholds['x'] = (gtsam::Vector(6) << 0.1, 0.1, 0.1, 0.5, 0.5, 0.5).finished();  // 0.1 rad rot, 0.5 m translation
+  thresholds['v'] = (gtsam::Vector(3) << 0.1, 0.1, 0.1).finished();                 // 0.1 m/s speed threshold
+  thresholds['b'] = (gtsam::Vector(6) << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1).finished();  // bias my dudes
+  thresholds['l'] = (gtsam::Vector(3) << 1.0, 1.0, 1.0).finished();                 // 1.0 m landmark position threshold
+  params.relinearizeThreshold = thresholds;
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.evaluateNonlinearError = true;
   if (GlobalParams::UseDogLeg())
@@ -79,14 +84,18 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
 {
 }
 
+gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const
+{
+  gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pose * *body_p_cam_, *K_);
+  return DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
+}
+
 void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, const gtsam::Point2& pt, double depth,
                                               const gtsam::Pose3& init_pose)
 {
   std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
-  gtsam::PinholeCamera<gtsam::Cal3_S2> camera(init_pose * *body_p_cam_, *K_);
-  auto initial_landmark_estimate = DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
-  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, initial_landmark_estimate, K_, *body_p_cam_,
-                                        feature_noise_, feature_m_estimator_);
+  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, CalculatePointEstimate(init_pose, pt, depth), K_,
+                                        *body_p_cam_, feature_noise_, feature_m_estimator_);
   graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
 }
 
@@ -162,6 +171,8 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
 
+  auto feature_obs_count = 0;
+  auto range_obs_count = 0;
   for (auto& feature_pair : frame->features)
   {
     auto lmk_id = feature_pair.first;
@@ -173,11 +184,19 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
+      if (!graph_manager_.CanAddRangeObservation(lmk_id))
+      {
+        auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+      }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      range_obs_count++;
     }
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
+    feature_obs_count++;
   }
 
+  std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
   auto time_before = chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
   auto time_after = chrono::system_clock::now();
@@ -186,7 +205,6 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   auto millis = chrono::duration_cast<chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
-
 
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
@@ -229,8 +247,10 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     }
   }
 
+  auto added_landmarks_count = 0;
   for (const auto& track_pair : new_tracks)
   {
+    auto obs_count = 0;
     auto track = track_pair.second.lock();
     if (!track)
     {
@@ -249,6 +269,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           InitializeLandmarkWithDepth(track->id, feature->frame->id, gtsam::Point2(feature->pt.x, feature->pt.y),
                                       *feature->depth, pose_for_init);
           frame_id_used_for_init = feature->frame->id;
+          obs_count++;
+          added_landmarks_count++;
           break;
         }
       }
@@ -261,13 +283,22 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           continue;
         }
+        gtsam::Point2 gtsam_pt = gtsam::Point2(feature->pt.x, feature->pt.y);
         if (feature->depth)
         {
+          if (!graph_manager_.CanAddRangeObservation(track->id))
+          {
+            auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
+                                                                     graph_manager_.GetPose(feature->frame->id);
+            auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, init_point);
+          }
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
         }
-        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id,
-                                              gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
+        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, gtsam_pt, K_, *body_p_cam_);
+        obs_count++;
       }
+      std::cout << "Added proj with " << obs_count << " observations" << std::endl;
     }
     else if (track->features.size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
@@ -276,22 +307,30 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
       {
         if (!graph_manager_.CanAddObservationsForFrame(feature->frame->id))
         {
+          std::cout << "Cannot add observations for frame " << feature->frame->id << std::endl;
           continue;
         }
         if (lmk_initialized)
         {
           graph_manager_.AddLandmarkObservation(track->id, feature->frame->id,
                                                 gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
+          obs_count++;
         }
         else
         {
           InitializeStructurelessLandmark(track->id, feature->frame->id, gtsam::Point2(feature->pt.x, feature->pt.y));
+          added_landmarks_count++;
+          obs_count++;
           lmk_initialized = true;
         }
       }
+      std::cout << "Added smart with " << obs_count << " observations" << std::endl;
     }
   }
+  std::cout << "Initialized " << added_landmarks_count << " landmarks" << std::endl;
 
+  auto feature_obs_count = 0;
+  auto range_obs_count = 0;
   for (auto& feature_pair : existing_features)
   {
     auto lmk_id = feature_pair.first;
@@ -303,10 +342,19 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
+      if (!graph_manager_.CanAddRangeObservation(lmk_id))
+      {
+        auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+      }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      range_obs_count++;
     }
+    feature_obs_count++;
     graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
   }
+
+  std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
 
   // Because with keyframe insertion, we add new landmarks, we should relinearize regardless of relinearizeSkip
   gtsam::ISAM2UpdateParams update_params;

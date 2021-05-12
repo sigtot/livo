@@ -153,36 +153,6 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
   }
   landmark_in_smoother->second.newest_frame_id_seen =
       std::max(landmark_in_smoother->second.newest_frame_id_seen, frame_id);
-  if (landmark_in_smoother->second.smart_factor)
-  {
-    // aka "ConvertSmartFactorToProjectionFactor(lmk_id)"
-    boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother->second.smart_factor;
-    if (smart_factor->isValid())
-    {
-      values_->insert(L(lmk_id), *smart_factor->point());
-    }
-    else
-    {
-      auto measurement = smart_factor->measured().front();
-      auto camera = smart_factor->cameras(GetValues()).front();  // fails if AddLandmarkObservation called first
-      auto initial_point_estimate_from_range = DepthTriangulation::PixelAndDepthToPoint3(measurement, range, camera);
-      values_->insert(L(lmk_id), initial_point_estimate_from_range);
-    }
-    for (int i = 0; i < smart_factor->keys().size(); ++i)
-    {
-      auto feature = smart_factor->measured()[i];
-      auto frame_key = smart_factor->keys()[i];
-      auto K = smart_factor->calibration();
-      auto body_p_cam = smart_factor->body_P_sensor();
-      auto noise_model = landmark_in_smoother->second.robust_noise_model ?
-                             *landmark_in_smoother->second.robust_noise_model :
-                             landmark_in_smoother->second.noise_model;
-      ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
-      graph_->add(proj_factor);
-    }
-    smart_factor.reset();  // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
-    landmark_in_smoother->second.smart_factor = boost::none;  // Remove nullptr smart factor from our bookkeeping
-  }
 
   RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);
   graph_->add(range_factor);
@@ -256,4 +226,32 @@ bool GraphManager::IsFrameTracked(int frame_id) const
 bool GraphManager::CanAddObservationsForFrame(int frame_id) const
 {
   return IsFrameTracked(frame_id) || values_->exists(X(frame_id));
+}
+
+bool GraphManager::CanAddRangeObservation(int lmk_id)
+{
+  return added_landmarks_.count(lmk_id) && !added_landmarks_[lmk_id].smart_factor;
+}
+
+void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate)
+{
+  assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor);
+  std::cout << "Converting " << lmk_id << " to proj factor" << std::endl;
+  auto landmark_in_smoother = added_landmarks_[lmk_id];
+  boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother.smart_factor;
+  values_->insert(L(lmk_id), initial_estimate);
+  for (int i = 0; i < smart_factor->keys().size(); ++i)
+  {
+    auto feature = smart_factor->measured()[i];
+    auto frame_key = smart_factor->keys()[i];
+    auto K = smart_factor->calibration();
+    auto body_p_cam = smart_factor->body_P_sensor();
+    auto noise_model = landmark_in_smoother.robust_noise_model ?
+                       *landmark_in_smoother.robust_noise_model :
+                       landmark_in_smoother.noise_model;
+    ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
+    graph_->add(proj_factor);
+  }
+  smart_factor.reset();  // Makes the shared pointer within isam a nullptr, which makes isam drop the factor
+  added_landmarks_[lmk_id].smart_factor = boost::none;  // Remove nullptr smart factor from our bookkeeping
 }
