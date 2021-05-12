@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/nonlinear/ISAM2Params.h>
+#include <gtsam/nonlinear/ISAM2Result.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/navigation/NavState.h>
 #include <gtsam/navigation/ImuBias.h>
@@ -16,6 +17,7 @@
 #include "graph_manager.h"
 #include "helpers.h"
 #include "landmark_result_gtsam.h"
+#include "isam2_solver.h"
 
 using gtsam::symbol_shorthand::X;
 
@@ -26,7 +28,8 @@ protected:
   ~GraphManagerTest() override = default;
   void SetUp(const gtsam::ISAM2Params& isam2_params)
   {
-    graph_manager = std::make_shared<GraphManager>(isam2_params, (gtsam::SmartProjectionParams()));
+    graph_manager =
+        std::make_shared<GraphManager>(std::make_shared<ISAM2Solver>(isam2_params), gtsam::SmartProjectionParams());
     noise_x = gtsam::noiseModel::Diagonal::Sigmas(
         (gtsam::Vector(6) << gtsam::Vector3::Constant(0.001), gtsam::Vector3::Constant(0.001)).finished());
     noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);

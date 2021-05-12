@@ -3,9 +3,9 @@
 #include "landmark_result_gtsam.h"
 
 #include <memory>
+#include <utility>
 #include <gtsam/base/Vector.h>
 #include <gtsam/base/make_shared.h>
-#include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
@@ -25,9 +25,9 @@ using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
 
-GraphManager::GraphManager(const gtsam::ISAM2Params& isam2_params,
+GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver,
                            const gtsam::SmartProjectionParams& smart_factor_params)
-  : isam2_(std::make_shared<gtsam::ISAM2>(isam2_params))
+  : incremental_solver_(std::move(incremental_solver))
   , graph_(std::make_shared<gtsam::NonlinearFactorGraph>())
   , values_(std::make_shared<gtsam::Values>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
@@ -52,12 +52,7 @@ void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& na
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  return Update(gtsam::ISAM2UpdateParams());
-}
-
-gtsam::ISAM2Result GraphManager::Update(const gtsam::ISAM2UpdateParams& update_params)
-{
-  auto result = isam2_->update(*graph_, *values_, update_params);
+  auto result = incremental_solver_->Update(*graph_, *values_);
   graph_->resize(0);
   values_->clear();
   return result;
@@ -160,12 +155,12 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
 
 gtsam::Pose3 GraphManager::GetPose(int frame_id) const
 {
-  return isam2_->calculateEstimate<gtsam::Pose3>(X(frame_id));
+  return incremental_solver_->CalculateEstimatePose3(X(frame_id));
 }
 
 gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
 {
-  return isam2_->calculateEstimate<gtsam::Vector3>(V(frame_id));
+  return incremental_solver_->CalculateEstimateVector3(V(frame_id));
 }
 
 gtsam::NavState GraphManager::GetNavState(int frame_id) const
@@ -175,7 +170,7 @@ gtsam::NavState GraphManager::GetNavState(int frame_id) const
 
 gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
 {
-  return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(B(frame_id));
+  return incremental_solver_->CalculateEstimateBias(B(frame_id));
 }
 
 boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
@@ -195,7 +190,7 @@ boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
     }
     return LandmarkResultGtsam{ *(*landmark_in_smoother->second.smart_factor)->point(), SmartFactorType, active };
   }
-  return LandmarkResultGtsam{ isam2_->calculateEstimate<gtsam::Point3>(L(lmk_id)), ProjectionFactorType, active };
+  return LandmarkResultGtsam{ incremental_solver_->CalculateEstimatePoint3(L(lmk_id)), ProjectionFactorType, active };
 }
 
 std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks() const
@@ -210,7 +205,7 @@ std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks()
 
 gtsam::Values GraphManager::GetValues() const
 {
-  return isam2_->calculateEstimate();
+  return incremental_solver_->CalculateEstimate();
 }
 
 bool GraphManager::IsLandmarkTracked(int lmk_id) const
@@ -220,7 +215,7 @@ bool GraphManager::IsLandmarkTracked(int lmk_id) const
 
 bool GraphManager::IsFrameTracked(int frame_id) const
 {
-  return isam2_->valueExists(X(frame_id));
+  return incremental_solver_->ValueExists(X(frame_id));
 }
 
 bool GraphManager::CanAddObservationsForFrame(int frame_id) const
@@ -236,7 +231,6 @@ bool GraphManager::CanAddRangeObservation(int lmk_id)
 void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate)
 {
   assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor);
-  std::cout << "Converting " << lmk_id << " to proj factor" << std::endl;
   auto landmark_in_smoother = added_landmarks_[lmk_id];
   boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother.smart_factor;
   values_->insert(L(lmk_id), initial_estimate);

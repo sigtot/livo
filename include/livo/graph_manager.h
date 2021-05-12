@@ -2,6 +2,7 @@
 #define ORB_TEST_SRC_GRAPH_MANAGER_H_
 
 #include "landmark_in_smoother.h"
+#include "incremental_solver.h"
 
 #include <map>
 #include <boost/shared_ptr.hpp>
@@ -66,15 +67,15 @@ private:
   // GTSAM forces this for smart factors, we also enforce it for regular projection factors.
   std::map<int, LandmarkInSmoother> added_landmarks_;
 
-  std::shared_ptr<gtsam::ISAM2> isam2_;
+  std::shared_ptr<IncrementalSolver> incremental_solver_;
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
   int last_frame_id_ = -1;
 
 public:
-  explicit GraphManager(const gtsam::ISAM2Params& isam2_params,
-                        const gtsam::SmartProjectionParams& smart_factor_params);
+  GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver,
+               const gtsam::SmartProjectionParams& smart_factor_params);
 
 public:
   void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state, const gtsam::imuBias::ConstantBias& bias,
@@ -84,9 +85,8 @@ public:
   void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
                 const gtsam::imuBias::ConstantBias& initial_bias);
   void InitStructurelessLandmark(
-      int lmk_id, int frame_id, const gtsam::Point2& feature,
-      const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
-      const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
+      int lmk_id, int frame_id, const gtsam::Point2& feature, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+      const gtsam::Pose3& body_p_cam, const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
       const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
   void InitProjectionLandmark(
       int lmk_id, int frame_id, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
@@ -110,7 +110,6 @@ public:
   bool CanAddRangeObservation(int lmk_id);
   void ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
-  gtsam::ISAM2Result Update(const gtsam::ISAM2UpdateParams& update_params);
 
   gtsam::Pose3 GetPose(int frame_id) const;
   gtsam::Vector3 GetVelocity(int frame_id) const;

@@ -7,10 +7,10 @@
 #include "landmark_result.h"
 #include "landmark_result_gtsam.h"
 #include "debug_value_publisher.h"
+#include "isam2_solver.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
-#include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/slam/SmartFactorParams.h>
 #include <gtsam/base/make_shared.h>
 #include <gtsam/geometry/Cal3_S2.h>
@@ -75,7 +75,7 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   , range_noise_(
         gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
-  , graph_manager_(GraphManager(MakeISAM2Params(), MakeSmartFactorParams()))
+  , graph_manager_(GraphManager(std::make_shared<ISAM2Solver>(MakeISAM2Params()), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
@@ -357,11 +357,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
 
   // Because with keyframe insertion, we add new landmarks, we should relinearize regardless of relinearizeSkip
-  gtsam::ISAM2UpdateParams update_params;
-  update_params.force_relinearize = true;
-
   auto time_before = chrono::system_clock::now();
-  auto isam_result = graph_manager_.Update(update_params);
+  auto isam_result = graph_manager_.Update();
   auto time_after = chrono::system_clock::now();
   DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
   DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
