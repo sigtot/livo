@@ -9,6 +9,10 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/navigation/ImuBias.h>
 
+ISAM2Solver::ISAM2Solver(const gtsam::ISAM2Params& isam2_params) : isam2_(std::make_shared<gtsam::ISAM2>(isam2_params))
+{
+}
+
 gtsam::ISAM2Result ISAM2Solver::Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values)
 {
   return isam2_->update(graph, values);
@@ -42,8 +46,4 @@ gtsam::Vector3 ISAM2Solver::CalculateEstimateVector3(gtsam::Key key)
 gtsam::imuBias::ConstantBias ISAM2Solver::CalculateEstimateBias(gtsam::Key key)
 {
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(key);
-}
-
-ISAM2Solver::ISAM2Solver(const gtsam::ISAM2Params& isam2_params) : isam2_(std::make_shared<gtsam::ISAM2>(isam2_params))
-{
 }
