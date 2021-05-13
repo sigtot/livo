@@ -78,7 +78,7 @@ TEST_F(GraphManagerTest, SmartFactors)
   SetUp(gtsam::ISAM2Params());
 
   // Act
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
   graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
@@ -89,7 +89,7 @@ TEST_F(GraphManagerTest, SmartFactors)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -106,7 +106,7 @@ TEST_F(GraphManagerTest, SmartFactors)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -137,7 +137,7 @@ TEST_F(GraphManagerTest, GetDegenerateSmartFactor)
   SetUp(gtsam::ISAM2Params());
 
   // Act
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
   graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
@@ -157,10 +157,10 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   gtsam::Point3 offset(0.1, -0.1, 0.1);
 
   // Act
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
-  graph_manager->InitProjectionLandmark(1, 1, first_feature, landmark + offset, K, body_p_cam, feature_noise);
+  graph_manager->InitProjectionLandmark(1, 1, 0., first_feature, landmark + offset, K, body_p_cam, feature_noise);
 
   std::vector<gtsam::NavState> gt_nav_states = { init_nav_state };
 
@@ -168,7 +168,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -185,7 +185,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -218,7 +218,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
   SetUp(isam2_params);
 
   // Act
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
   graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
@@ -229,7 +229,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -246,7 +246,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
@@ -283,7 +283,7 @@ TEST_F(GraphManagerTest, RangeFactors)
   gtsam::Point3 offset(0.1, -0.1, 0.1);
 
   // Act
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   std::vector<gtsam::Point2> first_features;
   for (const auto& landmark : landmarks)
@@ -299,8 +299,8 @@ TEST_F(GraphManagerTest, RangeFactors)
   graph_manager->InitStructurelessLandmark(2, 1, first_features[1], K, body_p_cam, feature_noise, feature_m_estimator);
 
   // Lmk 3 will be initialized as a proj factor from the beginning
-  graph_manager->InitProjectionLandmark(3, 1, first_features[2], landmarks[2] + offset, K, body_p_cam, feature_noise,
-                                        feature_m_estimator);
+  graph_manager->InitProjectionLandmark(3, 1, 0., first_features[2], landmarks[2] + offset, K, body_p_cam,
+                                        feature_noise, feature_m_estimator);
 
   auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
   auto robust_range_noise = gtsam::noiseModel::Robust::Create(feature_m_estimator, range_noise);
@@ -311,7 +311,7 @@ TEST_F(GraphManagerTest, RangeFactors)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     for (int j = 0; j < landmarks.size(); ++j)
@@ -331,7 +331,7 @@ TEST_F(GraphManagerTest, RangeFactors)
   {
     pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
     auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-    graph_manager->AddFrame(i, pim, pred_nav_state, bias);
+    graph_manager->AddFrame(i, (i - 1) * delta_t, pim, pred_nav_state, bias);
     pim.resetIntegration();
 
     if (i == 5)
@@ -339,7 +339,7 @@ TEST_F(GraphManagerTest, RangeFactors)
       // Scenario: At i=5, a point cloud comes in, providing range measurements for landmarks 2, 3 and 4, but not 1.
       // Lmk 2 is a smart factor to begin with, so will be converted to a proj factor
       ASSERT_FALSE(graph_manager->CanAddRangeObservation(2));
-      graph_manager->ConvertSmartFactorToProjectionFactor(2, landmarks[1]);
+      graph_manager->ConvertSmartFactorToProjectionFactor(2, (i - 1) * delta_t, landmarks[1]);
       ASSERT_TRUE(graph_manager->CanAddRangeObservation(2));
       graph_manager->AddRangeObservation(2, i, pred_nav_state.pose().range(landmarks[1]), range_noise);
 
@@ -349,7 +349,7 @@ TEST_F(GraphManagerTest, RangeFactors)
 
       // Lmk 4 is a smart factor, and is currently degenerate. This makes no difference.
       ASSERT_FALSE(graph_manager->CanAddRangeObservation(4));
-      graph_manager->ConvertSmartFactorToProjectionFactor(4, landmarks[3]);
+      graph_manager->ConvertSmartFactorToProjectionFactor(4, (i - 1) * delta_t, landmarks[3]);
       ASSERT_TRUE(graph_manager->CanAddRangeObservation(4));
       graph_manager->AddRangeObservation(4, i, pred_nav_state.pose().range(landmarks[3]), range_noise);
     }
@@ -406,12 +406,12 @@ TEST_F(GraphManagerTest, CanAddRangeObservation)
 {
   SetUp(gtsam::ISAM2Params());
 
-  graph_manager->SetInitNavstate(1, init_nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
 
   auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
   graph_manager->InitStructurelessLandmark(1, 1, first_feature, K, body_p_cam, feature_noise);
 
   EXPECT_FALSE(graph_manager->CanAddRangeObservation(1));
-  graph_manager->ConvertSmartFactorToProjectionFactor(1, landmark);
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
   EXPECT_TRUE(graph_manager->CanAddRangeObservation(1));
 }

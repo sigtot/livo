@@ -70,6 +70,7 @@ private:
   std::shared_ptr<IncrementalSolver> incremental_solver_;
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
+  std::shared_ptr<gtsam::KeyTimestampMap> timestamps_;
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
   int last_frame_id_ = -1;
 
@@ -78,18 +79,19 @@ public:
                const gtsam::SmartProjectionParams& smart_factor_params);
 
 public:
-  void SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state, const gtsam::imuBias::ConstantBias& bias,
+  void SetInitNavstate(int first_frame_id, double timestamp, const gtsam::NavState& nav_state,
+                       const gtsam::imuBias::ConstantBias& bias,
                        const boost::shared_ptr<gtsam::noiseModel::Base>& noise_x,
                        const boost::shared_ptr<gtsam::noiseModel::Base>& noise_v,
                        const boost::shared_ptr<gtsam::noiseModel::Base>& noise_b);
-  void AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim, const gtsam::NavState& initial_navstate,
-                const gtsam::imuBias::ConstantBias& initial_bias);
+  void AddFrame(int id, double timestamp, const gtsam::PreintegratedCombinedMeasurements& pim,
+                const gtsam::NavState& initial_navstate, const gtsam::imuBias::ConstantBias& initial_bias);
   void InitStructurelessLandmark(
       int lmk_id, int frame_id, const gtsam::Point2& feature, const boost::shared_ptr<gtsam::Cal3_S2>& K,
       const gtsam::Pose3& body_p_cam, const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
       const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
   void InitProjectionLandmark(
-      int lmk_id, int frame_id, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
+      int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
       const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
       const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
       const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
@@ -108,7 +110,7 @@ public:
   void AddRangeObservation(int lmk_id, int frame_id, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
   bool CanAddRangeObservation(int lmk_id);
-  void ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate);
+  void ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;

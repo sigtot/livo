@@ -30,10 +30,11 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   : incremental_solver_(std::move(incremental_solver))
   , graph_(std::make_shared<gtsam::NonlinearFactorGraph>())
   , values_(std::make_shared<gtsam::Values>())
+  , timestamps_(std::make_shared<gtsam::KeyTimestampMap>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
 {
 }
-void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& nav_state,
+void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const gtsam::NavState& nav_state,
                                    const gtsam::imuBias::ConstantBias& bias,
                                    const boost::shared_ptr<gtsam::noiseModel::Base>& noise_x,
                                    const boost::shared_ptr<gtsam::noiseModel::Base>& noise_v,
@@ -47,18 +48,22 @@ void GraphManager::SetInitNavstate(int first_frame_id, const gtsam::NavState& na
   graph_->addPrior(V(first_frame_id), nav_state.velocity(), noise_v);
   graph_->addPrior(B(first_frame_id), bias, noise_b);
 
+  timestamps_->insert({X(first_frame_id), timestamp});
+  timestamps_->insert({V(first_frame_id), timestamp});
+  timestamps_->insert({B(first_frame_id), timestamp});
+
   last_frame_id_ = first_frame_id;
 }
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result = incremental_solver_->Update(*graph_, *values_);
+  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_);
   graph_->resize(0);
   values_->clear();
   return result;
 }
 
-void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasurements& pim,
+void GraphManager::AddFrame(int id, double timestamp, const gtsam::PreintegratedCombinedMeasurements& pim,
                             const gtsam::NavState& initial_navstate, const gtsam::imuBias::ConstantBias& initial_bias)
 {
   values_->insert(X(id), initial_navstate.pose());
@@ -68,6 +73,10 @@ void GraphManager::AddFrame(int id, const gtsam::PreintegratedCombinedMeasuremen
   gtsam::CombinedImuFactor imu_factor(X(last_frame_id_), V(last_frame_id_), X(id), V(id), B(last_frame_id_), B(id),
                                       pim);
   graph_->add(imu_factor);
+
+  timestamps_->insert({ X(id), timestamp });
+  timestamps_->insert({ V(id), timestamp });
+  timestamps_->insert({ B(id), timestamp });
 
   last_frame_id_ = id;
 }
@@ -92,7 +101,7 @@ void GraphManager::InitStructurelessLandmark(
 }
 
 void GraphManager::InitProjectionLandmark(
-    int lmk_id, int frame_id, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
+    int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature, const gtsam::Point3& initial_estimate,
     const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
     const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
     const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator)
@@ -109,6 +118,7 @@ void GraphManager::InitProjectionLandmark(
       X(frame_id), L(lmk_id), K, body_p_cam);
   graph_->add(proj_factor);
   values_->insert(L(lmk_id), initial_estimate);
+  timestamps_->insert({ L(lmk_id), timestamp });
   added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
@@ -228,21 +238,22 @@ bool GraphManager::CanAddRangeObservation(int lmk_id)
   return added_landmarks_.count(lmk_id) && !added_landmarks_[lmk_id].smart_factor;
 }
 
-void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate)
+void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp,
+                                                        const gtsam::Point3& initial_estimate)
 {
   assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor);
   auto landmark_in_smoother = added_landmarks_[lmk_id];
   boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother.smart_factor;
   values_->insert(L(lmk_id), initial_estimate);
+  timestamps_->insert({ L(lmk_id), timestamp });
   for (int i = 0; i < smart_factor->keys().size(); ++i)
   {
     auto feature = smart_factor->measured()[i];
     auto frame_key = smart_factor->keys()[i];
     auto K = smart_factor->calibration();
     auto body_p_cam = smart_factor->body_P_sensor();
-    auto noise_model = landmark_in_smoother.robust_noise_model ?
-                       *landmark_in_smoother.robust_noise_model :
-                       landmark_in_smoother.noise_model;
+    auto noise_model = landmark_in_smoother.robust_noise_model ? *landmark_in_smoother.robust_noise_model :
+                                                                 landmark_in_smoother.noise_model;
     ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
   }

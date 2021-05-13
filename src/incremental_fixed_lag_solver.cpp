@@ -14,9 +14,10 @@ IncrementalFixedLagSolver::IncrementalFixedLagSolver(double lag, const gtsam::IS
 }
 
 gtsam::ISAM2Result IncrementalFixedLagSolver::Update(const gtsam::NonlinearFactorGraph& graph,
-                                                     const gtsam::Values& values)
+                                                     const gtsam::Values& values,
+                                                     const gtsam::KeyTimestampMap& timestamps)
 {
-  fixed_lag_smoother_->update(graph, values);
+  fixed_lag_smoother_->update(graph, values, timestamps);
   return fixed_lag_smoother_->getISAM2Result();
 }
 

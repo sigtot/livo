@@ -13,7 +13,8 @@ ISAM2Solver::ISAM2Solver(const gtsam::ISAM2Params& isam2_params) : isam2_(std::m
 {
 }
 
-gtsam::ISAM2Result ISAM2Solver::Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values)
+gtsam::ISAM2Result ISAM2Solver::Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                                       const gtsam::KeyTimestampMap& _)
 {
   return isam2_->update(graph, values);
 }

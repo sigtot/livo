@@ -90,12 +90,12 @@ gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, cons
   return DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
 }
 
-void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, const gtsam::Point2& pt, double depth,
-                                              const gtsam::Pose3& init_pose)
+void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
+                                              double depth, const gtsam::Pose3& init_pose)
 {
   std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
-  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, pt, CalculatePointEstimate(init_pose, pt, depth), K_,
-                                        *body_p_cam_, feature_noise_, feature_m_estimator_);
+  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt, CalculatePointEstimate(init_pose, pt, depth),
+                                        K_, *body_p_cam_, feature_noise_, feature_m_estimator_);
   graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
 }
 
@@ -134,7 +134,7 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
 
   gtsam::NavState init_nav_state(refined_init_pose, init_velocity);
 
-  graph_manager_.SetInitNavstate(frame->id, init_nav_state, init_bias, noise_x, noise_v, noise_b);
+  graph_manager_.SetInitNavstate(frame->id, frame->timestamp, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
   for (auto& feature_pair : SortFeatureMapByDepth(frame->features))
   {
@@ -147,7 +147,7 @@ void NewSmoother::Initialize(const shared_ptr<Frame>& frame,
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
-      InitializeLandmarkWithDepth(lmk_id, frame->id, gtsam_pt, *feature->depth, refined_init_pose);
+      InitializeLandmarkWithDepth(lmk_id, frame->id, frame->timestamp, gtsam_pt, *feature->depth, refined_init_pose);
     }
     else
     {
@@ -168,7 +168,7 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);
   auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
+  graph_manager_.AddFrame(frame->id, frame->timestamp, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
 
   auto feature_obs_count = 0;
@@ -186,8 +186,11 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
     {
       if (!graph_manager_.CanAddRangeObservation(lmk_id))
       {
+        auto track = feature->track.lock();
+        assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, track->features.front()->frame->timestamp,
+                                                            init_point);
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
       range_obs_count++;
@@ -217,7 +220,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);
   auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, pim, predicted_nav_state, prev_bias);
+  graph_manager_.AddFrame(frame->id, frame->timestamp, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
 
   std::map<int, std::weak_ptr<Feature>> existing_features;
@@ -266,7 +269,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                    graph_manager_.GetPose(feature->frame->id);
-          InitializeLandmarkWithDepth(track->id, feature->frame->id, gtsam::Point2(feature->pt.x, feature->pt.y),
+          InitializeLandmarkWithDepth(track->id, feature->frame->id, feature->frame->timestamp, gtsam::Point2(feature->pt.x, feature->pt.y),
                                       *feature->depth, pose_for_init);
           frame_id_used_for_init = feature->frame->id;
           obs_count++;
@@ -291,7 +294,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
             auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, init_point);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, track->features.front()->frame->timestamp,
+                                                                init_point);
           }
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
         }
@@ -344,8 +348,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     {
       if (!graph_manager_.CanAddRangeObservation(lmk_id))
       {
+        auto track = feature->track.lock();
+        assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, track->features.front()->frame->timestamp,
+                                                            init_point);
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
       range_obs_count++;

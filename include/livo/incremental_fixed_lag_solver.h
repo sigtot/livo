@@ -21,7 +21,8 @@ private:
   std::shared_ptr<gtsam::IncrementalFixedLagSmoother> fixed_lag_smoother_;
 
 public:
-  gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values) override;
+  gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                            const gtsam::KeyTimestampMap& timestamps) override;
   gtsam::Values CalculateEstimate() override;
   bool ValueExists(gtsam::Key key) override;
   gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) override;

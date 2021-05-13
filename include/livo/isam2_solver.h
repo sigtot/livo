@@ -17,7 +17,8 @@ private:
 
 public:
   explicit ISAM2Solver(const gtsam::ISAM2Params& isam2_params);
-  gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values) override;
+  gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                            const gtsam::KeyTimestampMap& _) override;
   gtsam::Values CalculateEstimate() override;
   bool ValueExists(gtsam::Key key) override;
   gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) override;

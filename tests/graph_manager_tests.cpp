@@ -34,8 +34,8 @@ TEST(GraphManager, IMUOnlyAddFrame)
   double delta_t = 1.0;
   pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
 
-  graph_manager.SetInitNavstate(1, nav_state, bias, noise_x, noise_v, noise_b);
-  graph_manager.AddFrame(2, pim, pim.predict(nav_state, bias), bias);
+  graph_manager.SetInitNavstate(1, 0., nav_state, bias, noise_x, noise_v, noise_b);
+  graph_manager.AddFrame(2, delta_t, pim, pim.predict(nav_state, bias), bias);
 
   ASSERT_FALSE(graph_manager.IsFrameTracked(1));
   ASSERT_TRUE(graph_manager.CanAddObservationsForFrame(1));
