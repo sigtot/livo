@@ -56,6 +56,7 @@ private:
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.;  // Give negative value to use value calculated from estimate
   int min_keyframes_for_nominal_ = 20;
+  double smoother_lag_ = 10.; // Seconds
 
   double prior_noise_X_yaw_ = 0.001;  // Low variance for yaw since it is unobservable
   double prior_noise_X_roll_pitch_ = 0.1;
@@ -150,6 +151,7 @@ public:
   static bool SaveFactorGraphsToFile();
   static double InitRangeFactorLength();
   static int MinKeyframesForNominal();
+  static double SmootherLag();
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();
