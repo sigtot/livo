@@ -247,9 +247,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     }
   }
 
-  // TODO no longer needed as we don't take the first n anymore. Remove.
-  auto sorted_new_track_features = SortFeatureMapByDepth(new_track_features);
-
   std::vector<std::pair<int, std::weak_ptr<Track>>> new_tracks;
   for (const auto& feature_pair : new_track_features)
   {
