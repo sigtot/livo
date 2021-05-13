@@ -91,6 +91,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/save_factor_graphs_to_file", GetInstance().save_factor_graphs_to_file_);
   ReadVariable(nh, "/orb_test_node/init_range_factor_length", GetInstance().init_range_factor_length_);
   ReadVariable(nh, "/orb_test_node/min_keyframes_for_nominal", GetInstance().min_keyframes_for_nominal_);
+  ReadVariable(nh, "/orb_test_node/use_fixed_lag", GetInstance().use_fixed_lag_);
   ReadVariable(nh, "/orb_test_node/smoother_lag", GetInstance().smoother_lag_);
 
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_yaw", GetInstance().prior_noise_X_yaw_);
@@ -410,6 +411,10 @@ bool GlobalParams::UseDogLeg()
 int GlobalParams::MinKeyframesForNominal()
 {
   return GetInstance().min_keyframes_for_nominal_;
+}
+bool GlobalParams::UseFixedLag()
+{
+  return GetInstance().use_fixed_lag_;
 }
 double GlobalParams::SmootherLag()
 {

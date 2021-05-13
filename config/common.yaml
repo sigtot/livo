@@ -52,6 +52,7 @@ do_initial_gravity_alignment: false
 dynamic_outlier_rejection_threshold: 8.0
 landmark_distance_threshold: 30.0
 min_keyframes_for_nominal: 20
+use_fixed_lag: true
 smoother_lag: 10
 
 feature_extraction_interval: 20

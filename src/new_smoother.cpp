@@ -8,6 +8,7 @@
 #include "landmark_result_gtsam.h"
 #include "debug_value_publisher.h"
 #include "isam2_solver.h"
+#include "incremental_fixed_lag_solver.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -67,6 +68,15 @@ gtsam::SmartProjectionParams MakeSmartFactorParams()
   return smart_factor_params;
 }
 
+std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
+{
+  if (GlobalParams::UseFixedLag())
+  {
+    return std::make_shared<IncrementalFixedLagSolver>(GlobalParams::SmootherLag(), MakeISAM2Params());
+  }
+  return std::make_shared<ISAM2Solver>(MakeISAM2Params());
+}
+
 NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
@@ -75,7 +85,7 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   , range_noise_(
         gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
-  , graph_manager_(GraphManager(std::make_shared<ISAM2Solver>(MakeISAM2Params()), MakeSmartFactorParams()))
+  , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
@@ -269,8 +279,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                    graph_manager_.GetPose(feature->frame->id);
-          InitializeLandmarkWithDepth(track->id, feature->frame->id, feature->frame->timestamp, gtsam::Point2(feature->pt.x, feature->pt.y),
-                                      *feature->depth, pose_for_init);
+          InitializeLandmarkWithDepth(track->id, feature->frame->id, feature->frame->timestamp,
+                                      gtsam::Point2(feature->pt.x, feature->pt.y), *feature->depth, pose_for_init);
           frame_id_used_for_init = feature->frame->id;
           obs_count++;
           added_landmarks_count++;
