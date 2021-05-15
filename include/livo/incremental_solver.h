@@ -3,6 +3,7 @@
 
 #include <map>
 #include <Eigen/Core>
+#include <boost/optional.hpp>
 
 namespace gtsam
 {
@@ -11,11 +12,19 @@ class Values;
 class ISAM2Result;
 
 class Pose3;
-class Point3;
 
 typedef Eigen::Vector3d Vector3;
+typedef Vector3 Point3;
 typedef std::uint64_t Key;
 typedef std::map<Key, double> KeyTimestampMap;
+
+template <typename KEY, typename VALUE>
+class FastMap;
+
+typedef uint64_t FactorIndex;
+
+template <typename VALUE>
+class FastSet;
 
 namespace imuBias
 {
@@ -28,6 +37,10 @@ class IncrementalSolver
 public:
   virtual gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
                                     const gtsam::KeyTimestampMap& timestamps) = 0;
+
+  virtual gtsam::ISAM2Result Update(
+      const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
+      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) = 0;
 
   virtual gtsam::Values CalculateEstimate() = 0;
 

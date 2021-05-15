@@ -19,8 +19,6 @@ class ISAM2Result;
 class NonlinearFactorGraph;
 class Values;
 class Pose3;
-class Point3;
-class Point2;
 class NavState;
 class CombinedImuFactor;
 class ISAM2Params;
@@ -39,7 +37,10 @@ template <typename A1, typename A2, typename T>
 class RangeFactor;
 
 typedef std::uint64_t Key;
+typedef Eigen::Vector2d Vector2;
 typedef Eigen::Vector3d Vector3;
+typedef Vector2 Point2;
+typedef Vector3 Point3;
 
 namespace noiseModel
 {
@@ -73,12 +74,18 @@ private:
   std::shared_ptr<gtsam::KeyTimestampMap> timestamps_;
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
   int last_frame_id_ = -1;
+  double lag_;
+  double last_timestamp_ = -1;
+
+  void RemoveExpiredSmartFactors();
+
+  bool ExistsInSolverOrValues(gtsam::Key key) const;
+  bool WithinLag(double timestamp) const;
 
 public:
   GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver,
-               const gtsam::SmartProjectionParams& smart_factor_params);
+               const gtsam::SmartProjectionParams& smart_factor_params, double lag = -1.);
 
-public:
   void SetInitNavstate(int first_frame_id, double timestamp, const gtsam::NavState& nav_state,
                        const gtsam::imuBias::ConstantBias& bias,
                        const boost::shared_ptr<gtsam::noiseModel::Base>& noise_x,
@@ -87,7 +94,7 @@ public:
   void AddFrame(int id, double timestamp, const gtsam::PreintegratedCombinedMeasurements& pim,
                 const gtsam::NavState& initial_navstate, const gtsam::imuBias::ConstantBias& initial_bias);
   void InitStructurelessLandmark(
-      int lmk_id, int frame_id, const gtsam::Point2& feature, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+      int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature, const boost::shared_ptr<gtsam::Cal3_S2>& K,
       const gtsam::Pose3& body_p_cam, const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
       const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
   void InitProjectionLandmark(
@@ -109,7 +116,6 @@ public:
    */
   void AddRangeObservation(int lmk_id, int frame_id, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
-  bool CanAddRangeObservation(int lmk_id);
   void ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
 
@@ -122,7 +128,10 @@ public:
   std::map<int, boost::optional<LandmarkResultGtsam>> GetLandmarks() const;
   bool IsLandmarkTracked(int lmk_id) const;
   bool IsFrameTracked(int frame_id) const;
-  bool CanAddObservationsForFrame(int frame_id) const;
+  bool CanAddObservation(int lmk_id, int frame_id) const;
+  bool CanAddObservationsForFrame(int frame_id, double frame_timestamp) const;
+  bool CanAddRangeObservation(int lmk_id, int frame_id) const;
+  bool IsSmartFactorLandmark(int lmk_id) const;
 };
 
 #endif  // ORB_TEST_SRC_GRAPH_MANAGER_H_

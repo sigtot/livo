@@ -7,7 +7,7 @@
 
 void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
 {
-  lock_guard<mutex> lock(mu);
+  std::lock_guard<std::mutex> lock(mu);
   auto stampCorrectedMeasurement = measurement;
   stampCorrectedMeasurement.header.stamp = measurement.header.stamp - ros::Duration(GlobalParams::TimeshiftCamImu());
   imuMap[stampCorrectedMeasurement.header.stamp.toSec()] = stampCorrectedMeasurement;
@@ -37,7 +37,7 @@ Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3&
   int num_summed = 0;
   gtsam::Vector3 acc_sum(0, 0, 0);
 
-  lock_guard<mutex> lock(mu);
+  std::lock_guard<std::mutex> lock(mu);
   for (auto& it : imuMap)
   {
     auto imuMsg = it.second;
@@ -79,7 +79,7 @@ Rot3 IMUQueue::RefineInitialAttitude(double start, double end, const Rot3& init_
 
 bool IMUQueue::hasMeasurementsInRange(ros::Time start, ros::Time end)
 {
-  lock_guard<mutex> lock(mu);
+  std::lock_guard<std::mutex> lock(mu);
   int betweenCount = 0;
   for (auto& it : imuMap)
   {
@@ -104,7 +104,7 @@ bool IMUQueue::hasMeasurementsInRange(double start, double end)
 int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType>& imuMeasurements, ros::Time start,
                                        ros::Time end)
 {
-  lock_guard<mutex> lock(mu);
+  std::lock_guard<std::mutex> lock(mu);
   int numIntg = 0;
   auto lastTime = start;
   bool ranToEnd = true;
@@ -135,12 +135,14 @@ int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType
   }
   if (ranToEnd)
   {
-    cout << "WARN: imu integration ran to the end of the queue. This could imply that some msgs were lost" << endl;
+    std::cout << "WARN: imu integration ran to the end of the queue. This could imply that some msgs were lost"
+              << std::endl;
   }
   return numIntg;
 }
 
-int IMUQueue::integrateIMUMeasurements(shared_ptr<gtsam::PreintegrationType>& imuMeasurements, double start, double end)
+int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType>& imuMeasurements, double start,
+                                       double end)
 {
   return integrateIMUMeasurements(imuMeasurements, ros::Time(start), ros::Time(end));
 }

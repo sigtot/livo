@@ -59,10 +59,9 @@ int main(int argc, char** argv)
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
   LidarFrameManager lidar_frame_manager;
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
-  Smoother smoother(imu_queue);
   NewSmoother new_smoother(imu_queue);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
-  Controller controller(feature_extractor, lidar_frame_manager, smoother, new_smoother, imu_ground_truth_smoother, path_pub,
+  Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(

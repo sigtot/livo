@@ -144,7 +144,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/smoother.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp src/depth_triangulation.cpp src/graph_manager.cpp src/new_smoother.cpp src/imu_integrator.cpp src/feature_helpers.cpp src/isam2_solver.cpp src/incremental_fixed_lag_solver.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/feature_extractor.cpp src/controller.cpp src/global_params.cpp src/newer_college_ground_truth.cpp src/ros_conversions.cpp src/gtsam_conversions.cpp src/gtsam_helpers.cpp src/imu_queue.cpp src/Initializer.cpp src/keyframe_tracker.cpp src/ros_helpers.cpp src/debug_image_publisher.cpp src/debug_value_publisher.cpp src/ground_truth.cpp src/euroc_ground_truth_provider.cpp src/radtan_undistorter.cpp src/imu_ground_truth_smoother.cpp src/frame.cpp src/lidar-depth.cpp src/lidar_frame_manager.cpp src/track.cpp src/depth_triangulation.cpp src/graph_manager.cpp src/new_smoother.cpp src/imu_integrator.cpp src/feature_helpers.cpp src/isam2_solver.cpp src/incremental_fixed_lag_solver.cpp src/incremental_fixed_lag_smoother_patched.cpp)
 target_link_libraries(${PROJECT_NAME}_node
         gtsam
         gtsam_unstable
@@ -157,12 +157,15 @@ catkin_add_gtest(livo_tests
         tests/depth_triangulation_tests.cpp
         tests/graph_manager_tests.cpp
         tests/graph_manager_tests_landmarks.cpp
+        tests/graph_manager_tests_complete.cpp
+        tests/graph_manager_tests_fixed_lag.cpp
         tests/helpers.cpp
         tests/helpers.h
         src/graph_manager.cpp
         src/depth_triangulation.cpp
         src/isam2_solver.cpp
-        src/incremental_fixed_lag_solver.cpp)
+        src/incremental_fixed_lag_solver.cpp
+        src/incremental_fixed_lag_smoother_patched.cpp)
 target_link_libraries(livo_tests gtsam gtsam_unstable ${catkin_LIBRARIES})
 
 #############

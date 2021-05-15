@@ -19,7 +19,7 @@
 #include <debug_value_publisher.h>
 
 void WaitForAndIntegrateIMU(double timestamp1, double timestamp2);
-void GetPoseEstimates(vector<Pose3Stamped>& pose_estimates);
+void GetPoseEstimates(std::vector<Pose3Stamped>& pose_estimates);
 void PerformIsamUpdate();
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)

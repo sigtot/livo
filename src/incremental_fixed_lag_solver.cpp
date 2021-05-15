@@ -1,5 +1,6 @@
 #include "incremental_fixed_lag_solver.h"
-#include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
+#include "incremental_fixed_lag_smoother_patched.h"
+
 #include <gtsam/nonlinear/ISAM2Result.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -9,15 +10,21 @@
 #include <gtsam/navigation/ImuBias.h>
 
 IncrementalFixedLagSolver::IncrementalFixedLagSolver(double lag, const gtsam::ISAM2Params& isam2_params)
-    : fixed_lag_smoother_(std::make_shared<gtsam::IncrementalFixedLagSmoother>(lag, isam2_params))
+  : fixed_lag_smoother_(std::make_shared<IncrementalFixedLagSmootherPatched>(lag, isam2_params))
 {
 }
 
-gtsam::ISAM2Result IncrementalFixedLagSolver::Update(const gtsam::NonlinearFactorGraph& graph,
-                                                     const gtsam::Values& values,
-                                                     const gtsam::KeyTimestampMap& timestamps)
+gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
+    const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps)
 {
-  fixed_lag_smoother_->update(graph, values, timestamps);
+  return Update(graph, values, timestamps, boost::none);
+}
+
+gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
+    const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
+    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys)
+{
+  fixed_lag_smoother_->update(graph, values, timestamps, newAffectedKeys);
   return fixed_lag_smoother_->getISAM2Result();
 }
 

@@ -38,7 +38,7 @@ TEST(GraphManager, IMUOnlyAddFrame)
   graph_manager.AddFrame(2, delta_t, pim, pim.predict(nav_state, bias), bias);
 
   ASSERT_FALSE(graph_manager.IsFrameTracked(1));
-  ASSERT_TRUE(graph_manager.CanAddObservationsForFrame(1));
+  ASSERT_TRUE(graph_manager.CanAddObservationsForFrame(1, 0.));
 
   auto isam_result = graph_manager.Update();
 

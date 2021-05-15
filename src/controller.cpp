@@ -13,13 +13,11 @@
 
 #include <global_params.h>
 
-Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, Smoother& backend,
-                       NewSmoother& new_backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
-                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
-                       ros::Publisher& landmark_publisher)
+Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
+                       IMUGroundTruthSmoother& imu_ground_truth_smoother, ros::Publisher& path_publisher,
+                       ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
   : frontend_(frontend)
   , lidar_frame_manager_(lidar_frame_manager)
-  , backend_(backend)
   , new_backend_(new_backend)
   , imu_ground_truth_smoother_(imu_ground_truth_smoother)
   , path_publisher_(path_publisher)
@@ -81,7 +79,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   std::map<int, Pose3Stamped> pose_estimates;
   new_backend_.GetPoses(pose_estimates);
   std::vector<Pose3Stamped> pose_estimates_vector;
-  for (const auto & pose_estimate : pose_estimates)
+  for (const auto& pose_estimate : pose_estimates)
   {
     pose_estimates_vector.push_back(pose_estimate.second);
   }

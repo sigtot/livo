@@ -2,6 +2,7 @@
 
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/ISAM2Result.h>
+#include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/geometry/Pose3.h>
@@ -16,7 +17,16 @@ ISAM2Solver::ISAM2Solver(const gtsam::ISAM2Params& isam2_params) : isam2_(std::m
 gtsam::ISAM2Result ISAM2Solver::Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
                                        const gtsam::KeyTimestampMap& _)
 {
-  return isam2_->update(graph, values);
+  return Update(graph, values, _, boost::none);
+}
+
+gtsam::ISAM2Result ISAM2Solver::Update(
+    const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
+    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys)
+{
+  gtsam::ISAM2UpdateParams update_params;
+  update_params.newAffectedKeys = newAffectedKeys;
+  return isam2_->update(graph, values, update_params);
 }
 
 gtsam::Values ISAM2Solver::CalculateEstimate()

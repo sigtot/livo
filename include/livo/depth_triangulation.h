@@ -2,13 +2,17 @@
 #define ORB_TEST_INCLUDE_LIVO_DEPTH_TRIANGULATION_H_
 
 #include <boost/shared_ptr.hpp>
+#include <Eigen/Core>
 
 namespace gtsam
 {
-class Point3;
 class Pose3;
-class Point2;
 class Cal3_S2;
+
+typedef Eigen::Vector2d Vector2;
+typedef Eigen::Vector3d Vector3;
+typedef Vector2 Point2;
+typedef Vector3 Point3;
 
 template <class T>
 class PinholeBaseK;

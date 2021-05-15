@@ -3,6 +3,7 @@
 
 #include "incremental_solver.h"
 #include <memory>
+#include <boost/optional.hpp>
 
 namespace gtsam
 {
@@ -19,6 +20,10 @@ public:
   explicit ISAM2Solver(const gtsam::ISAM2Params& isam2_params);
   gtsam::ISAM2Result Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
                             const gtsam::KeyTimestampMap& _) override;
+
+  gtsam::ISAM2Result Update(
+      const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
+      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) override;
   gtsam::Values CalculateEstimate() override;
   bool ValueExists(gtsam::Key key) override;
   gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) override;

@@ -55,7 +55,7 @@ private:
   gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
   void InitializeLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt, double depth,
                                    const gtsam::Pose3& init_pose);
-  void InitializeStructurelessLandmark(int lmk_id, int frame_id, const gtsam::Point2& pt);
+  void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
 
 public:
   explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
