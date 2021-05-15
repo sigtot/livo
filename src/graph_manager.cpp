@@ -1,6 +1,7 @@
 #include "graph_manager.h"
 #include "depth_triangulation.h"
 #include "landmark_result_gtsam.h"
+#include "smart_factor_in_smoother.h"
 
 #include <memory>
 #include <utility>
@@ -98,15 +99,19 @@ void GraphManager::InitStructurelessLandmark(
   landmark_in_smoother.newest_frame_id_seen = frame_id;
   landmark_in_smoother.first_frame_id_seen = frame_id;
   landmark_in_smoother.init_timestamp = timestamp;
-  landmark_in_smoother.smart_factor =
-      gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
   landmark_in_smoother.noise_model = feature_noise;
   if (m_estimator)
   {
     landmark_in_smoother.robust_noise_model = gtsam::noiseModel::Robust::Create(*m_estimator, feature_noise);
   }
-  (*landmark_in_smoother.smart_factor)->add(feature, X(frame_id));
-  graph_->add(*landmark_in_smoother.smart_factor);
+  SmartFactorInSmoother smart_factor_in_smoother;
+
+  smart_factor_in_smoother.smart_factor =
+      gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
+  smart_factor_in_smoother.smart_factor->add(feature, X(frame_id));
+  smart_factor_in_smoother.idx_in_new_factors = graph_->size();
+  graph_->add(smart_factor_in_smoother.smart_factor);
+  landmark_in_smoother.smart_factor_in_smoother = smart_factor_in_smoother;
   added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
@@ -152,9 +157,9 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   }
   landmark_in_smoother->second.newest_frame_id_seen =
       std::max(landmark_in_smoother->second.newest_frame_id_seen, frame_id);
-  if (landmark_in_smoother->second.smart_factor)
+  if (landmark_in_smoother->second.smart_factor_in_smoother)
   {
-    (*landmark_in_smoother->second.smart_factor)->add(feature, X(frame_id));
+    landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->add(feature, X(frame_id));
   }
   else
   {
@@ -185,9 +190,9 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
 void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp,
                                                         const gtsam::Point3& initial_estimate)
 {
-  assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor);
+  assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor_in_smoother);
   auto landmark_in_smoother = added_landmarks_[lmk_id];
-  boost::shared_ptr<SmartFactor> smart_factor = *landmark_in_smoother.smart_factor;
+  boost::shared_ptr<SmartFactor> smart_factor = landmark_in_smoother.smart_factor_in_smoother->smart_factor;
   values_->insert(L(lmk_id), initial_estimate);
   timestamps_->insert({ L(lmk_id), timestamp });
   for (int i = 0; i < smart_factor->keys().size(); ++i)
@@ -201,19 +206,20 @@ void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double times
     ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
   }
-  (*added_landmarks_[lmk_id].smart_factor).reset();  // Makes the shared pointer within isam a nullptr, which causes
-                                                     // isam drop the factor
-  assert(*added_landmarks_[lmk_id].smart_factor == nullptr);
-  added_landmarks_[lmk_id].smart_factor = boost::none;  // Remove nullptr smart factor from our bookkeeping
+  added_landmarks_[lmk_id].smart_factor_in_smoother->smart_factor.reset();  // Makes the shared pointer within isam a
+                                                                            // nullptr, which causes isam drop the
+                                                                            // factor
+  assert(added_landmarks_[lmk_id].smart_factor_in_smoother->smart_factor == nullptr);
+  added_landmarks_[lmk_id].smart_factor_in_smoother = boost::none;  // Remove nullptr smart factor from our bookkeeping
 }
 
 void GraphManager::RemoveExpiredSmartFactors()
 {
   for (const auto& lmk_in_smoother : added_landmarks_)
   {
-    if (!WithinLag(lmk_in_smoother.second.init_timestamp) && lmk_in_smoother.second.smart_factor)
+    if (!WithinLag(lmk_in_smoother.second.init_timestamp) && lmk_in_smoother.second.smart_factor_in_smoother)
     {
-      auto smart_factor = *lmk_in_smoother.second.smart_factor;
+      auto smart_factor = *lmk_in_smoother.second.smart_factor_in_smoother->smart_factor;
       std::cout << "Converting smart factor to proj factor " << lmk_in_smoother.first << std::endl;
       auto lmk = GetLandmark(lmk_in_smoother.first);
       if (lmk)
@@ -261,13 +267,14 @@ boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
     return boost::none;
   }
   auto active = landmark_in_smoother->second.newest_frame_id_seen >= last_frame_id_;
-  if (landmark_in_smoother->second.smart_factor)
+  if (landmark_in_smoother->second.smart_factor_in_smoother)
   {
-    if (!(*landmark_in_smoother->second.smart_factor)->isValid())
+    if (!landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->isValid())
     {
       return boost::none;
     }
-    return LandmarkResultGtsam{ *(*landmark_in_smoother->second.smart_factor)->point(), SmartFactorType, active };
+    return LandmarkResultGtsam{ *(landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->point()),
+                                SmartFactorType, active };
   }
   return LandmarkResultGtsam{ incremental_solver_->CalculateEstimatePoint3(L(lmk_id)), ProjectionFactorType, active };
 }
@@ -296,7 +303,7 @@ bool GraphManager::IsLandmarkTracked(int lmk_id) const
 {
   auto lmk_in_smoother = added_landmarks_.find(lmk_id);
   return lmk_in_smoother != added_landmarks_.end() &&
-         ((lmk_in_smoother->second.smart_factor &&
+         ((lmk_in_smoother->second.smart_factor_in_smoother &&
            ExistsInSolverOrValues(X(lmk_in_smoother->second.first_frame_id_seen))) ||
           ExistsInSolverOrValues(L(lmk_id)));
 }
@@ -339,7 +346,7 @@ bool GraphManager::CanAddRangeObservation(int lmk_id, int frame_id) const
   {
     return false;
   }
-  return CanAddObservation(lmk_id, frame_id) && !lmk_in_smoother->second.smart_factor;
+  return CanAddObservation(lmk_id, frame_id) && !lmk_in_smoother->second.smart_factor_in_smoother;
 }
 
 bool GraphManager::IsSmartFactorLandmark(int lmk_id) const
@@ -349,5 +356,5 @@ bool GraphManager::IsSmartFactorLandmark(int lmk_id) const
   {
     return false;
   }
-  return lmk_in_smoother->second.smart_factor.is_initialized();
+  return lmk_in_smoother->second.smart_factor_in_smoother.is_initialized();
 }
