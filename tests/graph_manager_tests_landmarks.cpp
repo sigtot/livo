@@ -76,10 +76,6 @@ protected:
 
 TEST_F(GraphManagerTest, SmartFactors)
 {
-  if (gtsam::isDebugVersion())
-  {
-    std::cout << "gtsam is debug version" << std::endl;
-  }
   // Arrange
   SetUp(gtsam::ISAM2Params());
 
@@ -287,6 +283,6 @@ TEST_F(GraphManagerTest, CanAddRangeObservation)
   graph_manager->InitStructurelessLandmark(1, 1, 0., first_feature, K, body_p_cam, feature_noise);
 
   EXPECT_FALSE(graph_manager->CanAddRangeObservation(1, 1));
-  graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, landmark);
   EXPECT_TRUE(graph_manager->CanAddRangeObservation(1, 1));
 }

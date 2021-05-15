@@ -200,8 +200,7 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, track->features.front()->frame->timestamp,
-                                                            init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
       range_obs_count++;
@@ -309,8 +308,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
             auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, track->features.front()->frame->timestamp,
-                                                                init_point);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, init_point);
           }
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
         }
@@ -370,8 +368,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, track->features.front()->frame->timestamp,
-                                                            init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
       range_obs_count++;

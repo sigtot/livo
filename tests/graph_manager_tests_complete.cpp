@@ -127,7 +127,7 @@ protected:
         // Scenario: At i=5, a point cloud comes in, providing range measurements for landmarks 2, 3 and 4, but not 1.
         // Lmk 2 is a smart factor to begin with, so will be converted to a proj factor
         ASSERT_FALSE(graph_manager->CanAddRangeObservation(2, i));
-        graph_manager->ConvertSmartFactorToProjectionFactor(2, (i - 1) * delta_t, landmarks[1]);
+        graph_manager->ConvertSmartFactorToProjectionFactor(2, landmarks[1]);
         ASSERT_TRUE(graph_manager->CanAddRangeObservation(2, i));
         graph_manager->AddRangeObservation(2, i, pred_nav_state.pose().range(landmarks[1]), range_noise);
 
@@ -137,7 +137,7 @@ protected:
 
         // Lmk 4 is a smart factor, and is currently degenerate. This makes no difference.
         ASSERT_FALSE(graph_manager->CanAddRangeObservation(4, i));
-        graph_manager->ConvertSmartFactorToProjectionFactor(4, (i - 1) * delta_t, landmarks[3]);
+        graph_manager->ConvertSmartFactorToProjectionFactor(4, landmarks[3]);
         ASSERT_TRUE(graph_manager->CanAddRangeObservation(4, i));
         graph_manager->AddRangeObservation(4, i, pred_nav_state.pose().range(landmarks[3]), range_noise);
       }
@@ -232,43 +232,48 @@ TEST_F(GraphManagerTestComplete, RegularISAM2)
 
 TEST_F(GraphManagerTestComplete, FixedLag)
 {
-  SetUp(true, gtsam::ISAM2Params(), 6.0);
+  SetUp(true, gtsam::ISAM2Params(), 5.5);
 
   RunIncrementalUpdates();
 
-  // No fixed lag, we should be able to add observations to all landmarks
+  // Add one more frame, which will trigger
   pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
   auto pred_nav_state = pim.predict(gt_nav_states.back(), bias);
-  graph_manager->AddFrame(7, 7.0, pim, pred_nav_state, bias);
+  graph_manager->AddFrame(7, 6 * delta_t, pim, pred_nav_state, bias);
   pim.resetIntegration();
   graph_manager->Update();
 
+  // First frame is marginalized, so cannot add to it
+  EXPECT_FALSE(graph_manager->CanAddObservationsForFrame(1, 0 * delta_t));
+  for (int i = 2; i <= 7; ++i)
+  {
+    // All other frames are still in the window
+    EXPECT_TRUE(graph_manager->CanAddObservationsForFrame(i, (i - 1) * delta_t));
+  }
+
   for (int i = 1; i <= 3; ++i)
   {
-    EXPECT_FALSE(graph_manager->CanAddObservationsForFrame(i, (i - 1) * delta_t));
+    // First landmarks are marginalized, so we cannot add observations
+    EXPECT_FALSE(graph_manager->CanAddObservation(i, 7));
   }
-  EXPECT_TRUE(graph_manager->CanAddObservationsForFrame(4, 3 * delta_t));  // lmk 4 was added later than the rest, so still in window
+  EXPECT_TRUE(graph_manager->CanAddObservation(4, 7));  // lmk 4 was added later than the rest, so still in window
 
-  for (int i = 0; i < gt_nav_states.size(); ++i)
+  for (int i = 1; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 0.1));
     EXPECT_TRUE(
-        gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
+        gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 0.1));
   }
 
   std::vector<LandmarkType> expected_landmark_types{ SmartFactorType, ProjectionFactorType, ProjectionFactorType,
                                                      ProjectionFactorType };
   auto landmark_estimates = graph_manager->GetLandmarks();
-  for (int j = 0; j < landmarks.size(); ++j)
+  EXPECT_EQ(landmark_estimates.size(), 1);
+  for (int j = 1; j <= 3; ++j)
   {
-    auto landmark_estimate = graph_manager->GetLandmark(j + 1);
-    EXPECT_TRUE(landmark_estimate);
-    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimate).pt, landmarks[j], 1e-2));
-    EXPECT_EQ((*landmark_estimate).type, expected_landmark_types[j]);
-
-    EXPECT_TRUE(landmark_estimates[j + 1]);
-    EXPECT_TRUE(gtsam::assert_equal((*landmark_estimates[j + 1]).pt, landmarks[j], 1e-2));
-    EXPECT_TRUE(graph_manager->IsLandmarkTracked(j + 1));
+    EXPECT_FALSE(graph_manager->IsLandmarkTracked(j));
   }
+  EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetLandmark(4)->pt, landmarks[3], 1e-2));
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(4));
   EXPECT_FALSE(graph_manager->IsLandmarkTracked(99));
 }

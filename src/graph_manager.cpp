@@ -32,6 +32,7 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   , graph_(std::make_shared<gtsam::NonlinearFactorGraph>())
   , values_(std::make_shared<gtsam::Values>())
   , timestamps_(std::make_shared<gtsam::KeyTimestampMap>())
+  , new_affected_keys_(std::make_shared<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
   , lag_(lag)
 {
@@ -61,10 +62,24 @@ void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const g
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_);
+  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_);
   graph_->resize(0);
   values_->clear();
   timestamps_->clear();
+  new_affected_keys_->clear();
+
+  for (auto& lmk_in_smoother : added_landmarks_)
+  {
+    if (lmk_in_smoother.second.smart_factor_in_smoother && !lmk_in_smoother.second.smart_factor_in_smoother->in_isam)
+    {
+      auto idx_in_new_factors = lmk_in_smoother.second.smart_factor_in_smoother->idx_in_new_factors;
+      lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam = result.newFactorsIndices[idx_in_new_factors];
+      lmk_in_smoother.second.smart_factor_in_smoother->in_isam = true;
+      std::cout << "Set lmk " << lmk_in_smoother.first << " idx to " << result.newFactorsIndices[idx_in_new_factors]
+                << std::endl;
+    }
+  }
+
   return result;
 }
 
@@ -86,7 +101,7 @@ void GraphManager::AddFrame(int id, double timestamp, const gtsam::Preintegrated
   last_frame_id_ = id;
   last_timestamp_ = timestamp;
 
-  RemoveExpiredSmartFactors();
+  // RemoveExpiredSmartFactors();
 }
 
 void GraphManager::InitStructurelessLandmark(
@@ -160,6 +175,10 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   if (landmark_in_smoother->second.smart_factor_in_smoother)
   {
     landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->add(feature, X(frame_id));
+    if (landmark_in_smoother->second.smart_factor_in_smoother->in_isam)
+    {
+      (*new_affected_keys_)[landmark_in_smoother->second.smart_factor_in_smoother->idx_in_isam].insert(X(frame_id));
+    }
   }
   else
   {
@@ -187,14 +206,13 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
   graph_->add(range_factor);
 }
 
-void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp,
-                                                        const gtsam::Point3& initial_estimate)
+void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate)
 {
   assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor_in_smoother);
   auto landmark_in_smoother = added_landmarks_[lmk_id];
   boost::shared_ptr<SmartFactor> smart_factor = landmark_in_smoother.smart_factor_in_smoother->smart_factor;
   values_->insert(L(lmk_id), initial_estimate);
-  timestamps_->insert({ L(lmk_id), timestamp });
+  timestamps_->insert({ L(lmk_id), landmark_in_smoother.init_timestamp });
   for (int i = 0; i < smart_factor->keys().size(); ++i)
   {
     auto feature = smart_factor->measured()[i];
@@ -224,7 +242,7 @@ void GraphManager::RemoveExpiredSmartFactors()
       auto lmk = GetLandmark(lmk_in_smoother.first);
       if (lmk)
       {
-        ConvertSmartFactorToProjectionFactor(lmk_in_smoother.first, lmk_in_smoother.second.init_timestamp, lmk->pt);
+        ConvertSmartFactorToProjectionFactor(lmk_in_smoother.first, lmk->pt);
       }
       else
       {
@@ -284,7 +302,10 @@ std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks()
   std::map<int, boost::optional<LandmarkResultGtsam>> landmarks;
   for (const auto& landmark_in_smoother : added_landmarks_)
   {
-    landmarks[landmark_in_smoother.first] = GetLandmark(landmark_in_smoother.first);
+    if (IsLandmarkTracked(landmark_in_smoother.first))
+    {
+      landmarks[landmark_in_smoother.first] = GetLandmark(landmark_in_smoother.first);
+    }
   }
   return landmarks;
 }

@@ -64,17 +64,22 @@ typedef gtsam::RangeFactor<gtsam::Pose3, gtsam::Point3, double> RangeFactor;
 class GraphManager
 {
 private:
-  // We make each landmark use the same noise model for all observations.
-  // GTSAM forces this for smart factors, we also enforce it for regular projection factors.
-  std::map<int, LandmarkInSmoother> added_landmarks_;
-
+  // Dependencies
   std::shared_ptr<IncrementalSolver> incremental_solver_;
+
+  // Datastructures for holding the everything related to an uncommitted update
   std::shared_ptr<gtsam::Values> values_;
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
   std::shared_ptr<gtsam::KeyTimestampMap> timestamps_;
+  std::shared_ptr<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>> new_affected_keys_;
+
+  // Configuration
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
-  int last_frame_id_ = -1;
   double lag_;
+
+  // Bookkeeping
+  std::map<int, LandmarkInSmoother> added_landmarks_;
+  int last_frame_id_ = -1;
   double last_timestamp_ = -1;
 
   void RemoveExpiredSmartFactors();
@@ -116,7 +121,7 @@ public:
    */
   void AddRangeObservation(int lmk_id, int frame_id, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
-  void ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp, const gtsam::Point3& initial_estimate);
+  void ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;

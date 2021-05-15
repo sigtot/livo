@@ -165,7 +165,8 @@ catkin_add_gtest(livo_tests
         src/depth_triangulation.cpp
         src/isam2_solver.cpp
         src/incremental_fixed_lag_solver.cpp
-        src/incremental_fixed_lag_smoother_patched.cpp)
+        src/incremental_fixed_lag_smoother_patched.cpp
+        tests/fixed_lag_smoother_patched_tests.cpp)
 target_link_libraries(livo_tests gtsam gtsam_unstable ${catkin_LIBRARIES})
 
 #############
