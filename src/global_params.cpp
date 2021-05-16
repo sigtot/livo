@@ -94,6 +94,12 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/use_fixed_lag", GetInstance().use_fixed_lag_);
   ReadVariable(nh, "/orb_test_node/smoother_lag", GetInstance().smoother_lag_);
 
+  ReadVariable(nh, "/orb_test_node/isam_relin_thresh/x_rotation", GetInstance().isam_relin_thresh_x_rotation_);
+  ReadVariable(nh, "/orb_test_node/isam_relin_thresh/x_translation", GetInstance().isam_relin_thresh_x_translation_);
+  ReadVariable(nh, "/orb_test_node/isam_relin_thresh/v", GetInstance().isam_relin_thresh_v_);
+  ReadVariable(nh, "/orb_test_node/isam_relin_thresh/b", GetInstance().isam_relin_thresh_b_);
+  ReadVariable(nh, "/orb_test_node/isam_relin_thresh/l", GetInstance().isam_relin_thresh_l_);
+
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_yaw", GetInstance().prior_noise_X_yaw_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_roll_pitch", GetInstance().prior_noise_X_roll_pitch_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_X_translation", GetInstance().prior_noise_X_translation_);
@@ -420,6 +426,28 @@ double GlobalParams::SmootherLag()
 {
   return GetInstance().smoother_lag_;
 }
+
+double GlobalParams::IsamRelinThreshXRotation()
+{
+  return GetInstance().isam_relin_thresh_x_rotation_;
+}
+double GlobalParams::IsamRelinThreshXTranslation()
+{
+  return GetInstance().isam_relin_thresh_x_translation_;
+}
+double GlobalParams::IsamRelinThreshV()
+{
+  return GetInstance().isam_relin_thresh_v_;
+}
+double GlobalParams::IsamRelinThreshB()
+{
+  return GetInstance().isam_relin_thresh_b_;
+}
+double GlobalParams::IsamRelinThreshL()
+{
+  return GetInstance().isam_relin_thresh_l_;
+}
+
 double GlobalParams::PriorNoiseXYaw()
 {
   return GetInstance().prior_noise_X_yaw_;
