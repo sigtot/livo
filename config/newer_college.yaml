@@ -79,5 +79,7 @@ lidar_depth:
 
 dynamic_outlier_rejection_threshold: 15.0
 landmark_distance_threshold: 15
+proj_landmark_init_dist_thresh: 6.0
+
 use_fixed_lag: false
 smoother_lag: 10

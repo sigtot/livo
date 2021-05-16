@@ -154,6 +154,13 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
     return false;
   }
 
+  auto range = graph_manager_.GetPose(last_frame_id_).range(*triangulation_result);
+  if (range > GlobalParams::ProjLandmarkInitDistanceThresh())
+  {
+    std::cout << "Proj lmk at range " << range << " rejected" << std::endl;
+    return false;
+  }
+
   graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt_for_first_factor, *triangulation_result, K_,
                                         *body_p_cam_, feature_noise_, feature_m_estimator_);
   return true;

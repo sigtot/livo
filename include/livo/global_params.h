@@ -56,9 +56,9 @@ private:
   bool save_factor_graphs_to_file_ = false;
   double init_range_factor_length_ = 10.;  // Give negative value to use value calculated from estimate
   int min_keyframes_for_nominal_ = 20;
-  bool use_fixed_lag_ = true; // False: ISAM2 without any marginalization, true: IncrementalFixedLagSmoother
-  double smoother_lag_ = 10.; // Seconds
-  bool enable_smart_factors_ = true; // False: Proj factors for all lmks, true: smart factors for range-less lmks
+  bool use_fixed_lag_ = true;         // False: ISAM2 without any marginalization, true: IncrementalFixedLagSmoother
+  double smoother_lag_ = 10.;         // Seconds
+  bool enable_smart_factors_ = true;  // False: Proj factors for all lmks, true: smart factors for range-less lmks
 
   double isam_relin_thresh_x_rotation_ = 0.1;
   double isam_relin_thresh_x_translation_ = 0.5;
@@ -91,7 +91,8 @@ private:
 
   bool do_initial_gravity_alignment_ = false;
   double dynamic_outlier_rejection_threshold_ = 8.0;
-  double landmark_distance_threshold_ = 15.;
+  double landmark_distance_threshold_ = 15.;    // Smart factors with larger distance than this are marked degenerate
+  double proj_landmark_init_dist_thresh_ = 6.;  // Triangulated proj factors are only added if closer than this dist
 
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
@@ -100,7 +101,7 @@ private:
   std::vector<double> body_p_imu_vec_ = { 0., 0., 0. };
 
   std::vector<double> body_p_lidar_quat_ = { 0., 0., 0., 1. };
-  std::vector<double> body_p_lidar_vec_ = { 0., 0., 0.};
+  std::vector<double> body_p_lidar_vec_ = { 0., 0., 0. };
 
   int image_width_ = 480;
   int image_height_ = 848;
@@ -110,12 +111,11 @@ private:
   double cam_v0_ = 238.52694868;
 
   bool lidar_depth_enabled_ = true;
-  int lidar_depth_calc_mode_ = 0; // 0 = patch, 1 = line
+  int lidar_depth_calc_mode_ = 0;  // 0 = patch, 1 = line
   int lidar_depth_search_window_width_ = 7;
   int lidar_depth_search_window_height_ = 7;
   int lidar_depth_min_non_zero_neighbors_ = 3;
   double lidar_depth_max_allowed_feature_distance_ = 20.;
-
 
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
@@ -200,6 +200,7 @@ public:
   static bool DoInitialGravityAlignment();
   static double DynamicOutlierRejectionThreshold();
   static double LandmarkDistanceThreshold();
+  static double ProjLandmarkInitDistanceThresh();
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();
