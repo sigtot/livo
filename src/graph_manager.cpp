@@ -70,11 +70,11 @@ gtsam::ISAM2Result GraphManager::Update()
 
   for (auto& lmk_in_smoother : added_landmarks_)
   {
-    if (lmk_in_smoother.second.smart_factor_in_smoother && !lmk_in_smoother.second.smart_factor_in_smoother->in_isam)
+    if (lmk_in_smoother.second.smart_factor_in_smoother &&
+        !lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam)
     {
       auto idx_in_new_factors = lmk_in_smoother.second.smart_factor_in_smoother->idx_in_new_factors;
       lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam = result.newFactorsIndices[idx_in_new_factors];
-      lmk_in_smoother.second.smart_factor_in_smoother->in_isam = true;
       std::cout << "Set lmk " << lmk_in_smoother.first << " idx to " << result.newFactorsIndices[idx_in_new_factors]
                 << std::endl;
     }
@@ -175,9 +175,9 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
   if (landmark_in_smoother->second.smart_factor_in_smoother)
   {
     landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->add(feature, X(frame_id));
-    if (landmark_in_smoother->second.smart_factor_in_smoother->in_isam)
+    if (landmark_in_smoother->second.smart_factor_in_smoother->idx_in_isam)
     {
-      (*new_affected_keys_)[landmark_in_smoother->second.smart_factor_in_smoother->idx_in_isam].insert(X(frame_id));
+      (*new_affected_keys_)[*landmark_in_smoother->second.smart_factor_in_smoother->idx_in_isam].insert(X(frame_id));
     }
   }
   else

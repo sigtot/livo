@@ -2,6 +2,7 @@
 #define ORB_TEST_INCLUDE_LIVO_SMART_FACTOR_IN_SMOOTHER_H_
 
 #include <boost/shared_ptr.hpp>
+#include <boost/optional.hpp>
 namespace gtsam
 {
 class Cal3_S2;
@@ -24,8 +25,7 @@ struct SmartFactorInSmoother
 {
   boost::shared_ptr<SmartFactor> smart_factor;
   gtsam::FactorIndex idx_in_new_factors;
-  gtsam::FactorIndex idx_in_isam; // TODO Make optional
-  bool in_isam = false; // TODO Remove and condition on idx_in_isam instead :)
+  boost::optional<gtsam::FactorIndex> idx_in_isam;
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_SMART_FACTOR_IN_SMOOTHER_H_
