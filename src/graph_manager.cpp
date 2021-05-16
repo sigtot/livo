@@ -77,17 +77,7 @@ gtsam::ISAM2Result GraphManager::Update()
   timestamps_->clear();
   new_affected_keys_->clear();
 
-  for (auto& lmk_in_smoother : added_landmarks_)
-  {
-    if (lmk_in_smoother.second.smart_factor_in_smoother &&
-        !lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam)
-    {
-      auto idx_in_new_factors = lmk_in_smoother.second.smart_factor_in_smoother->idx_in_new_factors;
-      lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam = result.newFactorsIndices[idx_in_new_factors];
-      std::cout << "Set lmk " << lmk_in_smoother.first << " idx to " << result.newFactorsIndices[idx_in_new_factors]
-                << std::endl;
-    }
-  }
+  SetNewAffectedKeys(result);
 
   return result;
 }
@@ -261,6 +251,21 @@ void GraphManager::RemoveExpiredSmartFactors()
       // We don't remove the lmk_in_smoother, because this would cause us to keep re-adding and removing the factor
       // until the last observation. This will likely hurt performance a lot.
       // added_landmarks_.erase(lmk_in_smoother.first);
+    }
+  }
+}
+
+void GraphManager::SetNewAffectedKeys(const gtsam::ISAM2Result& result)
+{
+  for (auto& lmk_in_smoother : added_landmarks_)
+  {
+    if (lmk_in_smoother.second.smart_factor_in_smoother &&
+        !lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam)
+    {
+      auto idx_in_new_factors = lmk_in_smoother.second.smart_factor_in_smoother->idx_in_new_factors;
+      lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam = result.newFactorsIndices[idx_in_new_factors];
+      std::cout << "Set lmk " << lmk_in_smoother.first << " idx to " << result.newFactorsIndices[idx_in_new_factors]
+                << std::endl;
     }
   }
 }

@@ -83,6 +83,7 @@ private:
   double last_timestamp_ = -1;
 
   void RemoveExpiredSmartFactors();
+  void SetNewAffectedKeys(const gtsam::ISAM2Result& result);
 
   bool ExistsInSolverOrValues(gtsam::Key key) const;
   bool WithinLag(double timestamp) const;
