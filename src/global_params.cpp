@@ -93,6 +93,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_keyframes_for_nominal", GetInstance().min_keyframes_for_nominal_);
   ReadVariable(nh, "/orb_test_node/use_fixed_lag", GetInstance().use_fixed_lag_);
   ReadVariable(nh, "/orb_test_node/smoother_lag", GetInstance().smoother_lag_);
+  ReadVariable(nh, "/orb_test_node/enable_smart_factors", GetInstance().enable_smart_factors_);
 
   ReadVariable(nh, "/orb_test_node/isam_relin_thresh/x_rotation", GetInstance().isam_relin_thresh_x_rotation_);
   ReadVariable(nh, "/orb_test_node/isam_relin_thresh/x_translation", GetInstance().isam_relin_thresh_x_translation_);
@@ -425,6 +426,10 @@ bool GlobalParams::UseFixedLag()
 double GlobalParams::SmootherLag()
 {
   return GetInstance().smoother_lag_;
+}
+bool GlobalParams::EnableSmartFactors()
+{
+  return GetInstance().enable_smart_factors_;
 }
 
 double GlobalParams::IsamRelinThreshXRotation()

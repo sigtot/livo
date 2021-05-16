@@ -246,7 +246,6 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
           best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
         }
       }
-      // TODO: Weave the features from different corners, so they that top left corners don't get undeserved priority
       most_corners_in_cell = std::max(most_corners_in_cell, best_corners.size());
       best_corners_vectors.push_back(best_corners);
     }

@@ -40,6 +40,7 @@ gtsam::ISAM2Params MakeISAM2Params()
                         .finished();
   params.relinearizeThreshold = thresholds;
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
+  params.enableDetailedResults = true;
   params.evaluateNonlinearError = true;
   if (GlobalParams::UseDogLeg())
   {
@@ -111,13 +112,51 @@ gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, cons
   return DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
 }
 
-void NewSmoother::InitializeLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
-                                              double depth, const gtsam::Pose3& init_pose)
+void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
+                                                  double depth, const gtsam::Pose3& init_pose)
 {
   std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
   graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt, CalculatePointEstimate(init_pose, pt, depth),
                                         K_, *body_p_cam_, feature_noise_, feature_m_estimator_);
   graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
+}
+
+bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
+                                                           const std::shared_ptr<Track>& track)
+{
+  std::cout << "Trying to initialize lmk " << lmk_id << " by triangulation" << std::endl;
+  std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>> cameras;
+  std::vector<gtsam::Point2> measurements;
+  gtsam::Point2 pt_for_first_factor;
+  for (const auto& feature : track->features)
+  {
+    if (graph_manager_.IsFrameTracked(feature->frame->id))
+    {
+      cameras.emplace_back(graph_manager_.GetPose(feature->frame->id) * *body_p_cam_, *K_);
+      measurements.emplace_back(feature->pt.x, feature->pt.y);
+    }
+    if (feature->frame->id == frame_id)
+    {
+      pt_for_first_factor = gtsam::Point2(feature->pt.x, feature->pt.y);
+    }
+  }
+
+  if (measurements.size() < 2)
+  {
+    return false;
+  }
+
+  auto triangulation_result =
+      DepthTriangulation::Triangulate(measurements, cameras, MakeSmartFactorParams().getTriangulationParameters());
+
+  if (!triangulation_result)
+  {
+    return false;
+  }
+
+  graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt_for_first_factor, *triangulation_result, K_,
+                                        *body_p_cam_, feature_noise_, feature_m_estimator_);
+  return true;
 }
 
 void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt)
@@ -169,11 +208,15 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
     gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
     if (feature->depth)
     {
-      InitializeLandmarkWithDepth(lmk_id, frame->id, frame->timestamp, gtsam_pt, *feature->depth, refined_init_pose);
+      InitializeProjLandmarkWithDepth(lmk_id, frame->id, frame->timestamp, gtsam_pt, *feature->depth,
+                                      refined_init_pose);
     }
     else
     {
-      InitializeStructurelessLandmark(lmk_id, frame->id, frame->timestamp, gtsam_pt);
+      if (GlobalParams::EnableSmartFactors())
+      {
+        InitializeStructurelessLandmark(lmk_id, frame->id, frame->timestamp, gtsam_pt);
+      }
     }
   }
 
@@ -229,7 +272,6 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
-
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
 }
@@ -280,7 +322,21 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     if (track->HasDepth())
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
-      auto frame_first_seen = track->features.front()->frame;
+      boost::optional<std::shared_ptr<Frame>> frame_first_seen;
+      for (const auto& feature_weak_ptr : frame->features)
+      {
+        auto feature = feature_weak_ptr.second.lock();
+        if (feature)
+        {
+          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp)) {
+            frame_first_seen = feature->frame;
+          }
+        }
+      }
+      if (!frame_first_seen)
+      {
+        continue;
+      }
       int frame_id_used_for_init = -1;
       for (const auto& feature : track->features)
       {
@@ -291,9 +347,9 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
                                                                    graph_manager_.GetPose(feature->frame->id);
           gtsam::Point2 pt(feature->pt.x, feature->pt.y);
           auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt, *feature->depth);
-          graph_manager_.InitProjectionLandmark(track->id, frame_first_seen->id, frame_first_seen->timestamp, pt,
-                                                init_point_estimate, K_,
-                                                *body_p_cam_, feature_noise_, feature_m_estimator_);
+          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp, pt,
+                                                init_point_estimate, K_, *body_p_cam_, feature_noise_,
+                                                feature_m_estimator_);
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
           frame_id_used_for_init = feature->frame->id;
           obs_count++;
@@ -349,15 +405,32 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         }
         else
         {
-          InitializeStructurelessLandmark(track->id, feature->frame->id, feature->frame->timestamp,
-                                          gtsam::Point2(feature->pt.x, feature->pt.y));
+          if (GlobalParams::EnableSmartFactors())
+          {
+            InitializeStructurelessLandmark(track->id, feature->frame->id, feature->frame->timestamp,
+                                            gtsam::Point2(feature->pt.x, feature->pt.y));
+          }
+          else
+          {
+            if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+            {
+              goto for_tracks;
+            }
+            auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id,
+                                                                    feature->frame->timestamp, track);
+            if (!success)
+            {
+              goto for_tracks;  // Continue to the next track. We'll try to initialize the lmk again next KF.
+            }
+          }
           added_landmarks_count++;
           obs_count++;
           lmk_initialized = true;
         }
       }
-      std::cout << "Added smart with " << obs_count << " observations" << std::endl;
+      std::cout << "Added landmark with " << obs_count << " observations" << std::endl;
     }
+  for_tracks:;
   }
   std::cout << "Initialized " << added_landmarks_count << " landmarks" << std::endl;
 

@@ -53,8 +53,10 @@ private:
   IMUIntegrator imu_integrator_;
 
   gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
-  void InitializeLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt, double depth,
-                                   const gtsam::Pose3& init_pose);
+  void InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
+                                       double depth, const gtsam::Pose3& init_pose);
+  bool TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
+                                             const std::shared_ptr<Track>& track);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
 
 public:

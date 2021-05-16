@@ -46,7 +46,7 @@ track_count_lower_thresh: 30
 min_parallax_for_keyframe: 20
 min_parallax_for_smoothing: 10
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 3
+min_track_length_for_smoothing: 20
 min_active_track_count: 20
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
@@ -78,6 +78,6 @@ lidar_depth:
   max_allowed_feature_distance: 100
 
 dynamic_outlier_rejection_threshold: 15.0
-landmark_distance_threshold: 50
+landmark_distance_threshold: 15
 use_fixed_lag: false
 smoother_lag: 10

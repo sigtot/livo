@@ -62,6 +62,15 @@ void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const g
 
 gtsam::ISAM2Result GraphManager::Update()
 {
+  for (const auto& affected_key : *new_affected_keys_)
+  {
+    std::cout << affected_key.first << " affects keys ";
+    for (const auto& key : affected_key.second)
+    {
+      std::cout << gtsam::_defaultKeyFormatter(key) << " ";
+    }
+    std::cout << std::endl;
+  }
   auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_);
   graph_->resize(0);
   values_->clear();

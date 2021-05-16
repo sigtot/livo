@@ -58,6 +58,7 @@ private:
   int min_keyframes_for_nominal_ = 20;
   bool use_fixed_lag_ = true; // False: ISAM2 without any marginalization, true: IncrementalFixedLagSmoother
   double smoother_lag_ = 10.; // Seconds
+  bool enable_smart_factors_ = true; // False: Proj factors for all lmks, true: smart factors for range-less lmks
 
   double isam_relin_thresh_x_rotation_ = 0.1;
   double isam_relin_thresh_x_translation_ = 0.5;
@@ -160,6 +161,7 @@ public:
   static int MinKeyframesForNominal();
   static bool UseFixedLag();
   static double SmootherLag();
+  static bool EnableSmartFactors();
 
   static double IsamRelinThreshXRotation();
   static double IsamRelinThreshXTranslation();
