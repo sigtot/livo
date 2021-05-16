@@ -59,6 +59,12 @@ private:
   bool use_fixed_lag_ = true; // False: ISAM2 without any marginalization, true: IncrementalFixedLagSmoother
   double smoother_lag_ = 10.; // Seconds
 
+  double isam_relin_thresh_x_rotation_ = 0.1;
+  double isam_relin_thresh_x_translation_ = 0.5;
+  double isam_relin_thresh_v_ = 0.1;
+  double isam_relin_thresh_b_ = 0.1;
+  double isam_relin_thresh_l_ = 1.0;
+
   double prior_noise_X_yaw_ = 0.001;  // Low variance for yaw since it is unobservable
   double prior_noise_X_roll_pitch_ = 0.1;
   double prior_noise_X_translation_ = 0.01;
@@ -154,6 +160,12 @@ public:
   static int MinKeyframesForNominal();
   static bool UseFixedLag();
   static double SmootherLag();
+
+  static double IsamRelinThreshXRotation();
+  static double IsamRelinThreshXTranslation();
+  static double IsamRelinThreshV();
+  static double IsamRelinThreshB();
+  static double IsamRelinThreshL();
 
   static int FeatureExtractionInterval();
   static int TrackCountLowerThresh();

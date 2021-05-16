@@ -23,10 +23,21 @@ gtsam::ISAM2Params MakeISAM2Params()
 {
   gtsam::ISAM2Params params;
   gtsam::FastMap<char, gtsam::Vector> thresholds;
-  thresholds['x'] = (gtsam::Vector(6) << 0.1, 0.1, 0.1, 0.5, 0.5, 0.5).finished();  // 0.1 rad rot, 0.5 m translation
-  thresholds['v'] = (gtsam::Vector(3) << 0.1, 0.1, 0.1).finished();                 // 0.1 m/s speed threshold
-  thresholds['b'] = (gtsam::Vector(6) << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1).finished();  // bias my dudes
-  thresholds['l'] = (gtsam::Vector(3) << 1.0, 1.0, 1.0).finished();                 // 1.0 m landmark position threshold
+  thresholds['x'] =
+      (gtsam::Vector(6) << GlobalParams::IsamRelinThreshXRotation(), GlobalParams::IsamRelinThreshXRotation(),
+       GlobalParams::IsamRelinThreshXRotation(), GlobalParams::IsamRelinThreshXTranslation(),
+       GlobalParams::IsamRelinThreshXTranslation(), GlobalParams::IsamRelinThreshXTranslation())
+          .finished();
+  thresholds['v'] = (gtsam::Vector(3) << GlobalParams::IsamRelinThreshV(), GlobalParams::IsamRelinThreshV(),
+                     GlobalParams::IsamRelinThreshV())
+                        .finished();
+  thresholds['b'] = (gtsam::Vector(6) << GlobalParams::IsamRelinThreshB(), GlobalParams::IsamRelinThreshB(),
+                     GlobalParams::IsamRelinThreshB(), GlobalParams::IsamRelinThreshB(),
+                     GlobalParams::IsamRelinThreshB(), GlobalParams::IsamRelinThreshB())
+                        .finished();
+  thresholds['l'] = (gtsam::Vector(3) << GlobalParams::IsamRelinThreshL(), GlobalParams::IsamRelinThreshL(),
+                     GlobalParams::IsamRelinThreshL())
+                        .finished();
   params.relinearizeThreshold = thresholds;
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.evaluateNonlinearError = true;
