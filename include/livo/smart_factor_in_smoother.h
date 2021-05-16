@@ -16,7 +16,7 @@ namespace noiseModel
 {
 class Base;
 class Isotropic;
-}
+}  // namespace noiseModel
 }  // namespace gtsam
 
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
