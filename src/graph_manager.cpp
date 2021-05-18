@@ -99,8 +99,6 @@ void GraphManager::AddFrame(int id, double timestamp, const gtsam::Preintegrated
 
   last_frame_id_ = id;
   last_timestamp_ = timestamp;
-
-  // RemoveExpiredSmartFactors();
 }
 
 void GraphManager::InitStructurelessLandmark(
@@ -153,7 +151,7 @@ void GraphManager::InitProjectionLandmark(
   added_landmarks_[lmk_id] = landmark_in_smoother;
 }
 
-void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
+void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
   auto landmark_in_smoother = added_landmarks_.find(lmk_id);
@@ -186,10 +184,12 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, const gtsam:
                            landmark_in_smoother->second.noise_model;
     ProjectionFactor proj_factor(feature, noise_model, X(frame_id), L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
+    // We must update the timestamp for to this landmark so it doesn't get marginalized before its newest observation
+    timestamps_->insert({ L(lmk_id), timestamp });
   }
 }
 
-void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
+void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double timestamp, double range,
                                        const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise)
 {
   auto landmark_in_smoother = added_landmarks_.find(lmk_id);
@@ -200,18 +200,20 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double range,
   }
   landmark_in_smoother->second.newest_frame_id_seen =
       std::max(landmark_in_smoother->second.newest_frame_id_seen, frame_id);
+  timestamps_->insert({ L(lmk_id), timestamp });
 
   RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);
   graph_->add(range_factor);
 }
 
-void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate)
+void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp,
+                                                        const gtsam::Point3& initial_estimate)
 {
   assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor_in_smoother);
   auto landmark_in_smoother = added_landmarks_[lmk_id];
   boost::shared_ptr<SmartFactor> smart_factor = landmark_in_smoother.smart_factor_in_smoother->smart_factor;
   values_->insert(L(lmk_id), initial_estimate);
-  timestamps_->insert({ L(lmk_id), landmark_in_smoother.init_timestamp });
+  timestamps_->insert({ L(lmk_id), timestamp });
   for (int i = 0; i < smart_factor->keys().size(); ++i)
   {
     auto feature = smart_factor->measured()[i];
@@ -228,31 +230,6 @@ void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam:
                                                                             // factor
   assert(added_landmarks_[lmk_id].smart_factor_in_smoother->smart_factor == nullptr);
   added_landmarks_[lmk_id].smart_factor_in_smoother = boost::none;  // Remove nullptr smart factor from our bookkeeping
-}
-
-void GraphManager::RemoveExpiredSmartFactors()
-{
-  for (const auto& lmk_in_smoother : added_landmarks_)
-  {
-    if (!WithinLag(lmk_in_smoother.second.init_timestamp) && lmk_in_smoother.second.smart_factor_in_smoother)
-    {
-      auto smart_factor = *lmk_in_smoother.second.smart_factor_in_smoother->smart_factor;
-      std::cout << "Converting smart factor to proj factor " << lmk_in_smoother.first << std::endl;
-      auto lmk = GetLandmark(lmk_in_smoother.first);
-      if (lmk)
-      {
-        ConvertSmartFactorToProjectionFactor(lmk_in_smoother.first, lmk->pt);
-      }
-      else
-      {
-        std::cout << "ERR: cannot convert degenerate smart factor to proj factor!! Do something else." << std::endl;
-      }
-
-      // We don't remove the lmk_in_smoother, because this would cause us to keep re-adding and removing the factor
-      // until the last observation. This will likely hurt performance a lot.
-      // added_landmarks_.erase(lmk_in_smoother.first);
-    }
-  }
 }
 
 void GraphManager::SetNewAffectedKeys(const gtsam::ISAM2Result& result)
@@ -337,7 +314,7 @@ gtsam::Values GraphManager::GetValues() const
 bool GraphManager::IsLandmarkTracked(int lmk_id) const
 {
   auto lmk_in_smoother = added_landmarks_.find(lmk_id);
-  return lmk_in_smoother != added_landmarks_.end() &&
+  return lmk_in_smoother != added_landmarks_.end() && WithinLag(lmk_in_smoother->second.init_timestamp) &&
          ((lmk_in_smoother->second.smart_factor_in_smoother &&
            ExistsInSolverOrValues(X(lmk_in_smoother->second.first_frame_id_seen))) ||
           ExistsInSolverOrValues(L(lmk_id)));
@@ -364,24 +341,12 @@ bool GraphManager::CanAddObservationsForFrame(int frame_id, double frame_timesta
 
 bool GraphManager::CanAddObservation(int lmk_id, int frame_id) const
 {
-  auto lmk_in_smoother = added_landmarks_.find(lmk_id);
-  if (lmk_in_smoother == added_landmarks_.end())
-  {
-    return false;
-  }
-
-  return IsLandmarkTracked(lmk_id) && ExistsInSolverOrValues(X(frame_id)) &&
-         WithinLag(lmk_in_smoother->second.init_timestamp);
+  return IsLandmarkTracked(lmk_id) && ExistsInSolverOrValues(X(frame_id));
 }
 
 bool GraphManager::CanAddRangeObservation(int lmk_id, int frame_id) const
 {
-  auto lmk_in_smoother = added_landmarks_.find(lmk_id);
-  if (lmk_in_smoother == added_landmarks_.end())
-  {
-    return false;
-  }
-  return CanAddObservation(lmk_id, frame_id) && !lmk_in_smoother->second.smart_factor_in_smoother;
+  return CanAddObservation(lmk_id, frame_id) && !IsSmartFactorLandmark(lmk_id);
 }
 
 bool GraphManager::IsSmartFactorLandmark(int lmk_id) const

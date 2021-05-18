@@ -41,7 +41,7 @@ protected:
   void SetUp(bool fixed_lag, const gtsam::ISAM2Params& isam2_params = gtsam::ISAM2Params(), double lag = -1.0)
   {
     graph_manager = std::make_shared<GraphManager>(GetIncrementalSolver(fixed_lag, isam2_params, lag),
-                                                   gtsam::SmartProjectionParams());
+                                                   gtsam::SmartProjectionParams(), lag);
     noise_x = gtsam::noiseModel::Diagonal::Sigmas(
         (gtsam::Vector(6) << gtsam::Vector3::Constant(0.001), gtsam::Vector3::Constant(0.001)).finished());
     noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 0.5);
@@ -104,7 +104,7 @@ protected:
       {
         gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
         auto feature = camera.project(landmarks[j]);
-        graph_manager->AddLandmarkObservation(j + 1, i, feature, K, body_p_cam);
+        graph_manager->AddLandmarkObservation(j + 1, i, (i - 1) * delta_t, feature, K, body_p_cam);
       }
 
       gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
@@ -127,26 +127,26 @@ protected:
         // Scenario: At i=5, a point cloud comes in, providing range measurements for landmarks 2, 3 and 4, but not 1.
         // Lmk 2 is a smart factor to begin with, so will be converted to a proj factor
         ASSERT_FALSE(graph_manager->CanAddRangeObservation(2, i));
-        graph_manager->ConvertSmartFactorToProjectionFactor(2, landmarks[1]);
+        graph_manager->ConvertSmartFactorToProjectionFactor(2, (i - 1) * delta_t, landmarks[1]);
         ASSERT_TRUE(graph_manager->CanAddRangeObservation(2, i));
-        graph_manager->AddRangeObservation(2, i, pred_nav_state.pose().range(landmarks[1]), range_noise);
+        graph_manager->AddRangeObservation(2, i, (i - 1) * delta_t, pred_nav_state.pose().range(landmarks[1]), range_noise);
 
         // Lmk 3 is already a proj factor, so this just adds a range measurement to it
         ASSERT_TRUE(graph_manager->CanAddRangeObservation(3, i));
-        graph_manager->AddRangeObservation(3, i, pred_nav_state.pose().range(landmarks[2]), robust_range_noise);
+        graph_manager->AddRangeObservation(3, i, (i - 1) * delta_t, pred_nav_state.pose().range(landmarks[2]), robust_range_noise);
 
         // Lmk 4 is a smart factor, and is currently degenerate. This makes no difference.
         ASSERT_FALSE(graph_manager->CanAddRangeObservation(4, i));
-        graph_manager->ConvertSmartFactorToProjectionFactor(4, landmarks[3]);
+        graph_manager->ConvertSmartFactorToProjectionFactor(4, (i - 1) * delta_t, landmarks[3]);
         ASSERT_TRUE(graph_manager->CanAddRangeObservation(4, i));
-        graph_manager->AddRangeObservation(4, i, pred_nav_state.pose().range(landmarks[3]), range_noise);
+        graph_manager->AddRangeObservation(4, i, (i - 1) * delta_t, pred_nav_state.pose().range(landmarks[3]), range_noise);
       }
 
       for (int j = 0; j < landmarks.size(); ++j)
       {
         gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
         auto feature = camera.project(landmarks[j]);
-        graph_manager->AddLandmarkObservation(j + 1, i, feature, K, body_p_cam);
+        graph_manager->AddLandmarkObservation(j + 1, i, (i - 1) * delta_t, feature, K, body_p_cam);
       }
 
       if (i == 4)

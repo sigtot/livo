@@ -42,6 +42,7 @@ gtsam::ISAM2Params MakeISAM2Params()
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.enableDetailedResults = true;
   params.evaluateNonlinearError = true;
+  params.findUnusedFactorSlots = true;
   if (GlobalParams::UseDogLeg())
   {
     params.optimizationParams =
@@ -118,7 +119,7 @@ void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, doub
   std::cout << "Initializing lmk " << lmk_id << " with depth " << std::endl;
   graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt, CalculatePointEstimate(init_pose, pt, depth),
                                         K_, *body_p_cam_, feature_noise_, feature_m_estimator_);
-  graph_manager_.AddRangeObservation(lmk_id, frame_id, depth, range_noise_);
+  graph_manager_.AddRangeObservation(lmk_id, frame_id, timestamp, depth, range_noise_);
 }
 
 bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
@@ -261,12 +262,12 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, frame->timestamp, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, frame->timestamp, *feature->depth, range_noise_);
       range_obs_count++;
     }
-    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, frame->timestamp, gtsam_pt, K_, *body_p_cam_);
     feature_obs_count++;
   }
 
@@ -335,7 +336,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         auto feature = feature_weak_ptr.second.lock();
         if (feature)
         {
-          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp)) {
+          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+          {
             frame_first_seen = feature->frame;
           }
         }
@@ -357,7 +359,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp, pt,
                                                 init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, feature->frame->timestamp, *feature->depth,
+                                             range_noise_);
           frame_id_used_for_init = feature->frame->id;
           obs_count++;
           added_landmarks_count++;
@@ -382,11 +385,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
             auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, init_point);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, feature->frame->timestamp, init_point);
           }
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, *feature->depth, range_noise_);
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, feature->frame->timestamp, *feature->depth, range_noise_);
         }
-        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, gtsam_pt, K_, *body_p_cam_);
+        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, feature->frame->timestamp, gtsam_pt, K_,
+                                              *body_p_cam_);
         obs_count++;
       }
       std::cout << "Added proj with " << obs_count << " observations" << std::endl;
@@ -405,7 +409,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           if (graph_manager_.CanAddObservation(track->id, feature->frame->id))
           {
-            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id,
+            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, feature->frame->timestamp,
                                                   gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
             obs_count++;
           }
@@ -459,13 +463,13 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, feature->frame->timestamp, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, *feature->depth, range_noise_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, frame->timestamp, *feature->depth, range_noise_);
       range_obs_count++;
     }
     feature_obs_count++;
-    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, gtsam_pt, K_, *body_p_cam_);
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, frame->timestamp, gtsam_pt, K_, *body_p_cam_);
   }
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
@@ -488,7 +492,10 @@ void NewSmoother::GetPoses(std::map<int, Pose3Stamped>& poses) const
 {
   for (const auto& frame : added_frames_)
   {
-    poses[frame.first] = Pose3Stamped{ ToPose(graph_manager_.GetPose(frame.first)), frame.second->timestamp };
+    if (graph_manager_.IsFrameTracked(frame.first))
+    {
+      poses[frame.first] = Pose3Stamped{ ToPose(graph_manager_.GetPose(frame.first)), frame.second->timestamp };
+    }
   }
 }
 

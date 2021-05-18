@@ -109,7 +109,7 @@ TEST(GraphManagerFixedLagTests, SmartFactor)
     if (graph_manager.CanAddObservation(1, i))
     {
       auto feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(pred_nav_state.pose() * body_p_cam, *K).project(landmark);
-      graph_manager.AddLandmarkObservation(1, i, feature, K, body_p_cam);
+      graph_manager.AddLandmarkObservation(1, i, t, feature, K, body_p_cam);
     }
 
     graph_manager.Update();
@@ -164,7 +164,7 @@ TEST(GraphManagerFixedLagTests, ProjectionFactor)
 
   auto init_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
   graph_manager.InitProjectionLandmark(1, 1, 0., init_feature, landmark, K, body_p_cam, feature_noise);
-  graph_manager.AddRangeObservation(1, 1, init_nav_state.pose().range(landmark), range_noise);
+  graph_manager.AddRangeObservation(1, 1, 0., init_nav_state.pose().range(landmark), range_noise);
 
   graph_manager.Update();
 
@@ -188,7 +188,7 @@ TEST(GraphManagerFixedLagTests, ProjectionFactor)
     if (graph_manager.CanAddObservation(1, i))
     {
       auto feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(pred_nav_state.pose() * body_p_cam, *K).project(landmark);
-      graph_manager.AddLandmarkObservation(1, i, feature, K, body_p_cam);
+      graph_manager.AddLandmarkObservation(1, i, t, feature, K, body_p_cam);
     }
 
     graph_manager.Update();

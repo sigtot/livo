@@ -22,13 +22,13 @@ isam_relinearize_thresh: 0.1
 isam_relinearize_skip: 10
 save_factor_graphs_to_file: false
 init_range_factor_length_: -1.
-enable_smart_factors: false
+enable_smart_factors: true
 isam_relin_thresh:
-  x_rotation: 0.1
-  x_translation: 0.5
-  v: 0.1
-  b: 0.1
-  l: 1.0
+  x_rotation: 0.5
+  x_translation: 1.0
+  v: 0.2
+  b: 0.2
+  l: 2.0
 
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0

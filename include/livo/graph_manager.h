@@ -82,7 +82,6 @@ private:
   int last_frame_id_ = -1;
   double last_timestamp_ = -1;
 
-  void RemoveExpiredSmartFactors();
   void SetNewAffectedKeys(const gtsam::ISAM2Result& result);
 
   bool ExistsInSolverOrValues(gtsam::Key key) const;
@@ -108,7 +107,7 @@ public:
       const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam,
       const boost::shared_ptr<gtsam::noiseModel::Isotropic>& feature_noise,
       const boost::optional<boost::shared_ptr<gtsam::noiseModel::mEstimator::Base>>& m_estimator = boost::none);
-  void AddLandmarkObservation(int lmk_id, int frame_id, const gtsam::Point2& feature,
+  void AddLandmarkObservation(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature,
                               const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam);
   /**
    * Adds a range observation to an existing landmark. If a landmark is currently represented as a smart factor, it will
@@ -120,9 +119,9 @@ public:
    * @param range measured distance from body to landmark
    * @param range_noise noise model for the range factor
    */
-  void AddRangeObservation(int lmk_id, int frame_id, double range,
+  void AddRangeObservation(int lmk_id, int frame_id, double timestamp, double range,
                            const boost::shared_ptr<gtsam::noiseModel::Base>& range_noise);
-  void ConvertSmartFactorToProjectionFactor(int lmk_id, const gtsam::Point3& initial_estimate);
+  void ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp, const gtsam::Point3& initial_estimate);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;

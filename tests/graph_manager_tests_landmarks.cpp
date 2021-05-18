@@ -96,7 +96,7 @@ TEST_F(GraphManagerTest, SmartFactors)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
   }
@@ -113,7 +113,7 @@ TEST_F(GraphManagerTest, SmartFactors)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
 
@@ -175,7 +175,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
   }
@@ -192,7 +192,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
 
@@ -236,7 +236,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
   }
@@ -253,7 +253,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
 
     gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pred_nav_state.pose() * body_p_cam, *K);
     auto feature = camera.project(landmark);
-    graph_manager->AddLandmarkObservation(1, i, feature, K, body_p_cam);
+    graph_manager->AddLandmarkObservation(1, i, (i - 1) * delta_t, feature, K, body_p_cam);
 
     gt_nav_states.push_back(pred_nav_state);  // We let the IMU govern the ground truth
 
@@ -283,6 +283,6 @@ TEST_F(GraphManagerTest, CanAddRangeObservation)
   graph_manager->InitStructurelessLandmark(1, 1, 0., first_feature, K, body_p_cam, feature_noise);
 
   EXPECT_FALSE(graph_manager->CanAddRangeObservation(1, 1));
-  graph_manager->ConvertSmartFactorToProjectionFactor(1, landmark);
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
   EXPECT_TRUE(graph_manager->CanAddRangeObservation(1, 1));
 }
