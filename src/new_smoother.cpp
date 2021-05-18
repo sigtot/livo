@@ -231,6 +231,7 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
   graph_manager_.Update();
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
+  last_keyframe_id_ = frame->id;
   initialized_ = true;
 }
 
@@ -241,7 +242,7 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);
   auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, frame->timestamp, pim, predicted_nav_state, prev_bias);
+  graph_manager_.AddFrame(frame->id, added_frames_[last_keyframe_id_]->timestamp, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
 
   auto feature_obs_count = 0;
@@ -262,12 +263,15 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, frame->timestamp, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, added_frames_[last_keyframe_id_]->timestamp,
+                                                            init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, frame->timestamp, *feature->depth, range_noise_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, added_frames_[last_keyframe_id_]->timestamp,
+                                         *feature->depth, range_noise_);
       range_obs_count++;
     }
-    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, frame->timestamp, gtsam_pt, K_, *body_p_cam_);
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, added_frames_[last_keyframe_id_]->timestamp, gtsam_pt, K_,
+                                          *body_p_cam_);
     feature_obs_count++;
   }
 
@@ -359,7 +363,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp, pt,
                                                 init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, feature->frame->timestamp, *feature->depth,
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, frame->timestamp, *feature->depth,
                                              range_noise_);
           frame_id_used_for_init = feature->frame->id;
           obs_count++;
@@ -385,11 +389,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
             auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, feature->frame->timestamp, init_point);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, frame->timestamp, init_point);
           }
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, feature->frame->timestamp, *feature->depth, range_noise_);
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, frame->timestamp, *feature->depth,
+                                             range_noise_);
         }
-        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, feature->frame->timestamp, gtsam_pt, K_,
+        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, frame->timestamp, gtsam_pt, K_,
                                               *body_p_cam_);
         obs_count++;
       }
@@ -409,7 +414,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           if (graph_manager_.CanAddObservation(track->id, feature->frame->id))
           {
-            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, feature->frame->timestamp,
+            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, frame->timestamp,
                                                   gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
             obs_count++;
           }
@@ -463,7 +468,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, feature->frame->timestamp, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, frame->timestamp, init_point);
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, frame->timestamp, *feature->depth, range_noise_);
       range_obs_count++;
@@ -485,6 +490,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
 
   added_frames_[frame->id] = frame;
+  last_keyframe_id_ = frame->id;
   last_frame_id_ = frame->id;
 }
 
