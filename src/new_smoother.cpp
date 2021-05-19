@@ -204,8 +204,7 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
 
   graph_manager_.SetInitNavstate(frame->id, frame->timestamp, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  // TODO sorting feature map no longer necessary I think. Remove
-  for (auto& feature_pair : SortFeatureMapByDepth(frame->features))
+  for (auto& feature_pair : frame->features)
   {
     auto lmk_id = feature_pair.first;
     auto feature = feature_pair.second.lock();
