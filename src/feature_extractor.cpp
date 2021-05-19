@@ -219,17 +219,44 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
 {
   int cell_w = img.cols / cell_count_x;
   int cell_h = img.rows / cell_count_y;
+
+  // After extraction, we want a max of n features per cell, including both new and old features
+  // Populate max_feature_counts table with initial max counts
+  Mat_<int> max_feature_counts = Mat::ones(cell_count_y,cell_count_x, CV_8UC1) * max_features_per_cell;
+
+  // Decrement the cells that already have features
+  if (!frames.empty())
+  {
+    for (const auto& feature_weak : frames.back()->features)
+    {
+      auto feature = feature_weak.second.lock();
+      if (!feature)
+      {
+        continue;
+      }
+      int feat_cell_x = static_cast<int>(feature->pt.x) / cell_w;
+      int feat_cell_y = static_cast<int>(feature->pt.y) / cell_h;
+      max_feature_counts.at<int>(feat_cell_y, feat_cell_x)--;
+    }
+  }
+
   std::vector<std::vector<cv::Point2f>> best_corners_vectors; // One vector for each cell
   size_t most_corners_in_cell = 0;
   for (int cell_x = 0; cell_x < cell_count_x; ++cell_x)
   {
     for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
     {
+      auto max_features_in_this_cell = max_feature_counts.at<int>(cell_y, cell_x);
+      if (max_features_in_this_cell <= 0)
+      {
+        continue;
+      }
+
       cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
       cv::Mat roi = img(mask);
       vector<cv::Point2f> corners_in_roi;
       // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
-      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_per_cell, quality_level, min_distance);
+      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_in_this_cell, quality_level, min_distance);
 
       Size winSize = Size(5, 5);
       Size zeroZone = Size(-1, -1);
@@ -241,7 +268,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
       cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
 
       vector<cv::Point2f> best_corners;
-      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_per_cell); ++i)
+      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_in_this_cell); ++i)
       {
         if (PointWasSubPixRefined(corners_in_roi[i]))
         {

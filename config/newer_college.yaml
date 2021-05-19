@@ -41,10 +41,10 @@ max_features_per_cell: 3
 max_features: 40
 grid_cells_x: 9
 grid_cells_y: 7
-track_count_lower_thresh: 30
+track_count_lower_thresh: 35
 
 min_parallax_for_keyframe: 20
-min_parallax_for_smoothing: 10
+min_parallax_for_smoothing: 5
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_active_track_count: 20
