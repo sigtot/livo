@@ -333,16 +333,16 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     if (track->HasDepth())
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
+      // First, we need to get frame we first observed the features from, because this will be used
       boost::optional<std::shared_ptr<Frame>> frame_first_seen;
-      for (const auto& feature_weak_ptr : frame->features)
+      boost::optional<std::shared_ptr<Feature>> first_feature;
+      for (const auto& feature : track->features)
       {
-        auto feature = feature_weak_ptr.second.lock();
-        if (feature)
+        if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
         {
-          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
-          {
-            frame_first_seen = feature->frame;
-          }
+          frame_first_seen = feature->frame;
+          first_feature = feature;
+          break;
         }
       }
       if (!frame_first_seen)
@@ -357,14 +357,19 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           std::cout << "Initializing lmk " << track->id << " with depth " << std::endl;
           auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                    graph_manager_.GetPose(feature->frame->id);
-          gtsam::Point2 pt(feature->pt.x, feature->pt.y);
-          auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt, *feature->depth);
-          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp, pt,
-                                                init_point_estimate, K_, *body_p_cam_, feature_noise_,
+          gtsam::Point2 pt_for_init(feature->pt.x, feature->pt.y);
+          // The initial point3 estimate can be obtained from any frame, so we used the first available with depth
+          auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt_for_init, *feature->depth);
+
+          // We do however need to use the first seen feature in the call to InitProjectionLandmark,
+          // as we can only add observations that come after this frame.
+          auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
+          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp,
+                                                first_feature_pt, init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, frame->timestamp, *feature->depth,
                                              range_noise_);
-          frame_id_used_for_init = feature->frame->id;
+          frame_id_used_for_init = (*frame_first_seen)->id;
           obs_count++;
           added_landmarks_count++;
           break;
