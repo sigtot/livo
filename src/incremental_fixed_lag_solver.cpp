@@ -35,8 +35,7 @@ gtsam::Values IncrementalFixedLagSolver::CalculateEstimate()
 
 bool IncrementalFixedLagSolver::ValueExists(gtsam::Key key)
 {
-  auto timestamp_map = fixed_lag_smoother_->timestamps();
-  return timestamp_map.count(key);
+  return fixed_lag_smoother_->timestamps().count(key);
 }
 
 gtsam::Pose3 IncrementalFixedLagSolver::CalculateEstimatePose3(gtsam::Key key)
