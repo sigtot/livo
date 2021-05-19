@@ -16,6 +16,8 @@ struct Track
 
   double max_parallax = 0.;
 
+  bool rejected = false; // Rejected by smoother
+
   explicit Track(std::vector<std::shared_ptr<Feature>> features);
 
   double InlierRatio() const;

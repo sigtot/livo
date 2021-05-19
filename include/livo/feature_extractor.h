@@ -36,6 +36,8 @@ private:
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
+  void RemoveRejectedTracks();
+
   void KeepOnlyNTracks(size_t n);
 
   static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);

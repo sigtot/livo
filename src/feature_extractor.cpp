@@ -20,6 +20,8 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const Lidar
 
 shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
+  RemoveRejectedTracks();
+
   auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe toCvShare?
   Mat img_resized;
   resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
@@ -284,6 +286,18 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
         }
         active_tracks_.erase(active_tracks_.begin() + j);
       }
+    }
+  }
+}
+
+void FeatureExtractor::RemoveRejectedTracks()
+{
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i > 0; --i)
+  {
+    if (active_tracks_[i]->rejected)
+    {
+      std::cout << "Removing rejected track " << i << std::endl;
+      active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
 }

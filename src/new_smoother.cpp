@@ -429,12 +429,14 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           {
             if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
             {
+              track->rejected = true;
               goto for_tracks;
             }
             auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id,
                                                                     feature->frame->timestamp, track);
             if (!success)
             {
+              track->rejected = true;
               goto for_tracks;  // Continue to the next track. We'll try to initialize the lmk again next KF.
             }
           }
@@ -443,7 +445,15 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           lmk_initialized = true;
         }
       }
-      std::cout << "Added landmark with " << obs_count << " observations" << std::endl;
+      if (lmk_initialized)
+      {
+        std::cout << "Added landmark with " << obs_count << " observations" << std::endl;
+      }
+      else
+      {
+        std::cout << "Failed to initialize for some reason" << std::endl;
+        track->rejected = true;
+      }
     }
   for_tracks:;
   }
@@ -478,7 +488,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
 
-  // Because with keyframe insertion, we add new landmarks, we should relinearize regardless of relinearizeSkip
   auto time_before = std::chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
   auto time_after = std::chrono::system_clock::now();
