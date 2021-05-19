@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         cv_bridge
         pcl_ros
         tf
+        tf2
         )
 
 find_package(OpenCV REQUIRED)

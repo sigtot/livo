@@ -120,6 +120,9 @@ private:
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
 
+  std::string loam_world_frame_ = "unknown";
+  std::string loam_sensor_frame_ = "unknown";
+
 public:
   static void LoadParams(const ros::NodeHandle& nh);
   GlobalParams(GlobalParams const&) = delete;
@@ -227,6 +230,9 @@ public:
   static int LidarDepthSearchWindowHeight();
   static int LidarDepthMinNonZeroNeighbors();
   static double LidarDepthMaxAllowedFeatureDistance();
+
+  static std::string LoamWorldFrame();
+  static std::string LoamSensorFrame();
 };
 
 #endif

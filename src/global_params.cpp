@@ -160,6 +160,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().lidar_depth_min_non_zero_neighbors_);
   ReadVariable(nh, "/orb_test_node/lidar_depth/max_allowed_feature_distance",
                GetInstance().lidar_depth_max_allowed_feature_distance_);
+
+  ReadVariable(nh, "/orb_test_node/loam_world_frame", GetInstance().loam_world_frame_);
+  ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
 }
 
 // Implement parameter accessors here
@@ -524,4 +527,13 @@ double GlobalParams::LidarDepthMaxAllowedFeatureDistance()
 int GlobalParams::IsamRelinearizeSkip()
 {
   return GetInstance().isam_relinearize_skip_;
+}
+
+std::string GlobalParams::LoamWorldFrame()
+{
+  return GetInstance().loam_world_frame_;
+}
+std::string GlobalParams::LoamSensorFrame()
+{
+  return GetInstance().loam_sensor_frame_;
 }

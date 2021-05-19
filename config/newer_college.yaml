@@ -84,3 +84,6 @@ proj_landmark_init_dist_thresh: 6.0
 use_fixed_lag: true
 smoother_lag: 10
 enable_smart_factors: false
+
+loam_world_frame: camera_init_CORRECTED
+loam_sensor_frame: aft_mapped_to_init_CORRECTED

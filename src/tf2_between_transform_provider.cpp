@@ -6,9 +6,9 @@
 
 TF2BetweenTransformProvider::TF2BetweenTransformProvider(const gtsam::Pose3& body_p_sensor, std::string world_frame,
                                                          std::string sensor_frame)
-  : body_p_sensor(std::make_shared<gtsam::Pose3>(body_p_sensor))
-  , world_frame(std::move(world_frame))
-  , sensor_frame(std::move(sensor_frame))
+  : body_p_sensor_(std::make_shared<gtsam::Pose3>(body_p_sensor))
+  , world_frame_(std::move(world_frame))
+  , sensor_frame_(std::move(sensor_frame))
 {
 }
 

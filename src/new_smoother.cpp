@@ -106,7 +106,7 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
                                              GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
                      gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
                                    GlobalParams::BodyPLidarVec()[2])),
-        "test", "test"))
+        GlobalParams::LoamWorldFrame(), GlobalParams::LoamSensorFrame()))
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
                                 GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
