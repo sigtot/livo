@@ -9,6 +9,7 @@
 #include "pose3_stamped.h"
 #include "point3.h"
 #include "landmark_result.h"
+#include "between_transform_provider.h"
 
 #include <utility>
 #include <map>
@@ -50,6 +51,8 @@ private:
   boost::shared_ptr<gtsam::noiseModel::mEstimator::Base> feature_m_estimator_;
   boost::shared_ptr<gtsam::Pose3> body_p_cam_;
 
+  // Dependencies
+  std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
 

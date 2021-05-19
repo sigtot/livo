@@ -9,6 +9,7 @@
 #include "debug_value_publisher.h"
 #include "isam2_solver.h"
 #include "incremental_fixed_lag_solver.h"
+#include "tf2_between_transform_provider.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -100,6 +101,12 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
   , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
+  , between_transform_provider_(std::make_shared<TF2BetweenTransformProvider>(
+        gtsam::Pose3(gtsam::Rot3::Quaternion(GlobalParams::BodyPLidarQuat()[3], GlobalParams::BodyPLidarQuat()[0],
+                                             GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
+                     gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
+                                   GlobalParams::BodyPLidarVec()[2])),
+        "test", "test"))
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
                                 GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
