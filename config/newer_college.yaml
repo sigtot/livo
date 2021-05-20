@@ -24,6 +24,8 @@ noise_params:
   prior_gyro: 0.1
   prior_accel: 0.1
   prior_velocity: 0.1
+  between_rotation: 0.1
+  between_translation: 0.1
   feature: 1.0
   range: 0.5
   robust_feature_k: 5

@@ -107,6 +107,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/noise_params/prior_gyro", GetInstance().prior_noise_gyro_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_accel", GetInstance().prior_noise_accel_);
   ReadVariable(nh, "/orb_test_node/noise_params/prior_velocity", GetInstance().prior_noise_velocity);
+  ReadVariable(nh, "/orb_test_node/noise_params/between_rotation", GetInstance().noise_between_rotation_);
+  ReadVariable(nh, "/orb_test_node/noise_params/between_translation", GetInstance().noise_between_translation_);
   ReadVariable(nh, "/orb_test_node/noise_params/feature", GetInstance().noise_feature_);
   ReadVariable(nh, "/orb_test_node/noise_params/range", GetInstance().noise_range_);
   ReadVariable(nh, "/orb_test_node/noise_params/robust_feature_k", GetInstance().robust_feature_k_);
@@ -484,6 +486,14 @@ double GlobalParams::PriorNoiseAccel()
 double GlobalParams::PriorNoiseVelocity()
 {
   return GetInstance().prior_noise_velocity;
+}
+double GlobalParams::NoiseBetweenRotation()
+{
+  return GetInstance().noise_between_rotation_;
+}
+double GlobalParams::NoiseBetweenTranslation()
+{
+  return GetInstance().noise_between_translation_;
 }
 double GlobalParams::NoiseFeature()
 {

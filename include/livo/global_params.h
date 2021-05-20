@@ -72,6 +72,8 @@ private:
   double prior_noise_gyro_ = 0.1;
   double prior_noise_accel_ = 0.1;
   double prior_noise_velocity = 0.1;
+  double noise_between_rotation_ = 0.1;
+  double noise_between_translation_ = 0.1;
   double noise_feature_ = 1.0;
   double noise_range_ = 0.5;  // meters
   double robust_feature_k_ = 15;
@@ -185,6 +187,8 @@ public:
   static double PriorNoiseGyro();
   static double PriorNoiseAccel();
   static double PriorNoiseVelocity();
+  static double NoiseBetweenRotation();
+  static double NoiseBetweenTranslation();
   static double NoiseFeature();
   static double NoiseRange();
   static double RobustFeatureK();
