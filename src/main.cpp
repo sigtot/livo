@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     {
       if (i % 3 == 0)
       {
-        Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = pose_pair.first };
+        Pose3Stamped stamped{ .pose = pose_pair.second, .stamp = ros::Time::now().toSec() };
         gt_poses_vec.push_back(stamped);
       }
       i++;
