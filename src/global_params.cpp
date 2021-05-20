@@ -76,13 +76,16 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/add_essential_matrix_constraints", GetInstance().add_essential_matrix_constraints_);
   ReadVariable(nh, "/orb_test_node/min_keyframe_feature_inlier_ratio",
                GetInstance().min_keyframe_feature_inlier_ratio_);
-  ReadVariable(nh, "/orb_test_node/min_parallax_for_keyframe", GetInstance().min_parallax_for_keyframe_);
   ReadVariable(nh, "/orb_test_node/min_parallax_for_smoothing", GetInstance().min_parallax_for_smoothing_);
   ReadVariable(nh, "/orb_test_node/max_parallax_rotation_compensation",
                GetInstance().max_parallax_rotation_compensation_);
   ReadVariable(nh, "/orb_test_node/num_high_parallax_points_for_keyframe",
                GetInstance().num_high_parallax_points_for_keyframe_);
   ReadVariable(nh, "/orb_test_node/min_active_track_count", GetInstance().min_active_track_count_);
+
+  ReadVariable(nh, "/orb_test_node/use_parallax_keyframes", GetInstance().use_parallax_keyframes_);
+  ReadVariable(nh, "/orb_test_node/min_parallax_for_keyframe", GetInstance().min_parallax_for_keyframe_);
+  ReadVariable(nh, "/orb_test_node/temporal_keyframe_interval", GetInstance().temporal_keyframe_interval_);
 
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
   ReadVariable(nh, "/orb_test_node/use_dogleg", GetInstance().use_dogleg_);
@@ -389,10 +392,6 @@ double GlobalParams::MinKeyframeFeatureInlierRatio()
 {
   return GetInstance().min_keyframe_feature_inlier_ratio_;
 }
-double GlobalParams::MinParallaxForKeyframe()
-{
-  return GetInstance().min_parallax_for_keyframe_;
-}
 double GlobalParams::MinParallaxForSmoothing()
 {
   return GetInstance().min_parallax_for_smoothing_;
@@ -444,6 +443,19 @@ double GlobalParams::SmootherLag()
 bool GlobalParams::EnableSmartFactors()
 {
   return GetInstance().enable_smart_factors_;
+}
+
+double GlobalParams::MinParallaxForKeyframe()
+{
+  return GetInstance().min_parallax_for_keyframe_;
+}
+bool GlobalParams::UseParallaxKeyframes()
+{
+  return GetInstance().use_parallax_keyframes_;
+}
+int GlobalParams::TemporalKeyframeInterval()
+{
+  return GetInstance().temporal_keyframe_interval_;
 }
 
 double GlobalParams::IsamRelinThreshXRotation()

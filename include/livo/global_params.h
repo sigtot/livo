@@ -31,11 +31,15 @@ private:
   std::string ground_truth_provider_ = "newer_college";  // Possible values: newer_college, euroc
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
-  double min_parallax_for_keyframe_ =
-      10.;  // Need n points with higher than parallax than this to insert a new keyframe
   double min_parallax_for_smoothing_ = 5.;  // Points need higher parallax than this to be added to the smoother
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
+
+  bool use_parallax_keyframes_ = false; // false: temporal keyframes, true: insert keyframes when enough parallax
+  // If parallax keyframes: Need n points with higher than parallax than this to insert a new keyframe
+  double min_parallax_for_keyframe_ = 10.;
+  // If temporal keyframes: Initialize a keyframe every n frames
+  int temporal_keyframe_interval_ = 60;
 
   int feature_extraction_interval_ = 5;
   int track_count_lower_thresh_ = 100;
@@ -153,11 +157,14 @@ public:
   static int NumGoodKeyframesForInitialization();
   static bool AddEssentialMatrixConstraints();
   static double MinKeyframeFeatureInlierRatio();
-  static double MinParallaxForKeyframe();
   static double MinParallaxForSmoothing();
   static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
   static int MinActiveTrackCount();
+
+  static bool UseParallaxKeyframes();
+  static double MinParallaxForKeyframe();
+  static int TemporalKeyframeInterval();
 
   static bool UseIsam();
   static bool UseDogLeg();

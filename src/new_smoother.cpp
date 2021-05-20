@@ -319,6 +319,7 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
 
 void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
 {
+  std::cout << "Adding kf " << last_keyframe_id_ << " -> " << frame->id << std::endl;
   imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
   auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);

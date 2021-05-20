@@ -47,11 +47,14 @@ grid_cells_x: 9
 grid_cells_y: 7
 track_count_lower_thresh: 35
 
-min_parallax_for_keyframe: 20
 min_parallax_for_smoothing: 5
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_active_track_count: 20
+
+use_parallax_keyframes: false
+min_parallax_for_keyframe: 20
+temporal_keyframe_interval: 60
 
 body_p_cam_quat: [ -0.5, 0.5, -0.5, 0.5 ]
 body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]
@@ -86,7 +89,7 @@ landmark_distance_threshold: 15
 proj_landmark_init_dist_thresh: 6.0
 
 use_fixed_lag: true
-smoother_lag: 15
+smoother_lag: 10
 enable_smart_factors: false
 
 loam_world_frame: camera_init_CORRECTED

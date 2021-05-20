@@ -193,13 +193,20 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   frames.push_back(new_frame);
 
-  if (keyframe_tracker_)
+  if (GlobalParams::UseParallaxKeyframes())
   {
-    keyframe_tracker_->TryAddFrameSafe(new_frame, active_tracks_);
+    if (keyframe_tracker_)
+    {
+      keyframe_tracker_->TryAddFrameSafe(new_frame, active_tracks_);
+    }
+    else
+    {
+      keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
+    }
   }
-  else
+  else if (new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
   {
-    keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
+    new_frame->is_keyframe = true;
   }
 
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
