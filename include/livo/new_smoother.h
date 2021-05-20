@@ -27,6 +27,7 @@ namespace noiseModel
 {
 class Base;
 class Isotropic;
+class Diagonal;
 namespace mEstimator
 {
 class Base;
@@ -46,6 +47,8 @@ private:
   int last_frame_id_ = -1;
   int last_keyframe_id_ = -1;
   std::map<int, std::shared_ptr<Frame>> added_frames_;
+  boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_;
+  boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_keyframe_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
   boost::shared_ptr<gtsam::noiseModel::Base> range_noise_;
   boost::shared_ptr<gtsam::noiseModel::mEstimator::Base> feature_m_estimator_;
@@ -60,8 +63,10 @@ private:
   void InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
                                        double depth, const gtsam::Pose3& init_pose);
   bool TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
-                                             const std::shared_ptr<Track>& track);
+                                                const std::shared_ptr<Track>& track);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
+  void TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
+                               const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
 
 public:
   explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);

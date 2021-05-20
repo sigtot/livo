@@ -1,8 +1,73 @@
 <launch>
-  <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
-    <rosparam file="$(find orb_test)/config/common.yaml"/>
-    <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
-  </node>
 
-  <node pkg="tf" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 1 world camera_link 100" />
+    <!-- LOAM stuff -->
+    # ARL Coordinate Frame Facilitators
+    <arg name="use_sim_time" default="true"/>
+    <arg name="pi" value="3.141592654"/>
+    <arg name="half_pi" value="1.570796327"/>
+    <arg name="three_quarters_pi" value="2.3561944905"/>
+    <arg name="deg2rad" value="0.017453293"/>
+    <arg name="z_offset" value="0.0"/>
+    <arg name="pitch_offset" value="$(arg half_pi)"/>
+    <arg name="yaw_offset" value="$(arg half_pi)"/>
+    <arg name="imu_topic_name" value="/os1_cloud_node/imu"/>
+
+    <arg name="passFirstOnwards" default="false"/>
+    <arg name="minGoodIterations" default="65"/>
+    <param name="use_sim_time" value="$(arg use_sim_time)"/>
+
+    <arg name="centerroot_tf" value="aft_mapped_to_init_CORRECTED"/>
+    <node pkg="tf" type="static_transform_publisher" name="world_tf" respawn="true"
+          args="0 0 0 0 0 0 world /camera_init_CORRECTED 10"/>
+    <node pkg="tf" type="static_transform_publisher" name="world_tf_msfsupplemental" respawn="true"
+          args="0 0 0 $(arg yaw_offset) 0 $(arg pitch_offset) /camera_init_CORRECTED /camera_init 10"/>
+    <node pkg="tf" type="static_transform_publisher" name="velodyne_tf" respawn="true"
+          args="0 0 0 $(arg three_quarters_pi) 0 0 /$(arg centerroot_tf) /velodyne 10"/>
+    <node pkg="tf" type="static_transform_publisher" name="os1_tf" respawn="true"
+          args="0 0 0 0 0 0 /$(arg centerroot_tf) /camera_link 10 "/>
+
+    # END ARL Coordinate Frame Facilitators
+
+    <arg name="scanPeriod" default="0.1"/>
+
+    <node pkg="loam" type="multiScanRegistration" name="multiScanRegistration" output="screen">
+        <param name="lidar" value="O1-64"/> <!-- options: VLP-16  HDL-32  HDL-64E O1-64 O1-16 -->
+        <param name="scanPeriod" value="$(arg scanPeriod)"/>
+        <remap from="/multi_scan_points" to="/os1_cloud_node/points"/>
+        <remap from="/imu/data" to="$(arg imu_topic_name)"/>
+    </node>
+
+    <node pkg="loam" type="laserOdometry" name="laserOdometry" output="screen" respawn="true">
+        <param name="scanPeriod" value="$(arg scanPeriod)"/>
+        <param name="odomDegenEigVal" value="10"/>
+        <param name="lidarFrame" value="velodyne"/>
+    </node>
+
+    <node pkg="loam" type="laserMapping" name="laserMapping" output="screen">
+        <param name="scanPeriod" value="$(arg scanPeriod)"/>
+        <param name="mapDegenEigVal" value="30"/>
+        <param name="passthroughWaitIterations" value="$(arg minGoodIterations)"/>
+        # 5Hz -> value of 10 is 2 seconds
+        <param name="enablePassthroughOnFirst" value="$(arg passFirstOnwards)"/>
+        <param name="mapPriorNormThresh" value="0.4"/>
+        <remap from="/external_odometry" to="/camera/odom/sample"/>
+        <param name="detectDegenerationAuto" value="true"/>
+        <param name="lidarFrame" value="velodyne"/>
+        <!--    <param name="vio_loam_frames/vio_world_frame" value="world_vio" />
+        <param name="vio_loam_frames/vio_inertial_sensor_frame" value="t265_odom_base_frame" />
+        <param name="vio_loam_frames/lidar_sensor_frame" value="os64_odom_base_frame" /> -->
+        <param name="external_odom_frame" value="world"/>
+    </node>
+
+    <node pkg="loam" type="transformMaintenance" name="transformMaintenance" output="screen">
+    </node>
+    <!-- End LOAM stuff -->
+
+    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
+        <rosparam file="$(find orb_test)/config/common.yaml"/>
+        <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="world_broadcaster"
+          args="0 0 0 0 0 0 1 world camera_link 100"/>
 </launch>

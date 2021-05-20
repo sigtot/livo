@@ -94,6 +94,14 @@ std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
 NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
+  , between_noise_(gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::NoiseBetweenRotation()),
+         gtsam::Vector3::Constant(GlobalParams::NoiseBetweenTranslation()))
+            .finished()))
+  , between_noise_keyframe_(gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::NoiseBetweenRotationKeyframe()),
+         gtsam::Vector3::Constant(GlobalParams::NoiseBetweenTranslationKeyframe()))
+            .finished()))
   , feature_noise_(gtsam::noiseModel::Isotropic::Sigma(2, GlobalParams::NoiseFeature()))
   , feature_m_estimator_(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustFeatureK()))
   , range_noise_(
@@ -179,6 +187,17 @@ void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, doub
   std::cout << "Initializing lmk " << lmk_id << " without depth" << std::endl;
   graph_manager_.InitStructurelessLandmark(lmk_id, frame_id, timestamp, pt, K_, *body_p_cam_, feature_noise_,
                                            feature_m_estimator_);
+}
+
+void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
+                                          const boost::shared_ptr<gtsam::noiseModel::Base>& noise)
+{
+  double offset = 0.056684728;
+  auto between_tf = between_transform_provider_->GetBetweenTransform(timestamp_1 - offset, timestamp_2 - offset);
+  if (between_tf)
+  {
+    graph_manager_.AddBetweenFactor(frame_id_1, frame_id_2, *between_tf, noise);
+  }
 }
 
 void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
@@ -282,6 +301,10 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   }
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
+
+  TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
+                          between_noise_);
+
   auto time_before = std::chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
   auto time_after = std::chrono::system_clock::now();
@@ -499,6 +522,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   }
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
+
+  TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
+                          between_noise_);
+  TryAddBetweenConstraint(last_keyframe_id_, frame->id, added_frames_[last_keyframe_id_]->timestamp, frame->timestamp,
+                          between_noise_keyframe_);
 
   auto time_before = std::chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();

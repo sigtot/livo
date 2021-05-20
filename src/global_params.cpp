@@ -109,6 +109,10 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/noise_params/prior_velocity", GetInstance().prior_noise_velocity);
   ReadVariable(nh, "/orb_test_node/noise_params/between_rotation", GetInstance().noise_between_rotation_);
   ReadVariable(nh, "/orb_test_node/noise_params/between_translation", GetInstance().noise_between_translation_);
+  ReadVariable(nh, "/orb_test_node/noise_params/between_rotation_keyframe",
+               GetInstance().noise_between_rotation_keyframe_);
+  ReadVariable(nh, "/orb_test_node/noise_params/between_translation_keyframe",
+               GetInstance().noise_between_translation_keyframe_);
   ReadVariable(nh, "/orb_test_node/noise_params/feature", GetInstance().noise_feature_);
   ReadVariable(nh, "/orb_test_node/noise_params/range", GetInstance().noise_range_);
   ReadVariable(nh, "/orb_test_node/noise_params/robust_feature_k", GetInstance().robust_feature_k_);
@@ -495,6 +499,14 @@ double GlobalParams::NoiseBetweenTranslation()
 {
   return GetInstance().noise_between_translation_;
 }
+double GlobalParams::NoiseBetweenRotationKeyframe()
+{
+  return GetInstance().noise_between_rotation_keyframe_;
+}
+double GlobalParams::NoiseBetweenTranslationKeyframe()
+{
+  return GetInstance().noise_between_translation_keyframe_;
+}
 double GlobalParams::NoiseFeature()
 {
   return GetInstance().noise_feature_;
@@ -509,7 +521,8 @@ double GlobalParams::RobustFeatureK()
 }
 double GlobalParams::RobustRangeK()
 {
-  return GetInstance().robust_range_k_; }
+  return GetInstance().robust_range_k_;
+}
 bool GlobalParams::LidarDepthEnabled()
 {
   return GetInstance().lidar_depth_enabled_;

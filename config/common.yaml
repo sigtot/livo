@@ -28,7 +28,7 @@ isam_relin_thresh:
   x_translation: 1.0
   v: 0.2
   b: 0.2
-  l: 2.0
+  l: 1.0
 
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
@@ -41,8 +41,10 @@ noise_params:
   prior_gyro: 0.1
   prior_accel: 0.1
   prior_velocity: 0.1
-  between_rotation: 0.1
-  between_translation: 0.1
+  between_rotation: 0.001
+  between_translation: 0.005
+  between_rotation_keyframe: 0.1
+  between_translation_keyframe: 0.2
   feature: 1.0
   range: 0.5
   robust_feature_k: 5
