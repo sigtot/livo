@@ -1,5 +1,6 @@
 #include "keyframe_tracker.h"
 #include "global_params.h"
+#include "feature_helpers.h"
 #include <opencv2/calib3d.hpp>
 #include <utility>
 #include <Initializer.h>
@@ -251,13 +252,7 @@ int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& poin
   cv::Mat K_inv = K.inv();
   for (int i = 0; i < points1.size(); ++i)
   {
-    cv::Mat point1 = (cv::Mat_<double>(3, 1) << points1[i].x, points1[i].y, 1.);
-    cv::Mat point2 = (cv::Mat_<double>(3, 1) << points2[i].x, points2[i].y, 1.);
-    cv::Mat point2_comp = K * H_rot_only * K_inv * point1;
-
-    point2_comp /= point2_comp.at<double>(2, 0);  // Normalize homogeneous coordinate
-    cv::Mat point2_delta = point2 - point2_comp;
-    double dist = std::sqrt(point2_delta.dot(point2_delta));  // This works because last coordinate is zero
+    double dist = ComputePointParallax(points1[i], points2[i], R12, K, K_inv);
     parallaxes[i] = dist;
     if (dist > min_parallax_for_keyframe)
     {
