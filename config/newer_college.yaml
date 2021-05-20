@@ -24,10 +24,10 @@ noise_params:
   prior_gyro: 0.1
   prior_accel: 0.1
   prior_velocity: 0.1
-  between_rotation: 0.001
-  between_translation: 0.001
-  between_rotation_keyframe: 0.01
-  between_translation_keyframe: 0.1
+  between_rotation: 0.0001
+  between_translation: 0.0001
+  between_rotation_keyframe: 0.001
+  between_translation_keyframe: 0.01
   feature: 1.0
   range: 0.5
   robust_feature_k: 5
@@ -42,12 +42,12 @@ init_range_factor_length: 1.0
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
 max_features_per_cell: 3
-max_features: 40
+max_features: 70
 grid_cells_x: 9
 grid_cells_y: 7
-track_count_lower_thresh: 35
+track_count_lower_thresh: 60
 
-min_parallax_for_smoothing: 5
+min_parallax_for_smoothing: 30
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_active_track_count: 20
@@ -92,5 +92,6 @@ use_fixed_lag: true
 smoother_lag: 10
 enable_smart_factors: false
 
+loam_between_factors_enabled: true
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED

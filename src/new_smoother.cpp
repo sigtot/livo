@@ -2,6 +2,7 @@
 #include "global_params.h"
 #include "ground_truth.h"
 #include "gtsam_conversions.h"
+#include "gtsam_helpers.h"
 #include "depth_triangulation.h"
 #include "feature_helpers.h"
 #include "landmark_result.h"
@@ -128,6 +129,47 @@ gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, cons
   return DepthTriangulation::PixelAndDepthToPoint3(pt, depth, camera);
 }
 
+double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
+{
+  // Obtain first observable feature by iterating from the beginning of the track
+  boost::optional<std::shared_ptr<Feature>> first_feature;
+  for (auto& feature : track->features)
+  {
+    if (graph_manager_.IsFrameTracked(feature->frame->id) &&
+        graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+    {
+      first_feature = feature;
+      break;
+    }
+  }
+  if (!first_feature)
+  {
+    return -1;
+  }
+
+  // Obtain last observable feature by iterating backwards from the end of the track
+  boost::optional<std::shared_ptr<Feature>> second_feature;
+  for (auto feature_it = track->features.rbegin(); feature_it != track->features.rend(); ++feature_it)
+  {
+    if (graph_manager_.IsFrameTracked((*feature_it)->frame->id) &&
+        graph_manager_.CanAddObservationsForFrame((*feature_it)->frame->id, (*feature_it)->frame->timestamp))
+    {
+      second_feature = *feature_it;
+      break;
+    }
+  }
+  if (!second_feature || (*first_feature)->frame->id >= (*second_feature)->frame->id)
+  {
+    return -1;
+  }
+
+  // Obtain the rotation between the two frames
+  auto R1 = graph_manager_.GetPose((*first_feature)->frame->id).rotation();
+  auto R2 = graph_manager_.GetPose((*second_feature)->frame->id).rotation();
+  auto R12 = R2.between(R1);
+  return ComputeParallaxWithOpenCV((*first_feature)->pt, (*second_feature)->pt, R12, K_);
+}
+
 void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
                                                   double depth, const gtsam::Pose3& init_pose)
 {
@@ -192,6 +234,10 @@ void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, doub
 void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
                                           const boost::shared_ptr<gtsam::noiseModel::Base>& noise)
 {
+  if (!GlobalParams::LoamBetweenFactorsEnabled())
+  {
+    return;
+  }
   double offset = 0.056684728;
   auto between_tf = between_transform_provider_->GetBetweenTransform(timestamp_1 - offset, timestamp_2 - offset);
   if (between_tf)
@@ -269,6 +315,25 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
   graph_manager_.AddFrame(frame->id, added_frames_[last_keyframe_id_]->timestamp, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
+
+  if (added_frames_.size() > 40)
+  {
+    for (auto& feature_pair : frame->features)
+    {
+      auto feature = feature_pair.second.lock();
+      if (feature)
+      {
+        auto track = feature->track.lock();
+        if (track)
+        {
+          std::cout << "Computing parallax for " << track->id << std::endl;
+          // TODO if track->max_parallax < MinParallaxForSmoothing. Else let it be
+          auto parallax = CalculateParallax(track);
+          track->max_parallax = std::max(parallax, track->max_parallax);
+        }
+      }
+    }
+  }
 
   auto feature_obs_count = 0;
   auto range_obs_count = 0;

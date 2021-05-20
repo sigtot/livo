@@ -134,15 +134,18 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     for (const auto& track : active_tracks_)
     {
-      //double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForKeyframe());
-      double intensity = 255;
-      auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
+      double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForSmoothing());
+      // double intensity = 255;
+      // auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
+      auto non_stationary_color = cv::Scalar(0, intensity, 0);
       auto color = new_frame->stationary ? cv::Scalar(255, 255, 0) : non_stationary_color;
       for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
       {
         cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
       }
       cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
+      cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
+                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
     }
 
     tracks_pub_.publish(tracks_out_img.toImageMsg());
@@ -229,7 +232,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
 
   // After extraction, we want a max of n features per cell, including both new and old features
   // Populate max_feature_counts table with initial max counts
-  Mat_<int> max_feature_counts = Mat::ones(cell_count_y,cell_count_x, CV_8UC1) * max_features_per_cell;
+  Mat_<int> max_feature_counts = Mat::ones(cell_count_y, cell_count_x, CV_8UC1) * max_features_per_cell;
 
   // Decrement the cells that already have features
   if (!frames.empty())
@@ -247,7 +250,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
     }
   }
 
-  std::vector<std::vector<cv::Point2f>> best_corners_vectors; // One vector for each cell
+  std::vector<std::vector<cv::Point2f>> best_corners_vectors;  // One vector for each cell
   size_t most_corners_in_cell = 0;
   for (int cell_x = 0; cell_x < cell_count_x; ++cell_x)
   {
@@ -288,7 +291,7 @@ void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv:
   }
   for (size_t i = 0; i < most_corners_in_cell; ++i)
   {
-    for (auto & best_corners_vector : best_corners_vectors)
+    for (auto& best_corners_vector : best_corners_vectors)
     {
       if (i >= best_corners_vector.size())
       {

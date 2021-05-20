@@ -67,6 +67,7 @@ private:
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
   void TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
                                const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
+  double CalculateParallax(const std::shared_ptr<Track>& track) const;
 
 public:
   explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);

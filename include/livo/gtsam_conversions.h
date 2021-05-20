@@ -21,4 +21,8 @@ Rot3 ToRot(const gtsam::Rot3& gtsam_rot);
 
 gtsam::Matrix3 ToMatrix3(const cv::Mat& mat);
 
+cv::Mat FromMatrix3(const gtsam::Matrix3& matrix3);
+
+cv::Point2f ToCvPoint(const gtsam::Point2& point2);
+
 #endif

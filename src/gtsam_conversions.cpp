@@ -51,3 +51,19 @@ gtsam::Matrix3 ToMatrix3(const cv::Mat& mat)
   cv::cv2eigen(mat, matrix3);
   return matrix3;
 }
+
+cv::Mat FromMatrix3(const gtsam::Matrix3& matrix3)
+{
+  cv::Mat mat;
+  cv::eigen2cv(matrix3, mat);
+  return mat;
+}
+
+cv::Point2f ToCvPoint(const gtsam::Point2& point2)
+{
+  cv::Point2f cv_pt;
+  cv_pt.x = static_cast<float>(point2.x());
+  cv_pt.y = static_cast<float>(point2.y());
+  return cv_pt;
+}
+

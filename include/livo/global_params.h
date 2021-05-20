@@ -128,6 +128,7 @@ private:
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
 
+  bool loam_between_factors_enabled_ = true;
   std::string loam_world_frame_ = "unknown";
   std::string loam_sensor_frame_ = "unknown";
 
@@ -248,6 +249,7 @@ public:
 
   static std::string LoamWorldFrame();
   static std::string LoamSensorFrame();
+  static bool LoamBetweenFactorsEnabled();
 };
 
 #endif
