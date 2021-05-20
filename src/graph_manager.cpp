@@ -358,3 +358,9 @@ bool GraphManager::IsSmartFactorLandmark(int lmk_id) const
   }
   return lmk_in_smoother->second.smart_factor_in_smoother.is_initialized();
 }
+
+void GraphManager::AddBetweenFactor(int frame_id_1, int frame_id_2, const gtsam::Pose3& pose,
+                                    const boost::shared_ptr<gtsam::noiseModel::Base>& between_noise)
+{
+  graph_->add(gtsam::BetweenFactor<gtsam::Pose3>(X(frame_id_1), X(frame_id_2), pose, between_noise));
+}
