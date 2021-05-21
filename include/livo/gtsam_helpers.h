@@ -13,7 +13,8 @@ void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGr
                      const gtsam::Values& values);
 void PrintVariableStatus(const gtsam::ISAM2Result::DetailedResults::VariableStatus& variable_status);
 
-double ComputeParallaxWithOpenCV(const cv::Point2f& point1, const cv::Point2f& point2, const gtsam::Rot3& R12,
-                                 const boost::shared_ptr<gtsam::Cal3_S2>& K);
+double ComputeParallaxWithOpenCV(const gtsam::Point2& point1, const gtsam::Point2& point2,
+                                 const gtsam::Rot3& body1_R_body2, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+                                 const gtsam::Rot3& body_R_cam);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_GTSAM_HELPERS_H_

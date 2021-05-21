@@ -25,4 +25,6 @@ cv::Mat FromMatrix3(const gtsam::Matrix3& matrix3);
 
 cv::Point2f ToCvPoint(const gtsam::Point2& point2);
 
+gtsam::Point2 FromCvPoint(const cv::Point2f& cv_pt);
+
 #endif

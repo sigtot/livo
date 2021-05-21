@@ -25,13 +25,11 @@ void PrintVariableStatus(const gtsam::ISAM2Result::DetailedResults::VariableStat
   std::cout << "inRootClique: " << variable_status.inRootClique << std::endl;
 }
 
-double ComputeParallaxWithOpenCV(const cv::Point2f& point1, const cv::Point2f& point2, const gtsam::Rot3& R12,
-                               const boost::shared_ptr<gtsam::Cal3_S2>& K)
+double ComputeParallaxWithOpenCV(const gtsam::Point2& point1, const gtsam::Point2& point2,
+                                 const gtsam::Rot3& body1_R_body2, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+                                 const gtsam::Rot3& body_R_cam)
 {
-  // TODO pass directly instead of copy
-  auto R12_cv = FromMatrix3(R12.matrix());
-  auto K_cv = FromMatrix3(K->K());
-  auto K_cv_inv = FromMatrix3(K->inverse());
-
-  return ComputePointParallax(point1, point2, R12_cv, K_cv, K_cv_inv);
+  auto cam1_R_cam2 = body_R_cam.inverse() * body1_R_body2 * body_R_cam;
+  return ComputePointParallax(ToCvPoint(point1), ToCvPoint(point2), FromMatrix3(cam1_R_cam2.matrix()),
+                              FromMatrix3(K->K()), FromMatrix3(K->inverse()));
 }

@@ -77,6 +77,8 @@ public:
   void AddFrame(const std::shared_ptr<Frame>& frame);
   void AddKeyframe(const std::shared_ptr<Frame>& frame);
 
+  void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);
+
   void GetPoses(std::map<int, Pose3Stamped>& poses) const;
   void GetLandmarks(std::map<int, LandmarkResult>& landmarks) const;
 

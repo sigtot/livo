@@ -67,3 +67,7 @@ cv::Point2f ToCvPoint(const gtsam::Point2& point2)
   return cv_pt;
 }
 
+gtsam::Point2 FromCvPoint(const cv::Point2f& cv_pt)
+{
+  return { cv_pt.x, cv_pt.y };
+}

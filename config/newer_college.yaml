@@ -47,7 +47,7 @@ grid_cells_x: 9
 grid_cells_y: 7
 track_count_lower_thresh: 60
 
-min_parallax_for_smoothing: 30
+min_parallax_for_smoothing: 50
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_active_track_count: 20
@@ -92,6 +92,6 @@ use_fixed_lag: true
 smoother_lag: 10
 enable_smart_factors: false
 
-loam_between_factors_enabled: true
+loam_between_factors_enabled: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED

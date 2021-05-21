@@ -42,6 +42,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
   if (new_backend_.IsInitialized())
   {
+    new_backend_.UpdateTrackParallaxes(new_frame);
     if (new_frame->is_keyframe)
     {
       new_backend_.AddKeyframe(new_frame);

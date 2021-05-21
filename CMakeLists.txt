@@ -160,6 +160,7 @@ catkin_add_gtest(livo_tests
         tests/graph_manager_tests_landmarks.cpp
         tests/graph_manager_tests_complete.cpp
         tests/graph_manager_tests_fixed_lag.cpp
+        tests/parallax_calculation_tests.cpp
         tests/helpers.cpp
         tests/helpers.h
         src/graph_manager.cpp
@@ -167,6 +168,9 @@ catkin_add_gtest(livo_tests
         src/isam2_solver.cpp
         src/incremental_fixed_lag_solver.cpp
         src/incremental_fixed_lag_smoother_patched.cpp
+        src/gtsam_helpers.cpp
+        src/gtsam_conversions.cpp
+        src/feature_helpers.cpp
         tests/fixed_lag_smoother_patched_tests.cpp)
 target_link_libraries(livo_tests gtsam gtsam_unstable ${catkin_LIBRARIES})
 

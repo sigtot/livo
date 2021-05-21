@@ -166,8 +166,10 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   // Obtain the rotation between the two frames
   auto R1 = graph_manager_.GetPose((*first_feature)->frame->id).rotation();
   auto R2 = graph_manager_.GetPose((*second_feature)->frame->id).rotation();
-  auto R12 = R2.between(R1);
-  return ComputeParallaxWithOpenCV((*first_feature)->pt, (*second_feature)->pt, R12, K_);
+  auto R12 = R1.between(R2);
+  auto pt1 = FromCvPoint((*first_feature)->pt);
+  auto pt2 = FromCvPoint((*second_feature)->pt);
+  return ComputeParallaxWithOpenCV(pt1, pt2, R12, K_, body_p_cam_->rotation());
 }
 
 void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
@@ -306,6 +308,26 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
   initialized_ = true;
 }
 
+void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
+{
+  if (added_frames_.size() > GlobalParams::MinKeyframesForNominal())
+  {
+    for (auto& feature_pair : frame->features)
+    {
+      auto feature = feature_pair.second.lock();
+      if (feature)
+      {
+        auto track = feature->track.lock();
+        if (track && track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+        {
+          auto parallax = CalculateParallax(track);
+          track->max_parallax = std::max(parallax, track->max_parallax);
+        }
+      }
+    }
+  }
+}
+
 void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
 {
   imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
@@ -315,25 +337,6 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
   graph_manager_.AddFrame(frame->id, added_frames_[last_keyframe_id_]->timestamp, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
-
-  if (added_frames_.size() > 40)
-  {
-    for (auto& feature_pair : frame->features)
-    {
-      auto feature = feature_pair.second.lock();
-      if (feature)
-      {
-        auto track = feature->track.lock();
-        if (track)
-        {
-          std::cout << "Computing parallax for " << track->id << std::endl;
-          // TODO if track->max_parallax < MinParallaxForSmoothing. Else let it be
-          auto parallax = CalculateParallax(track);
-          track->max_parallax = std::max(parallax, track->max_parallax);
-        }
-      }
-    }
-  }
 
   auto feature_obs_count = 0;
   auto range_obs_count = 0;
