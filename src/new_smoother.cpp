@@ -312,6 +312,8 @@ void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
 {
   if (added_frames_.size() > GlobalParams::MinKeyframesForNominal())
   {
+    int count = 0;
+    auto time_before = std::chrono::system_clock::now();
     for (auto& feature_pair : frame->features)
     {
       auto feature = feature_pair.second.lock();
@@ -322,9 +324,14 @@ void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
         {
           auto parallax = CalculateParallax(track);
           track->max_parallax = std::max(parallax, track->max_parallax);
+          count++;
         }
       }
     }
+    auto time_after = std::chrono::system_clock::now();
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
+    double millis = static_cast<double>(micros.count()) / 1000.;
+    std::cout << "Computed parallaxes for " << count << " tracks (took " << millis << "ms)" <<  std::endl;
   }
 }
 
@@ -385,15 +392,24 @@ void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
   last_frame_id_ = frame->id;
 }
 
-void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
+void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe)
 {
-  std::cout << "Adding kf " << last_keyframe_id_ << " -> " << frame->id << std::endl;
+  auto timestamp_for_values = is_keyframe ? frame->timestamp : added_frames_[last_keyframe_id_]->timestamp;
+
+  if (is_keyframe)
+  {
+    std::cout << "Adding kf " << last_keyframe_id_ << " -> " << frame->id << std::endl;
+  }
+  else
+  {
+    std::cout << "Adding regular frame " << frame->id << std::endl;
+  }
   imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
   auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);
   auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, frame->timestamp, pim, predicted_nav_state, prev_bias);
+  graph_manager_.AddFrame(frame->id, timestamp_for_values, pim, predicted_nav_state, prev_bias);
   imu_integrator_.ResetIntegration();
 
   std::map<int, std::weak_ptr<Feature>> existing_features;
@@ -429,6 +445,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
     {
       continue;
     }
+    // TODO rewrite this. Seems buggy. Probably best to rethink it completely
     if (track->HasDepth())
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
@@ -463,10 +480,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           // We do however need to use the first seen feature in the call to InitProjectionLandmark,
           // as we can only add observations that come after this frame.
           auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
+          // Careful with this. May be something weird going on with the timestamp
           graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp,
                                                 first_feature_pt, init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, frame->timestamp, *feature->depth,
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, *feature->depth,
                                              range_noise_);
           frame_id_used_for_init = (*frame_first_seen)->id;
           obs_count++;
@@ -474,7 +492,10 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
           break;
         }
       }
-      assert(frame_id_used_for_init != -1);
+      if(frame_id_used_for_init == -1)
+      {
+        std::cout << "WARN: " << track->id << " reports to have depth but could not find any."  << std::endl;
+      }
 
       // After initialization, add observations for all other features in the track
       for (auto& feature : track->features)
@@ -492,12 +513,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
             auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, *feature->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, frame->timestamp, init_point);
+            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, timestamp_for_values, init_point);
           }
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, frame->timestamp, *feature->depth,
+          graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, *feature->depth,
                                              range_noise_);
         }
-        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, frame->timestamp, gtsam_pt, K_,
+        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values, gtsam_pt, K_,
                                               *body_p_cam_);
         obs_count++;
       }
@@ -517,7 +538,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         {
           if (graph_manager_.CanAddObservation(track->id, feature->frame->id))
           {
-            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, frame->timestamp,
+            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values,
                                                   gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
             obs_count++;
           }
@@ -581,21 +602,24 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
         auto track = feature->track.lock();
         assert(track);
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, frame->timestamp, init_point);
+        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, timestamp_for_values, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, frame->timestamp, *feature->depth, range_noise_);
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, timestamp_for_values, *feature->depth, range_noise_);
       range_obs_count++;
     }
     feature_obs_count++;
-    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, frame->timestamp, gtsam_pt, K_, *body_p_cam_);
+    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, timestamp_for_values, gtsam_pt, K_, *body_p_cam_);
   }
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
 
   TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
                           between_noise_);
-  TryAddBetweenConstraint(last_keyframe_id_, frame->id, added_frames_[last_keyframe_id_]->timestamp, frame->timestamp,
-                          between_noise_keyframe_);
+  if (is_keyframe)
+  {
+    TryAddBetweenConstraint(last_keyframe_id_, frame->id, added_frames_[last_keyframe_id_]->timestamp, frame->timestamp,
+                            between_noise_keyframe_);
+  }
 
   auto time_before = std::chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
@@ -607,8 +631,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame)
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
 
   added_frames_[frame->id] = frame;
-  last_keyframe_id_ = frame->id;
   last_frame_id_ = frame->id;
+
+  if (is_keyframe)
+  {
+    last_keyframe_id_ = frame->id;
+  }
 }
 
 void NewSmoother::GetPoses(std::map<int, Pose3Stamped>& poses) const

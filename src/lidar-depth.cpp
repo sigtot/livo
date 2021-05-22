@@ -94,21 +94,36 @@ boost::optional<float> getDirectDepthFromPatch(const cv::Mat& depthPatch, const 
   // Loop though non-zero points
   static const cv::Point2i ctrPt(GlobalParams::LidarDepthSearchWindowWidth() / 2,
                                  GlobalParams::LidarDepthSearchWindowHeight() / 2);
-  int topCount = 0, bottomCount = 0;
   // Calculate Mean Depth
   float meanDep = 0.0;
+  std::vector<bool> in_quadrant = {false, false, false, false}; // ccw: top right, top left, bottom left, bottom right
   for (auto& roiPt : ROInonZeroLoc)
   {
     meanDep += depthPatch.at<float>(roiPt);
     // Check if point is above or below the center
-    if (roiPt.y < ctrPt.y)
-      ++topCount;
-    else
-      ++bottomCount;
+    auto top = roiPt.y > ctrPt.y;
+    auto bottom = !top;
+    auto right = roiPt.x > ctrPt.x;
+    auto left = !right;
+    if (top && right)
+    {
+      in_quadrant[0] = true;
+    }
+    if (top && left)
+    {
+      in_quadrant[1] = true;
+    }
+    if (bottom && left)
+    {
+      in_quadrant[2] = true;
+    }
+    if (bottom && right)
+    {
+      in_quadrant[3] = true;
+    }
   }
   meanDep /= ROInonZeroLoc.size();
-  // Single Beam - No information of planarity
-  if (topCount < 2 || bottomCount < 2)
+  if (!std::all_of(in_quadrant.begin(), in_quadrant.end(), [](bool x) {return x;}))
   {
     return boost::none;
   }

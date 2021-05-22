@@ -170,7 +170,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/lidar_depth/max_allowed_feature_distance",
                GetInstance().lidar_depth_max_allowed_feature_distance_);
 
-  ReadVariable(nh, "/orb_test_node/loam_between_factors_enabled_", GetInstance().loam_between_factors_enabled_);
+  ReadVariable(nh, "/orb_test_node/loam_between_factors_enabled", GetInstance().loam_between_factors_enabled_);
   ReadVariable(nh, "/orb_test_node/loam_world_frame", GetInstance().loam_world_frame_);
   ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
 }

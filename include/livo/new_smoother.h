@@ -75,7 +75,7 @@ public:
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
   void AddFrame(const std::shared_ptr<Frame>& frame);
-  void AddKeyframe(const std::shared_ptr<Frame>& frame);
+  void AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe);
 
   void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);
 

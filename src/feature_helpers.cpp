@@ -24,12 +24,5 @@ double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2
   cv::Mat point2_delta = point2_mat - point2_comp;
   double dist = std::sqrt(point2_delta.dot(point2_delta));  // This works because last coordinate is zero
 
-  std::cout << R12 << std::endl;
-  std::cout << "p1: " << point1 << std::endl;
-  std::cout << "p2: " << point2 << std::endl;
-  std::cout << "p1 mat: " << point1_mat << std::endl;
-  std::cout << "p2 mat: " << point2_mat << std::endl;
-  std::cout << "p2 cmp: " << point2_comp << std::endl;
-  std::cout << "dist: " << dist << std::endl;
   return dist;
 }
