@@ -62,8 +62,8 @@ body_p_cam_vec: [ -0.0442, 0.0173, -0.0158 ]
 body_p_imu_quat: [ -0.5, 0.5, -0.5, 0.5 ]
 body_p_imu_vec: [ 0, 0, 0 ]
 
-body_p_lidar_quat: [ 0, 0, 0.9238795, 0.3826834 ]
-body_p_lidar_vec: [ 0, 0, 0 ] # TODO fix
+body_p_lidar_quat: [ 0.012304, -0.00245306, 0.922885, 0.384608 ]
+body_p_lidar_vec: [ -0.116264, 0.0147896, -0.0244143 ]
 
 image_width: 848
 image_height: 480
@@ -82,7 +82,7 @@ lidar_depth:
   search_window_width: 7
   search_window_height: 7
   min_non_zero_neighbors: 4
-  max_allowed_feature_distance: 100
+  max_allowed_feature_distance: 30
 
 dynamic_outlier_rejection_threshold: 15.0
 landmark_distance_threshold: 15
