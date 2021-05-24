@@ -251,6 +251,8 @@ void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double
 void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
                              const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps)
 {
+  keyframe_timestamps_.AddKeyframeTimestamp(frame->timestamp);
+
   auto unrefined_init_pose =
       GlobalParams::InitOnGroundTruth() ? ToGtsamPose(GroundTruth::At(frame->timestamp)) : gtsam::Pose3();
   auto refined_init_pose = gtsam::Pose3(
@@ -331,70 +333,22 @@ void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
     auto time_after = std::chrono::system_clock::now();
     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
     double millis = static_cast<double>(micros.count()) / 1000.;
-    std::cout << "Computed parallaxes for " << count << " tracks (took " << millis << "ms)" <<  std::endl;
+    std::cout << "Computed parallaxes for " << count << " tracks (took " << millis << "ms)" << std::endl;
   }
-}
-
-void NewSmoother::AddFrame(const std::shared_ptr<Frame>& frame)
-{
-  imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
-  auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
-  auto prev_bias = graph_manager_.GetBias(last_frame_id_);
-  auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
-  auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, added_frames_[last_keyframe_id_]->timestamp, pim, predicted_nav_state, prev_bias);
-  imu_integrator_.ResetIntegration();
-
-  auto feature_obs_count = 0;
-  auto range_obs_count = 0;
-  for (auto& feature_pair : frame->features)
-  {
-    auto lmk_id = feature_pair.first;
-    auto feature = feature_pair.second.lock();
-    if (!feature || !graph_manager_.CanAddObservation(lmk_id, frame->id))
-    {
-      continue;
-    }
-    gtsam::Point2 gtsam_pt(feature->pt.x, feature->pt.y);
-    if (feature->depth)
-    {
-      if (graph_manager_.IsSmartFactorLandmark(lmk_id))
-      {
-        auto track = feature->track.lock();
-        assert(track);
-        auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, *feature->depth);
-        graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, added_frames_[last_keyframe_id_]->timestamp,
-                                                            init_point);
-      }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, added_frames_[last_keyframe_id_]->timestamp,
-                                         *feature->depth, range_noise_);
-      range_obs_count++;
-    }
-    graph_manager_.AddLandmarkObservation(lmk_id, frame->id, added_frames_[last_keyframe_id_]->timestamp, gtsam_pt, K_,
-                                          *body_p_cam_);
-    feature_obs_count++;
-  }
-
-  std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
-
-  TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
-                          between_noise_);
-
-  auto time_before = std::chrono::system_clock::now();
-  auto isam_result = graph_manager_.Update();
-  auto time_after = std::chrono::system_clock::now();
-  DebugValuePublisher::PublishRelinearizedCliques(static_cast<int>(isam_result.variablesRelinearized));
-  DebugValuePublisher::PublishReeliminatedCliques(static_cast<int>(isam_result.variablesReeliminated));
-  DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
-  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
-  DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
-  added_frames_[frame->id] = frame;
-  last_frame_id_ = frame->id;
 }
 
 void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe)
 {
-  auto timestamp_for_values = is_keyframe ? frame->timestamp : added_frames_[last_keyframe_id_]->timestamp;
+  if (frame->is_keyframe)
+  {
+    keyframe_timestamps_.AddKeyframeTimestamp(frame->timestamp);
+  }
+  auto timestamp_for_values = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(frame->timestamp);
+  if (!timestamp_for_values)
+  {
+    std::cout << "Got boost::none from keyframe_timestamps_. Maybe we received out of order frames?" << std::endl;
+    exit(1);
+  }
 
   if (is_keyframe)
   {
@@ -445,7 +399,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
     {
       continue;
     }
-    // TODO rewrite this. Seems buggy. Probably best to rethink it completely
+    // TODO rewrite this. Seems buggy.
     if (track->HasDepth())
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
@@ -481,8 +435,9 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           // as we can only add observations that come after this frame.
           auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
           // Careful with this. May be something weird going on with the timestamp
-          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, (*frame_first_seen)->timestamp,
-                                                first_feature_pt, init_point_estimate, K_, *body_p_cam_, feature_noise_,
+          auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp((*frame_first_seen)->timestamp);
+          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, ts_for_init, first_feature_pt,
+                                                init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
           graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, *feature->depth,
                                              range_noise_);
@@ -492,9 +447,9 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           break;
         }
       }
-      if(frame_id_used_for_init == -1)
+      if (frame_id_used_for_init == -1)
       {
-        std::cout << "WARN: " << track->id << " reports to have depth but could not find any."  << std::endl;
+        std::cout << "WARN: " << track->id << " reports to have depth but could not find any." << std::endl;
       }
 
       // After initialization, add observations for all other features in the track
@@ -557,8 +512,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
               track->rejected = true;
               goto for_tracks;
             }
-            auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id,
-                                                                    feature->frame->timestamp, track);
+            auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(feature->frame->timestamp);
+            auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id, ts_for_init, track);
             if (!success)
             {
               track->rejected = true;

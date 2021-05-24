@@ -10,6 +10,7 @@
 #include "point3.h"
 #include "landmark_result.h"
 #include "between_transform_provider.h"
+#include "keyframe_timestamps.h"
 
 #include <utility>
 #include <map>
@@ -56,6 +57,7 @@ private:
 
   // Dependencies
   std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
+  KeyframeTimestamps keyframe_timestamps_;
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
 
@@ -74,7 +76,6 @@ public:
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
-  void AddFrame(const std::shared_ptr<Frame>& frame);
   void AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe);
 
   void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);

@@ -3,13 +3,13 @@ void KeyframeTimestamps::AddKeyframeTimestamp(double timestamp)
 {
   timestamps_.insert(timestamp);
 }
-boost::optional<double> KeyframeTimestamps::GetMostRecentKeyframeTimestamp(double timestamp)
+double KeyframeTimestamps::GetMostRecentKeyframeTimestamp(double timestamp)
 {
-  auto lower_bound = timestamps_.lower_bound(timestamp);
-  if (lower_bound == timestamps_.begin())
+  auto upper_bound = timestamps_.upper_bound(timestamp);
+  if (upper_bound == timestamps_.begin())
   {
-    return boost::none;
+    return 0.0;
   }
-  lower_bound--;
-  return *lower_bound;
+  upper_bound--;
+  return *upper_bound;
 }

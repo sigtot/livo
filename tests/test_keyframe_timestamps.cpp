@@ -8,7 +8,15 @@ TEST(KeyframeTimestamps, GetsMostRecentKeyframeTimestamp)
   timestamps.AddKeyframeTimestamp(4.0);
   timestamps.AddKeyframeTimestamp(6.0);
 
-  EXPECT_DOUBLE_EQ(*timestamps.GetMostRecentKeyframeTimestamp(5.0), 4.0);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(5.0), 4.0);
+}
+
+TEST(KeyframeTimestamps, SameTimestampGivesItself)
+{
+  KeyframeTimestamps timestamps;
+  timestamps.AddKeyframeTimestamp(4.0);
+
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(4.0), 4.0);
 }
 
 TEST(KeyframeTimestamps, GetsLastElementWhenPastEnd)
@@ -17,8 +25,7 @@ TEST(KeyframeTimestamps, GetsLastElementWhenPastEnd)
   timestamps.AddKeyframeTimestamp(4.0);
   timestamps.AddKeyframeTimestamp(6.0);
 
-  EXPECT_TRUE(timestamps.GetMostRecentKeyframeTimestamp(7.0).is_initialized());
-  EXPECT_DOUBLE_EQ(*timestamps.GetMostRecentKeyframeTimestamp(7.0), 6.0);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(7.0), 6.0);
 }
 
 TEST(KeyframeTimestamps, GetsNoneWhenBeforeStart)
@@ -27,7 +34,7 @@ TEST(KeyframeTimestamps, GetsNoneWhenBeforeStart)
   timestamps.AddKeyframeTimestamp(4.0);
   timestamps.AddKeyframeTimestamp(6.0);
 
-  EXPECT_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), boost::none);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), 0.0);
 }
 
 TEST(KeyframeTimestamps, GetsOnlyElementIfAfter)
@@ -35,8 +42,7 @@ TEST(KeyframeTimestamps, GetsOnlyElementIfAfter)
   KeyframeTimestamps timestamps;
   timestamps.AddKeyframeTimestamp(4.0);
 
-  EXPECT_TRUE(timestamps.GetMostRecentKeyframeTimestamp(5.0).is_initialized());
-  EXPECT_DOUBLE_EQ(*timestamps.GetMostRecentKeyframeTimestamp(5.0), 4.0);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(5.0), 4.0);
 }
 
 TEST(KeyframeTimestamps, DoesNotGetOnlyElementIfBefore)
@@ -44,12 +50,12 @@ TEST(KeyframeTimestamps, DoesNotGetOnlyElementIfBefore)
   KeyframeTimestamps timestamps;
   timestamps.AddKeyframeTimestamp(4.0);
 
-  EXPECT_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), boost::none);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), 0.0);
 }
 
 TEST(KeyframeTimestamps, WhenEmptyReturnsNone)
 {
   KeyframeTimestamps timestamps;
 
-  EXPECT_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), boost::none);
+  EXPECT_DOUBLE_EQ(timestamps.GetMostRecentKeyframeTimestamp(3.0), 0.0);
 }
