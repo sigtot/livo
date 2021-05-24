@@ -11,6 +11,7 @@
 #include "landmark_result.h"
 #include "between_transform_provider.h"
 #include "keyframe_timestamps.h"
+#include "time_offset_provider.h"
 
 #include <utility>
 #include <map>
@@ -57,6 +58,7 @@ private:
 
   // Dependencies
   std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
+  std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider_;
   KeyframeTimestamps keyframe_timestamps_;
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
@@ -72,7 +74,8 @@ private:
   double CalculateParallax(const std::shared_ptr<Track>& track) const;
 
 public:
-  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue);
+  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
+                       std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider);
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);

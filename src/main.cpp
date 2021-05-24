@@ -76,7 +76,7 @@ int main(int argc, char** argv)
   }
   LidarFrameManager lidar_frame_manager;
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
-  NewSmoother new_smoother(imu_queue);
+  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);

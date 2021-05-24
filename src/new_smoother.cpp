@@ -92,7 +92,7 @@ std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
   return std::make_shared<ISAM2Solver>(MakeISAM2Params());
 }
 
-NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
+NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
   , between_noise_(gtsam::noiseModel::Diagonal::Sigmas(
@@ -110,6 +110,7 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue)
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
   , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
+  , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , between_transform_provider_(std::make_shared<TF2BetweenTransformProvider>(
         gtsam::Pose3(gtsam::Rot3::Quaternion(GlobalParams::BodyPLidarQuat()[3], GlobalParams::BodyPLidarQuat()[0],
                                              GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
@@ -240,8 +241,9 @@ void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double
   {
     return;
   }
-  double offset = 0.056684728;
-  auto between_tf = between_transform_provider_->GetBetweenTransform(timestamp_1 - offset, timestamp_2 - offset);
+  double offset_1 = lidar_time_offset_provider_->GetOffset(timestamp_1);
+  double offset_2 = lidar_time_offset_provider_->GetOffset(timestamp_2);
+  auto between_tf = between_transform_provider_->GetBetweenTransform(timestamp_1 - offset_1, timestamp_2 - offset_2);
   if (between_tf)
   {
     graph_manager_.AddBetweenFactor(frame_id_1, frame_id_2, *between_tf, noise);
