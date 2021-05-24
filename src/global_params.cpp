@@ -69,6 +69,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/ground_truth_file", GetInstance().ground_truth_file_);
   ReadVariable(nh, "/orb_test_node/ground_truth_provider", GetInstance().ground_truth_provider_);
   ReadVariable(nh, "/orb_test_node/lidar_time_offset_file", GetInstance().lidar_time_offset_file_);
+  ReadVariable(nh, "/orb_test_node/lidar_time_offset_type", GetInstance().lidar_time_offset_type_);
   ReadVariable(nh, "/orb_test_node/init_on_ground_truth", GetInstance().init_on_ground_truth_);
   ReadVariable(nh, "/orb_test_node/match_max_distance", GetInstance().match_max_distance_);
   ReadVariable(nh, "/orb_test_node/init_keyframe_interval", GetInstance().init_keyframe_interval_);
@@ -232,6 +233,10 @@ std::string GlobalParams::GroundTruthProvider()
 std::string GlobalParams::LidarTimeOffsetFile()
 {
   return GetInstance().lidar_time_offset_file_;
+}
+std::string GlobalParams::LidarTimeOffsetType()
+{
+  return GetInstance().lidar_time_offset_type_;
 }
 bool GlobalParams::InitOnGroundTruth()
 {

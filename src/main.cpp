@@ -17,6 +17,7 @@
 #include "debug_value_publisher.h"
 #include "imu_ground_truth_smoother.h"
 #include "newer_college_lidar_time_offset_provider.h"
+#include "zero_time_offset_provider.h"
 
 #include <memory>
 
@@ -58,7 +59,21 @@ int main(int argc, char** argv)
   auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
   auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000, true);
   auto landmarks_pub = nh.advertise<visualization_msgs::MarkerArray>("/landmarks", 1000);
-  NewerCollegeLidarTimeOffsetProvider newer_college_lidar_offsets(GlobalParams::LidarTimeOffsetFile());
+  std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider;
+  if (GlobalParams::LidarTimeOffsetType() == "newer_college")
+  {
+    lidar_time_offset_provider =
+        std::make_shared<NewerCollegeLidarTimeOffsetProvider>(GlobalParams::LidarTimeOffsetFile());
+  }
+  else if (GlobalParams::LidarTimeOffsetType() == "zero")
+  {
+    lidar_time_offset_provider = std::make_shared<ZeroTimeOffsetProvider>();
+  }
+  else
+  {
+    ROS_FATAL("Invalid lidar time offset provider");
+    exit(1);
+  }
   LidarFrameManager lidar_frame_manager;
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
   NewSmoother new_smoother(imu_queue);

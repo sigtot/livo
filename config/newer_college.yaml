@@ -6,6 +6,7 @@ resize_factor: 1.0
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
 lidar_time_offset_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/time_offsets.csv
 ground_truth_provider: newer_college
+lidar_time_offset_type: newer_college
 init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
