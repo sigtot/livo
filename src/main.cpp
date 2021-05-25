@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     ROS_FATAL("Invalid lidar time offset provider");
     exit(1);
   }
-  LidarFrameManager lidar_frame_manager;
+  LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider);
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);

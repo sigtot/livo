@@ -86,6 +86,8 @@ lidar_depth:
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 30
 
+lidar_frame_manager_timestamp_thresh: 0.02
+
 dynamic_outlier_rejection_threshold: 15.0
 landmark_distance_threshold: 15
 proj_landmark_init_dist_thresh: 15.0

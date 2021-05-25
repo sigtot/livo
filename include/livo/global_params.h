@@ -31,6 +31,7 @@ private:
   std::string ground_truth_provider_ = "newer_college";  // Possible values: newer_college, euroc
   std::string lidar_time_offset_file_ = "/path/to/time_offsets.csv";
   std::string lidar_time_offset_type_ = "newer_college";  // Possible values: newer_college, zero
+  double lidar_frame_manager_timestamp_thresh_ = 0.05;
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
   double min_parallax_for_smoothing_ = 5.;  // Points need higher parallax than this to be added to the smoother
@@ -156,6 +157,7 @@ public:
   static std::string GroundTruthProvider();
   static std::string LidarTimeOffsetFile();
   static std::string LidarTimeOffsetType();
+  static double LidarFrameManagerTimestampThresh();
   static bool InitOnGroundTruth();
   static double MatchMaxDistance();
   static int InitKeyframeInterval();

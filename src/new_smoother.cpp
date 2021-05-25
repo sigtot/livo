@@ -92,7 +92,8 @@ std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
   return std::make_shared<ISAM2Solver>(MakeISAM2Params());
 }
 
-NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider)
+NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
+                         std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider)
   : K_(gtsam::make_shared<gtsam::Cal3_S2>(GlobalParams::CamFx(), GlobalParams::CamFy(), 0.0, GlobalParams::CamU0(),
                                           GlobalParams::CamV0()))
   , between_noise_(gtsam::noiseModel::Diagonal::Sigmas(
