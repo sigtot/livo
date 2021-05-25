@@ -588,6 +588,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
 
+  auto bias = graph_manager_.GetBias(frame->id);
+  std::vector<double> bias_acc = { bias.accelerometer().x(), bias.accelerometer().y(), bias.accelerometer().z() };
+  std::vector<double> bias_gyro = { bias.gyroscope().x(), bias.gyroscope().y(), bias.gyroscope().z() };
+  DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
+
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
 
