@@ -35,6 +35,7 @@ private:
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
   double min_parallax_for_smoothing_ = 5.;  // Points need higher parallax than this to be added to the smoother
+  double min_parallax_for_smoothing_depth_ = 5.; // Depth features need higher parallax than this for smoothing
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
 
@@ -48,6 +49,8 @@ private:
   int track_count_lower_thresh_ = 100;
   double track_nms_squared_dist_thresh_ = 16.;
   int min_track_length_for_smoothing_ = 15;
+  int min_track_length_for_smoothing_depth_ = 15.;
+  int min_depth_measurements_for_smoothing_ = 3.; // Need more than n depth measurements to add as depth feat
   double image_edge_padding_percent_ = 0.05;
   double stationary_thresh_ = 0.5;
   int init_keyframe_interval_ = 6;
@@ -165,6 +168,7 @@ public:
   static bool AddEssentialMatrixConstraints();
   static double MinKeyframeFeatureInlierRatio();
   static double MinParallaxForSmoothing();
+  static double MinParallaxForSmoothingDepth();
   static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
   static int MinActiveTrackCount();
@@ -194,6 +198,8 @@ public:
   static int TrackCountLowerThresh();
   static double TrackNMSSquaredDistThresh();
   static int MinTrackLengthForSmoothing();
+  static int MinTrackLengthForSmoothingDepth();
+  static int MinDepthMeasurementsForSmoothing();
   static double ImageEdgePaddingPercent();
   static double StationaryThresh();
 

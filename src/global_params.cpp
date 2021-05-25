@@ -397,6 +397,14 @@ int GlobalParams::MinTrackLengthForSmoothing()
 {
   return GetInstance().min_track_length_for_smoothing_;
 }
+int GlobalParams::MinTrackLengthForSmoothingDepth()
+{
+  return GetInstance().min_track_length_for_smoothing_depth_;
+}
+int GlobalParams::MinDepthMeasurementsForSmoothing()
+{
+  return GetInstance().min_depth_measurements_for_smoothing_;
+}
 double GlobalParams::ImageEdgePaddingPercent()
 {
   return GetInstance().image_edge_padding_percent_;
@@ -412,6 +420,10 @@ double GlobalParams::MinKeyframeFeatureInlierRatio()
 double GlobalParams::MinParallaxForSmoothing()
 {
   return GetInstance().min_parallax_for_smoothing_;
+}
+double GlobalParams::MinParallaxForSmoothingDepth()
+{
+  return GetInstance().min_parallax_for_smoothing_depth_;
 }
 double GlobalParams::NumHighParallaxPointsForKeyframe()
 {

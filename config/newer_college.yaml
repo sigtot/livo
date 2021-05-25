@@ -50,8 +50,11 @@ grid_cells_y: 7
 track_count_lower_thresh: 30
 
 min_parallax_for_smoothing: 15
+min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
+min_track_length_for_smoothing_depth: 7
+min_depth_measurements_for_smoothing: 3
 min_active_track_count: 20
 
 use_parallax_keyframes: false

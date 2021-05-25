@@ -403,7 +403,9 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       continue;
     }
     // TODO rewrite this. Seems buggy.
-    if (track->HasDepth())
+    if (track->HasDepth() && track->max_parallax > GlobalParams::MinParallaxForSmoothingDepth() &&
+        track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
+        track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing())
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
       // First, we need to get frame we first observed the features from, because this will be used

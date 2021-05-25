@@ -11,6 +11,7 @@ num_good_keyframes_for_initialization: 20
 add_essential_matrix_constraints: false
 min_keyframe_feature_inlier_ratio: 0.75
 min_parallax_for_smoothing: 5
+min_parallax_for_smoothing_depth: 0
 max_parallax_rotation_compensation: 200
 num_high_parallax_points_for_keyframe: 15
 min_active_track_count: 20
@@ -75,6 +76,8 @@ feature_extraction_interval: 20
 track_count_lower_thresh: 50
 track_nms_squared_dist_thresh: 1200.
 min_track_length_for_smoothing: 5
+min_track_length_for_smoothing_depth: 5
+min_depth_measurements_for_smoothing: 3
 image_edge_padding_percent: .05
 stationary_thresh: 0.5
 

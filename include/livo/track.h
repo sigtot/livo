@@ -23,6 +23,8 @@ struct Track
   double InlierRatio() const;
 
   bool HasDepth() const;
+
+  size_t DepthFeatureCount() const;
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_

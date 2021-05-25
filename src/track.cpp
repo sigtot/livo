@@ -13,7 +13,14 @@ double Track::InlierRatio() const
 
 bool Track::HasDepth() const
 {
-  return std::find_if(features.begin(), features.end(), [](const std::shared_ptr<Feature>& feature) -> bool {
+  return std::find_if(features.begin(), features.end(), [](const std::shared_ptr<Feature>& feature) {
            return feature->depth.is_initialized();
          }) != features.end();
+}
+
+size_t Track::DepthFeatureCount() const
+{
+  return std::count_if(features.begin(), features.end(), [](const std::shared_ptr<Feature>& feature) {
+    return feature->depth.is_initialized();
+  });
 }
