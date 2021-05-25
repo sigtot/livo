@@ -107,6 +107,7 @@ private:
   double dynamic_outlier_rejection_threshold_ = 8.0;
   double landmark_distance_threshold_ = 15.;    // Smart factors with larger distance than this are marked degenerate
   double proj_landmark_init_dist_thresh_ = 6.;  // Triangulated proj factors are only added if closer than this dist
+  int extra_isam2_update_steps_ = 0;
 
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
@@ -232,6 +233,7 @@ public:
   static double DynamicOutlierRejectionThreshold();
   static double LandmarkDistanceThreshold();
   static double ProjLandmarkInitDistanceThresh();
+  static int ExtraISAM2UpdateSteps();
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();

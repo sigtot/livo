@@ -147,6 +147,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().dynamic_outlier_rejection_threshold_);
   ReadVariable(nh, "/orb_test_node/landmark_distance_threshold", GetInstance().landmark_distance_threshold_);
   ReadVariable(nh, "/orb_test_node/proj_landmark_init_dist_thresh", GetInstance().proj_landmark_init_dist_thresh_);
+  ReadVariable(nh, "/orb_test_node/extra_isam2_update_steps", GetInstance().extra_isam2_update_steps_);
 
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
@@ -322,6 +323,10 @@ double GlobalParams::LandmarkDistanceThreshold()
 double GlobalParams::ProjLandmarkInitDistanceThresh()
 {
   return GetInstance().proj_landmark_init_dist_thresh_;
+}
+int GlobalParams::ExtraISAM2UpdateSteps()
+{
+  return GetInstance().extra_isam2_update_steps_;
 }
 
 std::vector<double> GlobalParams::BodyPCamQuat()

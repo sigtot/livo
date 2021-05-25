@@ -307,6 +307,7 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
   }
 
   graph_manager_.Update();
+  DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
   last_keyframe_id_ = frame->id;
@@ -590,6 +591,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
 
+  DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
+
   auto bias = graph_manager_.GetBias(frame->id);
   std::vector<double> bias_acc = { bias.accelerometer().x(), bias.accelerometer().y(), bias.accelerometer().z() };
   std::vector<double> bias_gyro = { bias.gyroscope().x(), bias.gyroscope().y(), bias.gyroscope().z() };
@@ -607,6 +610,19 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   {
     last_keyframe_id_ = frame->id;
   }
+}
+
+void NewSmoother::DoExtraUpdateSteps(int steps)
+{
+
+  auto time_before = std::chrono::system_clock::now();
+  for (int i = 0; i < steps; ++i)
+  {
+    graph_manager_.Update();
+  }
+  auto time_after = std::chrono::system_clock::now();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
+  DebugValuePublisher::PublishExtraUpdatesDuration(static_cast<int>(millis.count()));
 }
 
 void NewSmoother::GetPoses(std::map<int, Pose3Stamped>& poses) const

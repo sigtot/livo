@@ -15,6 +15,7 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().reeliminated_cliques_pub_ = nh.advertise<std_msgs::Int32>("/reeliminated_cliques", 1000);
   GetInstance().total_cliques_pub_ = nh.advertise<std_msgs::Int32>("/total_cliques", 1000);
   GetInstance().update_duration_pub_ = nh.advertise<std_msgs::Int32>("/update_duration", 1000);
+  GetInstance().extra_updates_duration_pub_ = nh.advertise<std_msgs::Int32>("/extra_updates_duration", 1000);
 
   GetInstance().bias_acc_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_x", 1000);
   GetInstance().bias_acc_y_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_y", 1000);
@@ -87,4 +88,8 @@ void DebugValuePublisher::PublishVelocityNormAverage(double velocity_norm_averag
 void DebugValuePublisher::PublishFrameId(int frame_id)
 {
   DebugValuePublisher::PublishIntValue(frame_id, GetInstance().frame_id_pub_);
+}
+void DebugValuePublisher::PublishExtraUpdatesDuration(int duration)
+{
+  DebugValuePublisher::PublishIntValue(duration, GetInstance().extra_updates_duration_pub_);
 }
