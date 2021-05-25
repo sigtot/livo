@@ -595,6 +595,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   std::vector<double> bias_gyro = { bias.gyroscope().x(), bias.gyroscope().y(), bias.gyroscope().z() };
   DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
 
+  if (isam_result.errorAfter)
+  {
+    DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+  }
+
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
 

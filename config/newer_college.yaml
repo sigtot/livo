@@ -32,8 +32,8 @@ noise_params:
   between_translation_keyframe: 0.01
   feature: 1.0
   range: 0.5
-  robust_feature_k: 5
-  robust_range_k: 5
+  robust_feature_k: 1.345
+  robust_range_k: 1.345
 
 use_isam: true
 use_dogleg: false
