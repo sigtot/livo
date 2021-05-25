@@ -574,9 +574,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
 
-  TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
-                          between_noise_);
-  if (is_keyframe)
+  if (GlobalParams::FrameBetweenFactors())
+  {
+    TryAddBetweenConstraint(last_frame_id_, frame->id, added_frames_[last_frame_id_]->timestamp, frame->timestamp,
+                            between_noise_);
+  }
+  if (GlobalParams::KeyframeBetweenFactors() && is_keyframe)
   {
     TryAddBetweenConstraint(last_keyframe_id_, frame->id, added_frames_[last_keyframe_id_]->timestamp, frame->timestamp,
                             between_noise_keyframe_);

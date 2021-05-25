@@ -136,6 +136,8 @@ private:
   std::string distortion_model_ = "radtan";
 
   bool loam_between_factors_enabled_ = true;
+  bool frame_between_factors_ = true;
+  bool keyframe_between_factors_ = true;
   std::string loam_world_frame_ = "unknown";
   std::string loam_sensor_frame_ = "unknown";
 
@@ -264,6 +266,8 @@ public:
   static std::string LoamWorldFrame();
   static std::string LoamSensorFrame();
   static bool LoamBetweenFactorsEnabled();
+  static bool FrameBetweenFactors();
+  static bool KeyframeBetweenFactors();
 };
 
 #endif
