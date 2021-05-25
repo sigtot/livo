@@ -10,7 +10,7 @@ lidar_time_offset_type: newer_college
 init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
-imu_g: 9.81206
+imu_g: 9.78961
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
@@ -81,14 +81,14 @@ distortion_model:
 lidar_depth:
   enabled: true
   calc_mode: 0
-  search_window_width: 7
-  search_window_height: 7
+  search_window_width: 15
+  search_window_height: 15
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 30
 
 dynamic_outlier_rejection_threshold: 15.0
 landmark_distance_threshold: 15
-proj_landmark_init_dist_thresh: 6.0
+proj_landmark_init_dist_thresh: 15.0
 
 use_fixed_lag: true
 smoother_lag: 10
