@@ -33,6 +33,11 @@ gtsam::Values IncrementalFixedLagSolver::CalculateEstimate()
   return fixed_lag_smoother_->calculateEstimate();
 }
 
+gtsam::NonlinearFactorGraph IncrementalFixedLagSolver::GetFactorsUnsafe()
+{
+  return fixed_lag_smoother_->getFactors();
+}
+
 bool IncrementalFixedLagSolver::ValueExists(gtsam::Key key)
 {
   return fixed_lag_smoother_->timestamps().count(key);

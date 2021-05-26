@@ -34,6 +34,11 @@ gtsam::Values ISAM2Solver::CalculateEstimate()
   return isam2_->calculateEstimate();
 }
 
+gtsam::NonlinearFactorGraph ISAM2Solver::GetFactorsUnsafe()
+{
+  return isam2_->getFactorsUnsafe();
+}
+
 bool ISAM2Solver::ValueExists(gtsam::Key key)
 {
   return isam2_->valueExists(key);

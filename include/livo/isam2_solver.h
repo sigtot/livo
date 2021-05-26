@@ -25,6 +25,7 @@ public:
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
       const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) override;
   gtsam::Values CalculateEstimate() override;
+  gtsam::NonlinearFactorGraph GetFactorsUnsafe() override;
   bool ValueExists(gtsam::Key key) override;
   gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) override;
   gtsam::Point3 CalculateEstimatePoint3(gtsam::Key key) override;

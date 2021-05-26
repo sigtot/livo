@@ -43,6 +43,7 @@ public:
       const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) = 0;
 
   virtual gtsam::Values CalculateEstimate() = 0;
+  virtual gtsam::NonlinearFactorGraph GetFactorsUnsafe() = 0;
 
   virtual bool ValueExists(gtsam::Key key) = 0;
 
