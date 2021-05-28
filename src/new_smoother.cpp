@@ -492,7 +492,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       {
         if (!graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
         {
-          std::cout << "Cannot add observations for frame " << feature->frame->id << std::endl;
           continue;
         }
         if (lmk_initialized)

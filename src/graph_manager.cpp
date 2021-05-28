@@ -306,7 +306,8 @@ gtsam::Values GraphManager::GetValues() const
 bool GraphManager::IsLandmarkTracked(int lmk_id) const
 {
   auto lmk_in_smoother = added_landmarks_.find(lmk_id);
-  return lmk_in_smoother != added_landmarks_.end() && WithinLag(lmk_in_smoother->second.init_timestamp) &&
+  return lmk_in_smoother != added_landmarks_.end() &&
+         (!lmk_in_smoother->second.smart_factor_in_smoother || WithinLag(lmk_in_smoother->second.init_timestamp)) &&
          ((lmk_in_smoother->second.smart_factor_in_smoother &&
            ExistsInSolverOrValues(X(lmk_in_smoother->second.first_frame_id_seen))) ||
           ExistsInSolverOrValues(L(lmk_id)));
