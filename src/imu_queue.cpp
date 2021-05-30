@@ -93,7 +93,7 @@ bool IMUQueue::hasMeasurementsInRange(ros::Time start, ros::Time end)
       ++betweenCount;
     }
   }
-  return betweenCount > 1;  // TODO make it > 0?
+  return betweenCount > 0;
 }
 
 bool IMUQueue::hasMeasurementsInRange(double start, double end)
