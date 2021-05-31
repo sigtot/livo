@@ -23,9 +23,23 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 {
   RemoveRejectedTracks();
 
-  auto cvPtr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC1);  // TODO perf maybe toCvShare?
+  auto encoding =
+      GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
+
+  auto cvPtr = cv_bridge::toCvCopy(msg, encoding);  // TODO perf maybe toCvShare?
+
+  Mat img_bw;
+  if (GlobalParams::ColorImage())
+  {
+    cvtColor(cvPtr->image, img_bw, CV_BGR2GRAY);
+  }
+  else
+  {
+    img_bw = cvPtr->image;
+  }
+
   Mat img_resized;
-  resize(cvPtr->image, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
+  resize(img_bw, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
 
   cv::Mat img_undistorted;
   UndistortImage(img_resized, img_undistorted);
@@ -37,6 +51,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   new_frame->stationary = true;  // Assume stationary at first
 
   auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
+  // 5 -> 17ms
   if (!frames.empty())
   {
     // Obtain prev image and points
@@ -149,7 +164,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
                   cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
       if (track->HasDepth())
       {
-
         auto depth = (*std::find_if(track->features.rbegin(), track->features.rend(),
                                     [](const std::shared_ptr<Feature>& feature) -> bool {
                                       return feature->depth.is_initialized();
@@ -158,9 +172,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
         std::stringstream stream;
         stream << std::fixed << std::setprecision(2) << *depth;
         std::string depth_str = stream.str();
-        cv::putText(tracks_out_img.image, depth_str + "m",
-                    track->features.back()->pt + cv::Point2f(7., 20.), cv::FONT_HERSHEY_DUPLEX, 0.5,
-                    cv::Scalar(0, 0, 200));
+        cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
+                    cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
       }
     }
 
@@ -169,9 +182,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     // END PUBLISH LANDMARK IMAGE
   }
 
+  // 30 -> 40ms when finding new features
   if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
+    // 30 -> 40ms
     FindGoodFeaturesToTrackGridded(img_undistorted, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
                                    GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
     std::vector<std::shared_ptr<Feature>> features;

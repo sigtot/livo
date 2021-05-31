@@ -124,6 +124,7 @@ private:
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
   double cam_v0_ = 238.52694868;
+  bool color_image_ = false; // False: 8UC1, True: 8UC3
 
   bool lidar_depth_enabled_ = true;
   int lidar_depth_calc_mode_ = 0;  // 0 = patch, 1 = line
@@ -252,6 +253,7 @@ public:
   static double CamFy();
   static double CamU0();
   static double CamV0();
+  static bool ColorImage();
 
   static std::vector<double> DistortionCoefficients();
   static std::string DistortionModel();
