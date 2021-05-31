@@ -18,10 +18,34 @@
 #include "imu_ground_truth_smoother.h"
 #include "newer_college_lidar_time_offset_provider.h"
 #include "zero_time_offset_provider.h"
+#include "radtan_undistorter.h"
+#include "equidistant_undistorter.h"
 
 #include <memory>
 
 using namespace std;
+
+std::shared_ptr<ImageUndistorter> makeUndistorter()
+{
+  cv::Size2i size(GlobalParams::ImageWidth(), GlobalParams::ImageHeight());
+  cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0.,
+                           GlobalParams::CamFy(), GlobalParams::CamV0(), 0., 0., 1.);
+  if (GlobalParams::DistortionModel() == "radtan")
+  {
+    return std::make_shared<RadTanImageUndistorter>(GlobalParams::DistortionCoefficients(), size, camera_matrix,
+                                                    CV_32FC1);
+  }
+  else if (GlobalParams::DistortionModel() == "equidistant")
+  {
+    return std::make_shared<EquidistantUndistorter>(GlobalParams::DistortionCoefficients(), size, camera_matrix,
+                                                    CV_32FC1);
+  }
+  else
+  {
+    std::cout << "Given unsupported distortion model " << GlobalParams::DistortionModel() << ". Typo?" << std::endl;
+    exit(1);
+  }
+}
 
 int main(int argc, char** argv)
 {
@@ -75,7 +99,10 @@ int main(int argc, char** argv)
     exit(1);
   }
   LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider);
-  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager);
+
+  std::shared_ptr<ImageUndistorter> image_undistorter = makeUndistorter();
+
+  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter);
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,

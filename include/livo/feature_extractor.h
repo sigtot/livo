@@ -6,6 +6,7 @@
 #include "keyframe_transform.h"
 #include "keyframe_tracker.h"
 #include "lidar_frame_manager.h"
+#include "image_undistorter.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -29,6 +30,7 @@ private:
   std::vector<std::shared_ptr<Track>> old_tracks_;
 
   shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
+  std::shared_ptr<ImageUndistorter> image_undistorter_;
 
   void FindGoodFeaturesToTrackGridded(const cv::Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                              int cell_count_y, int max_features_per_cell, double quality_level,
@@ -44,10 +46,11 @@ private:
 
   static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);
 
-  static void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image);
+  void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const;
 
 public:
-  explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager);
+  explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
+                            std::shared_ptr<ImageUndistorter> image_undistorter);
 
   shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 

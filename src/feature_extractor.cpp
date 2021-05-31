@@ -14,31 +14,9 @@
 #include <utility>
 #include <memory>
 
-std::unique_ptr<ImageUndistorter> makeUndistorter(const cv::Size2i& size)
-{
-  cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << GlobalParams::CamFx(), 0., GlobalParams::CamU0(), 0.,
-                           GlobalParams::CamFy(), GlobalParams::CamV0(), 0., 0., 1.);
-  if (GlobalParams::DistortionModel() == "radtan")
-  {
-    return std::unique_ptr<RadTanImageUndistorter>(
-        new RadTanImageUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1));
-  }
-  else if (GlobalParams::DistortionModel() == "equidistant")
-  {
-    return std::unique_ptr<EquidistantUndistorter>(
-        new EquidistantUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1));
-  }
-  else
-  {
-    std::cout << "Given unsupported distortion model " << GlobalParams::DistortionModel() << ". Typo?" << std::endl;
-    exit(1);
-  }
-}
-
-FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager)
-  : tracks_pub_(tracks_pub)
-  , lidar_frame_manager_(lidar_frame_manager)
-  , image_undistorter_(makeUndistorter(cv::Size2i(GlobalParams::ImageWidth(), GlobalParams::ImageHeight())))
+FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
+                                   std::shared_ptr<ImageUndistorter> image_undistorter)
+  : tracks_pub_(tracks_pub), lidar_frame_manager_(lidar_frame_manager), image_undistorter_(std::move(image_undistorter))
 {
 }
 
