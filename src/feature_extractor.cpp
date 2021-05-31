@@ -6,6 +6,7 @@
 #include "global_params.h"
 #include "Initializer.h"
 #include "radtan_undistorter.h"
+#include "equidistant_undistorter.h"
 #include "lidar-depth.h"
 #include "feature_helpers.h"
 
@@ -470,8 +471,8 @@ std::unique_ptr<ImageUndistorter> makeUndistorter(const cv::Size2i& size)
   }
   else if (GlobalParams::DistortionModel() == "equidistant")
   {
-    std::cout << "Equidistant undistortion not yet implemented" << std::endl;
-    exit(1);
+    return std::unique_ptr<EquidistantUndistorter>(
+        new EquidistantUndistorter(GlobalParams::DistortionCoefficients(), size, camera_matrix, CV_32FC1));
   }
   else
   {
