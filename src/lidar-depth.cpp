@@ -32,7 +32,8 @@ tf::Transform getLidar2CameraTF()
                                  GlobalParams::BodyPCamQuat()[2], GlobalParams::BodyPCamQuat()[3]);  // [x y z w]
   tf::Vector3 body_p_cam_vec(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1],
                              GlobalParams::BodyPCamVec()[2]);
-  tf::Transform body_to_cam(body_p_cam_quat.inverse(), -body_p_cam_vec);  // Inverse to get body -> cam tf
+  tf::Transform cam_to_body(body_p_cam_quat, body_p_cam_vec);
+  auto body_to_cam = cam_to_body.inverse(); // Inverse to get body -> cam tf
 
   return body_to_cam * lidar_to_body;
 }
