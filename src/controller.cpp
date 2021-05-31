@@ -12,6 +12,7 @@
 #include <pcl_ros/transforms.h>
 
 #include <global_params.h>
+#include <chrono>
 
 Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                        IMUGroundTruthSmoother& imu_ground_truth_smoother, ros::Publisher& path_publisher,
@@ -37,8 +38,10 @@ void Controller::LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
+  auto time_before = std::chrono::system_clock::now();
   auto new_frame = frontend_.lkCallback(msg);
   std::cout << "frame " << new_frame->id << std::endl;
+  auto time_after_frontend = std::chrono::system_clock::now();
 
   if (new_backend_.IsInitialized())
   {
@@ -69,6 +72,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
       new_backend_.Initialize(new_frame);
     }
   }
+  auto time_after_backend = std::chrono::system_clock::now();
 
   std::map<int, Pose3Stamped> pose_estimates;
   new_backend_.GetPoses(pose_estimates);
@@ -82,6 +86,20 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);
   PublishLandmarks(landmark_estimates, new_frame->timestamp);
+
+  auto time_final = std::chrono::system_clock::now();
+
+  auto micros_frontend = std::chrono::duration_cast<std::chrono::microseconds>(time_after_frontend - time_before);
+  auto micros_backend = std::chrono::duration_cast<std::chrono::microseconds>(time_after_backend - time_after_frontend);
+  auto micros_extras = std::chrono::duration_cast<std::chrono::microseconds>(time_final - time_after_backend);
+  auto micros_total = std::chrono::duration_cast<std::chrono::microseconds>(time_final - time_before);
+
+  double millis_frontend = static_cast<double>(micros_frontend.count()) / 1000.;
+  double millis_backend = static_cast<double>(micros_backend.count()) / 1000.;
+  double millis_extras = static_cast<double>(micros_extras.count()) / 1000.;
+  double millis_total = static_cast<double>(micros_total.count()) / 1000.;
+  std::cout << "Time spent " << millis_total << " ms (front: " << millis_frontend << ", back: " << millis_backend
+            << ", extras: " << millis_extras << ")" << std::endl;
 
   /*
 
