@@ -499,6 +499,7 @@ std::unique_ptr<ImageUndistorter> makeUndistorter(const cv::Size2i& size)
 void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image)
 {
   // Construct on first use
-  static unique_ptr<ImageUndistorter> image_undistorter = makeUndistorter(cv::Size(input_image.cols, input_image.rows));
+  static unique_ptr<ImageUndistorter> image_undistorter =
+      makeUndistorter(cv::Size(GlobalParams::ImageWidth(), GlobalParams::ImageHeight()));
   image_undistorter->Undistort(input_image, undistorted_image);
 }
