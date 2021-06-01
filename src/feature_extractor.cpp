@@ -467,7 +467,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       (*lidar_frame)->depth_image.convertTo(depth_img_8UC1, CV_8UC1, alpha, beta);
 
       cv::Mat depth_image_jet;
-      cv::applyColorMap(depth_img_8UC1, depth_image_jet, cv::COLORMAP_JET);
+      cv::applyColorMap(depth_img_8UC1, depth_image_jet, cv::COLORMAP_RAINBOW);
 
       depth_image_jet.copyTo(tracks_out_img.image, depth_img_mask);
     }

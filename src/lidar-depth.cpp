@@ -26,20 +26,20 @@ tf::Transform getLidar2CameraTF()
                                    GlobalParams::BodyPLidarQuat()[2], GlobalParams::BodyPLidarQuat()[3]);  // [x y z w]
   tf::Vector3 body_p_lidar_vec(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
                                GlobalParams::BodyPLidarVec()[2]);
-  tf::Transform lidar_to_body(body_p_lidar_quat, body_p_lidar_vec);
+  tf::Transform lidar_to_body(body_p_lidar_quat, body_p_lidar_vec);  // body_p_lidar
 
   tf::Quaternion body_p_cam_quat(GlobalParams::BodyPCamQuat()[0], GlobalParams::BodyPCamQuat()[1],
                                  GlobalParams::BodyPCamQuat()[2], GlobalParams::BodyPCamQuat()[3]);  // [x y z w]
   tf::Vector3 body_p_cam_vec(GlobalParams::BodyPCamVec()[0], GlobalParams::BodyPCamVec()[1],
                              GlobalParams::BodyPCamVec()[2]);
-  tf::Transform cam_to_body(body_p_cam_quat, body_p_cam_vec);
-  auto body_to_cam = cam_to_body.inverse(); // Inverse to get body -> cam tf
+  tf::Transform cam_to_body(body_p_cam_quat, body_p_cam_vec);  // body_p_cam
+  auto body_to_cam = cam_to_body.inverse();                    // Inverse to get body -> cam tf // cam_p_body
 
-  return body_to_cam * lidar_to_body;
+  return body_to_cam * lidar_to_body;  // cam_p_body * body_p_lidar = cam_p_lidar
 }
 
 void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, const tf::Transform& lidar2cameraTF,
-                          cv::Mat& dImg)
+                          const Eigen::Matrix3d& camera_matrix, cv::Mat& dImg)
 {
   // If point cloud is empty return an empty Mat
   if (cloud->points.empty())
@@ -63,14 +63,7 @@ void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, con
       continue;
 
     // Project into Image frame
-    Eigen::Matrix3d K;
-    K.setZero();
-    K(0, 0) = GlobalParams::CamFx();
-    K(0, 2) = GlobalParams::CamU0();
-    K(1, 1) = GlobalParams::CamFy();
-    K(1, 2) = GlobalParams::CamV0();
-    K(2, 2) = 1.;
-    auto pxf = bearingToPixel(Eigen::Vector3d(pt_cam.getX(), pt_cam.getY(), pt_cam.getZ()), K);
+    auto pxf = bearingToPixel(Eigen::Vector3d(pt_cam.getX(), pt_cam.getY(), pt_cam.getZ()), camera_matrix);
     if (!pxf)
       continue;
     cv::Point2i px(cvRound(pxf->x), cvRound(pxf->y));

@@ -2,6 +2,7 @@
 #define ORB_TEST_INCLUDE_LIVO_LIDAR_DEPTH_H_
 
 #include <opencv2/core/core.hpp>
+#include <Eigen/Core>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <boost/optional/optional.hpp>
@@ -20,7 +21,7 @@ tf::Transform getLidar2CameraTF();
  *  @param dImg - Depth Image created by projecting valid LiDAR points into camera frame
  */
 void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, const tf::Transform& lidar2cameraTF,
-                          cv::Mat& dImg);
+                          const Eigen::Matrix3d& camera_matrix, cv::Mat& dImg);
 
 /** \brief Get LiDAR depth using a Patch surrounding a camera feature
  *

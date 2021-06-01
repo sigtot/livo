@@ -98,9 +98,10 @@ int main(int argc, char** argv)
     ROS_FATAL("Invalid lidar time offset provider");
     exit(1);
   }
-  LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider);
 
   std::shared_ptr<ImageUndistorter> image_undistorter = makeUndistorter();
+  LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider,
+                                        image_undistorter);
 
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter);
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter);
