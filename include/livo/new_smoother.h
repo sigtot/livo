@@ -12,6 +12,7 @@
 #include "between_transform_provider.h"
 #include "keyframe_timestamps.h"
 #include "time_offset_provider.h"
+#include "refined_camera_matrix_provider.h"
 
 #include <utility>
 #include <map>
@@ -75,10 +76,9 @@ private:
 
   double CalculateParallax(const std::shared_ptr<Track>& track) const;
 
-
 public:
-  explicit NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
-                       std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider);
+  NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
+              const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider);
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);

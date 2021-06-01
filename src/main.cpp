@@ -103,13 +103,13 @@ int main(int argc, char** argv)
   std::shared_ptr<ImageUndistorter> image_undistorter = makeUndistorter();
 
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter);
-  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider);
+  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
-      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 10);
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 6);
   auto img_sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
                               &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
                               &image_messages_processor);
