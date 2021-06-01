@@ -40,6 +40,8 @@ private:
 
   void RemoveRejectedTracks();
 
+  void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img) const;
+
   void KeepOnlyNTracks(size_t n);
 
   static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);

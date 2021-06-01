@@ -141,46 +141,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
        */
       old_tracks_.clear();
     }
-
-    // PUBLISH LANDMARK IMAGE. TODO: Move to separate fn
-    cv_bridge::CvImage tracks_out_img;
-    tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
-    tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
-    tracks_out_img.header.seq = frames.back()->id;
-    cvtColor(img_undistorted, tracks_out_img.image, CV_GRAY2RGB);
-
-    for (const auto& track : active_tracks_)
-    {
-      double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForSmoothing());
-      // double intensity = 255;
-      auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
-      // auto non_stationary_color = cv::Scalar(0, intensity, 0);
-      auto color = new_frame->stationary ? cv::Scalar(255, 255, 0) : non_stationary_color;
-      for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
-      {
-        cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
-      }
-      cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
-      cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
-                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
-      if (track->HasDepth())
-      {
-        auto depth = (*std::find_if(track->features.rbegin(), track->features.rend(),
-                                    [](const std::shared_ptr<Feature>& feature) -> bool {
-                                      return feature->depth.is_initialized();
-                                    }))
-                         ->depth;
-        std::stringstream stream;
-        stream << std::fixed << std::setprecision(2) << *depth;
-        std::string depth_str = stream.str();
-        cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
-                    cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
-      }
-    }
-
-    tracks_pub_.publish(tracks_out_img.toImageMsg());
-    std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
-    // END PUBLISH LANDMARK IMAGE
+    PublishLandmarksImage(new_frame, img_undistorted);
   }
 
   // 30 -> 40ms when finding new features
@@ -479,4 +440,45 @@ FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
 void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const
 {
   image_undistorter_->Undistort(input_image, undistorted_image);
+}
+
+void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img) const
+{
+  cv_bridge::CvImage tracks_out_img;
+  tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
+  tracks_out_img.header.seq = frames.back()->id;
+  cvtColor(img, tracks_out_img.image, CV_GRAY2RGB);
+
+  for (const auto& track : active_tracks_)
+  {
+    double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForSmoothing());
+    // double intensity = 255;
+    auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
+    // auto non_stationary_color = cv::Scalar(0, intensity, 0);
+    auto color = frame->stationary ? cv::Scalar(255, 255, 0) : non_stationary_color;
+    for (int i = static_cast<int>(track->features.size()) - 1; i >= 1 && track->features.size() - i < 15; --i)
+    {
+      cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
+    }
+    cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
+    cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
+                cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+    if (track->HasDepth())
+    {
+      auto depth = (*std::find_if(track->features.rbegin(), track->features.rend(),
+                                  [](const std::shared_ptr<Feature>& feature) -> bool {
+                                    return feature->depth.is_initialized();
+                                  }))
+          ->depth;
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(2) << *depth;
+      std::string depth_str = stream.str();
+      cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
+                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+    }
+  }
+
+  tracks_pub_.publish(tracks_out_img.toImageMsg());
+  std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
 }
