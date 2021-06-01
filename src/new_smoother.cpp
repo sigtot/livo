@@ -517,7 +517,10 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           {
             if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
             {
-              track->rejected = true;
+              if (!frame->stationary)
+              {
+                track->rejected = true;
+              }
               goto for_tracks;
             }
             auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(feature->frame->timestamp);
