@@ -141,7 +141,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
        */
       old_tracks_.clear();
     }
-    PublishLandmarksImage(new_frame, img_undistorted);
+    PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
   }
 
   // 30 -> 40ms when finding new features
@@ -442,13 +442,30 @@ void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undis
   image_undistorter_->Undistort(input_image, undistorted_image);
 }
 
-void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img) const
+void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
+                                             const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const
 {
   cv_bridge::CvImage tracks_out_img;
   tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
   tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
   tracks_out_img.header.seq = frames.back()->id;
   cvtColor(img, tracks_out_img.image, CV_GRAY2RGB);
+
+  if (GlobalParams::DrawLidarLines())
+  {
+    if (lidar_frame)
+    {
+      cv::Mat depth_img_8UC1;
+      (*lidar_frame)->depth_image.convertTo(depth_img_8UC1, CV_8U);
+      cv::Mat green_fg(img.rows, img.cols, CV_8UC3);
+      green_fg.setTo(cv::Scalar(0, 255, 0));
+      green_fg.copyTo(tracks_out_img.image, depth_img_8UC1);
+    }
+    else
+    {
+      return;
+    }
+  }
 
   for (const auto& track : active_tracks_)
   {
@@ -470,7 +487,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
                                   [](const std::shared_ptr<Feature>& feature) -> bool {
                                     return feature->depth.is_initialized();
                                   }))
-          ->depth;
+                       ->depth;
       std::stringstream stream;
       stream << std::fixed << std::setprecision(2) << *depth;
       std::string depth_str = stream.str();

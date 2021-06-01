@@ -89,3 +89,5 @@ lidar_depth:
   search_window_height: 7
   min_non_zero_neighbors: 10
   max_allowed_feature_distance: 20.
+
+draw_lidar_lines: false

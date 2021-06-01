@@ -106,3 +106,5 @@ frame_between_factors: false
 keyframe_between_factors: true
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
+
+draw_lidar_lines: true

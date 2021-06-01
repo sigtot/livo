@@ -142,6 +142,10 @@ private:
   std::string loam_world_frame_ = "unknown";
   std::string loam_sensor_frame_ = "unknown";
 
+  // If true, will draw lidar depth lines published in landmarks image.
+  // When lidar depth is not available, no landmarks image will be published.
+  bool draw_lidar_lines_ = true;
+
 public:
   static void LoadParams(const ros::NodeHandle& nh);
   GlobalParams(GlobalParams const&) = delete;
@@ -270,6 +274,8 @@ public:
   static bool LoamBetweenFactorsEnabled();
   static bool FrameBetweenFactors();
   static bool KeyframeBetweenFactors();
+
+  static bool DrawLidarLines();
 };
 
 #endif

@@ -33,14 +33,15 @@ private:
   std::shared_ptr<ImageUndistorter> image_undistorter_;
 
   void FindGoodFeaturesToTrackGridded(const cv::Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
-                                             int cell_count_y, int max_features_per_cell, double quality_level,
-                                             double min_distance);
+                                      int cell_count_y, int max_features_per_cell, double quality_level,
+                                      double min_distance);
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
   void RemoveRejectedTracks();
 
-  void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img) const;
+  void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
+                             const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const;
 
   void KeepOnlyNTracks(size_t n);
 
