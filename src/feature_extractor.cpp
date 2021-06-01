@@ -455,11 +455,21 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
   {
     if (lidar_frame)
     {
+      cv::Mat depth_img_mask;
+      (*lidar_frame)->depth_image.convertTo(depth_img_mask, CV_8U);
+
+      double min_depth, max_depth;
+      cv::minMaxLoc((*lidar_frame)->depth_image, &min_depth, &max_depth, nullptr, nullptr, depth_img_mask);
+
+      auto alpha = 255. / (max_depth - min_depth);
+      auto beta = - 255. * min_depth / (max_depth - min_depth);
       cv::Mat depth_img_8UC1;
-      (*lidar_frame)->depth_image.convertTo(depth_img_8UC1, CV_8U);
-      cv::Mat green_fg(img.rows, img.cols, CV_8UC3);
-      green_fg.setTo(cv::Scalar(0, 255, 0));
-      green_fg.copyTo(tracks_out_img.image, depth_img_8UC1);
+      (*lidar_frame)->depth_image.convertTo(depth_img_8UC1, CV_8UC1, alpha, beta);
+
+      cv::Mat depth_image_jet;
+      cv::applyColorMap(depth_img_8UC1, depth_image_jet, cv::COLORMAP_JET);
+
+      depth_image_jet.copyTo(tracks_out_img.image, depth_img_mask);
     }
     else
     {
