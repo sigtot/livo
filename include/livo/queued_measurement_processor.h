@@ -61,6 +61,7 @@ private:
       bool have_measurement = false;
       {
         std::lock_guard<std::mutex> lock(measurement_mutex_);
+        std::cout << "queue: have " << measurements_.size() << " msgs, need " << min_process_count_ << std::endl;
         if (measurements_.size() >= min_process_count_)
         {
           measurement = measurements_.begin()->second;

@@ -11,6 +11,12 @@
 #include "lidar_frame_manager.h"
 #include "landmark_result.h"
 
+#include <mutex>
+#include <condition_variable>
+#include <memory>
+#include <thread>
+#include <boost/optional.hpp>
+
 class Controller
 {
 private:
@@ -22,15 +28,26 @@ private:
   ros::Publisher landmark_publisher_;
   ros::Publisher pose_arr_publisher_;
 
+  std::mutex back_cv_m_;
+  std::condition_variable back_cv_;
+  boost::optional<std::shared_ptr<Frame>> latest_frame_; // Protected by back_cv_m_
+  std::thread backend_thread_; // Thread for backend. Frontend thread is the current thread.
+
 public:
   explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                       ros::Publisher& landmark_publisher);
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
+
+  void SetLatestFrameForBackend(std::shared_ptr<Frame> frame);
+  void BackendSpinner();
+  void ProcessWithBackend(const std::shared_ptr<Frame>& frame);
+
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
   void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  virtual ~Controller();
 };
 
 #endif
