@@ -10,7 +10,7 @@ lidar_time_offset_type: newer_college
 init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
-imu_g: 9.78961
+imu_g: 9.78672
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
@@ -20,20 +20,20 @@ imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
 imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
 
 noise_params:
-  prior_X_yaw: 0.001
-  prior_X_roll_pitch: 0.001
+  prior_X_yaw: 0.00001
+  prior_X_roll_pitch: 0.0001
   prior_X_translation: 0.00001
   prior_gyro: 0.1
   prior_accel: 0.1
-  prior_velocity: 0.1
-  between_rotation: 0.0001
-  between_translation: 0.0001
+  prior_velocity: 0.00001
+  between_rotation: 0.001
+  between_translation: 0.03
   between_rotation_keyframe: 0.001
   between_translation_keyframe: 0.01
   feature: 1.0
   range: 0.5
   robust_feature_k: 1.345
-  robust_range_k: 1.345
+  robust_range_k: 10
 
 use_isam: true
 use_dogleg: false
@@ -49,11 +49,11 @@ grid_cells_x: 9
 grid_cells_y: 7
 track_count_lower_thresh: 30
 
-min_parallax_for_smoothing: 15
+min_parallax_for_smoothing: 5
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
-min_track_length_for_smoothing_depth: 7
+min_track_length_for_smoothing_depth: 20
 min_depth_measurements_for_smoothing: 3
 min_active_track_count: 20
 
@@ -85,25 +85,32 @@ distortion_model:
 lidar_depth:
   enabled: true
   calc_mode: 0
-  search_window_width: 15
-  search_window_height: 15
+  search_window_width: 45
+  search_window_height: 45
   min_non_zero_neighbors: 4
-  max_allowed_feature_distance: 30
+  max_allowed_feature_distance: 60
+  std_dev_tol_factor: 0.1
 
-lidar_frame_manager_timestamp_thresh: 0.02
+lidar_frame_manager_timestamp_thresh: 0.05
 
 dynamic_outlier_rejection_threshold: 15.0
-landmark_distance_threshold: 15
-proj_landmark_init_dist_thresh: 15.0
+landmark_distance_threshold: 25.
+proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 
 use_fixed_lag: true
-smoother_lag: 10
+smoother_lag: 5
 enable_smart_factors: false
+isam_relin_thresh:
+  x_rotation: 0.01
+  x_translation: 0.01
+  v: 0.01
+  b: 0.01
+  l: 0.01
 
-loam_between_factors_enabled: true
+loam_between_factors_enabled: false
 frame_between_factors: false
-keyframe_between_factors: true
+keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 

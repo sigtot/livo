@@ -13,6 +13,7 @@
 #include "keyframe_timestamps.h"
 #include "time_offset_provider.h"
 #include "refined_camera_matrix_provider.h"
+#include "lidar_depth_result.h"
 
 #include <utility>
 #include <map>
@@ -66,7 +67,7 @@ private:
 
   gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
   void InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
-                                       double depth, const gtsam::Pose3& init_pose);
+                                       LidarDepthResult depth_result, const gtsam::Pose3& init_pose);
   bool TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
                                                 const std::shared_ptr<Track>& track);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);

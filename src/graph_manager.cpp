@@ -145,7 +145,6 @@ void GraphManager::InitProjectionLandmark(
 void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& feature,
                                           const boost::shared_ptr<gtsam::Cal3_S2>& K, const gtsam::Pose3& body_p_cam)
 {
-  std::cout << "Adding observation for l" << lmk_id << std::endl;
   auto landmark_in_smoother = added_landmarks_.find(lmk_id);
   if (landmark_in_smoother == added_landmarks_.end())
   {

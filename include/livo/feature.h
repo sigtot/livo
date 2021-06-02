@@ -4,6 +4,7 @@
 #include <utility>
 #include <boost/optional.hpp>
 
+#include "lidar_depth_result.h"
 #include "frame.h"
 
 // Forward declaration for circular reference
@@ -18,7 +19,7 @@ struct Feature
   std::weak_ptr<Track> track;
   std::shared_ptr<Frame> frame;
   cv::Point2f pt;
-  boost::optional<float> depth;
+  boost::optional<LidarDepthResult> depth;
   bool in_smoother = false; // CURRENTLY NOT USED. BUT MIGHT USE AGAIN FOR DRAWING PURPOSES?
 };
 

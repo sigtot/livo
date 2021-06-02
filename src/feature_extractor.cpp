@@ -499,7 +499,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
                                   }))
                        ->depth;
       std::stringstream stream;
-      stream << std::fixed << std::setprecision(2) << *depth;
+      stream << std::fixed << std::setprecision(2) << depth->depth;
       std::string depth_str = stream.str();
       cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
                   cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));

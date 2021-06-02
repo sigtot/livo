@@ -55,7 +55,7 @@ noise_params:
   between_translation_keyframe: 0.01
   feature: 1.0
   range: 0.1
-  robust_feature_k: 1.345
+  robust_feature_k: 10
   robust_range_k: 10
 
 #body_p_cam_quat: [ -0.541994263973, 0.538194367618, -0.457984250078, 0.454796072065 ]
@@ -90,6 +90,7 @@ lidar_depth:
   search_window_height: 15
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 15
+  std_dev_tol_factor: 0.1
 
 lidar_frame_manager_timestamp_thresh: 0.02
 
@@ -102,8 +103,8 @@ use_fixed_lag: true
 smoother_lag: 10
 enable_smart_factors: false
 
-loam_between_factors_enabled: false
-frame_between_factors: false
+loam_between_factors_enabled: true
+frame_between_factors: true
 keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED

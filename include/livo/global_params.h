@@ -132,6 +132,7 @@ private:
   int lidar_depth_search_window_height_ = 7;
   int lidar_depth_min_non_zero_neighbors_ = 3;
   double lidar_depth_max_allowed_feature_distance_ = 20.;
+  double lidar_depth_std_dev_tol_factor_ = 0.1; // Depth rejected if stddev > tol_factor * depth
 
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
@@ -268,6 +269,7 @@ public:
   static int LidarDepthSearchWindowHeight();
   static int LidarDepthMinNonZeroNeighbors();
   static double LidarDepthMaxAllowedFeatureDistance();
+  static double LidarDepthStdDevTolFactor();
 
   static std::string LoamWorldFrame();
   static std::string LoamSensorFrame();
