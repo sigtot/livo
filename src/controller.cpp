@@ -45,9 +45,15 @@ void Controller::LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
+  static int i = 0;
   auto time_before = std::chrono::system_clock::now();
   auto new_frame = frontend_.lkCallback(msg);
   auto time_after = std::chrono::system_clock::now();
+
+  if (i++ % GlobalParams::FrameInterval() != 0)
+  {
+    return; // Return before feeding into backend. I.e. frontend has twice the rate of the backend
+  }
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;

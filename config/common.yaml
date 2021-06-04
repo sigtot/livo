@@ -19,6 +19,7 @@ min_active_track_count: 20
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 10
 temporal_keyframe_interval: 60
+frame_interval: 1
 
 use_isam: true
 use_dogleg: false

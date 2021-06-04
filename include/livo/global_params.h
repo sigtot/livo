@@ -44,6 +44,7 @@ private:
   double min_parallax_for_keyframe_ = 10.;
   // If temporal keyframes: Initialize a keyframe every n frames
   int temporal_keyframe_interval_ = 60;
+  int frame_interval_ = 1; // Initialize a frame in the backend every n frames
 
   int feature_extraction_interval_ = 5;
   int track_count_lower_thresh_ = 100;
@@ -185,6 +186,7 @@ public:
   static bool UseParallaxKeyframes();
   static double MinParallaxForKeyframe();
   static int TemporalKeyframeInterval();
+  static int FrameInterval();
 
   static bool UseIsam();
   static bool UseDogLeg();
