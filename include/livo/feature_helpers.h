@@ -14,4 +14,7 @@ void SortFeaturesByDepthInPlace(std::vector<std::shared_ptr<Feature>>& features)
 double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2, const cv::Mat& R12, const cv::Mat& K,
                             const cv::Mat& K_inv);
 
+void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int cell_count_y,
+                                  const std::map<int, std::weak_ptr<Feature>>& features, cv::Mat_<int>& feature_counts);
+
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_
