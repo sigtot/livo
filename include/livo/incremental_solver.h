@@ -10,6 +10,7 @@ namespace gtsam
 class NonlinearFactorGraph;
 class Values;
 class ISAM2Result;
+class VectorValues;
 
 class Pose3;
 
@@ -44,6 +45,7 @@ public:
 
   virtual gtsam::Values CalculateEstimate() = 0;
   virtual gtsam::NonlinearFactorGraph GetFactorsUnsafe() = 0;
+  virtual gtsam::VectorValues GetDelta() = 0;
 
   virtual bool ValueExists(gtsam::Key key) = 0;
 

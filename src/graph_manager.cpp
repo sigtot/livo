@@ -70,6 +70,18 @@ gtsam::ISAM2Result GraphManager::Update()
 
   SetNewAffectedKeys(result);
 
+  for (const auto& delta : incremental_solver_->GetDelta())
+  {
+    int delta_danger_thresh = 30;
+    if (delta.second.norm() > delta_danger_thresh)
+    {
+      std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is dangerously high! ===" << std::endl;
+      std::cout << "delta = " << delta.second << std::endl;
+      std::cout << "norm(delta) = " << delta.second.norm() << " > " << delta_danger_thresh << std::endl;
+      std::cout << "=========================================" << std::endl;
+    }
+  }
+
   return result;
 }
 

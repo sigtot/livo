@@ -99,7 +99,32 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
   params.constrainedKeys = constrainedKeys;
   params.extraReelimKeys = additionalMarkedKeys;
   params.newAffectedKeys = newAffectedKeys;
-  isamResult_ = isam_.update(newFactors, newTheta, params);
+  try {
+    isamResult_ = isam_.update(newFactors, newTheta, params);
+  }
+  catch (std::exception& e)
+  {
+    /* Comment this in to print factors and their jacobians
+    auto graph = isam_.getFactorsUnsafe();
+    auto lin_point = isam_.getLinearizationPoint();
+
+    for (const auto& x : graph) {
+      std::cout << "================= Factor =================" << std::endl;
+      x->printKeys();
+
+      auto jac = x->linearize(lin_point)->jacobian();
+      auto A_i = jac.first;
+      auto b_i = jac.second;
+
+      std::cout << "A_i = " << std::endl;
+      std::cout << A_i << std::endl;
+      std::cout << "b_i = " << std::endl;
+      std::cout << b_i << std::endl;
+    }
+     */
+
+    throw e;
+  }
 
   // Marginalize out any needed variables
   if (marginalizableKeys.size() > 0)

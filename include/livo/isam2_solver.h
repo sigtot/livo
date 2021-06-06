@@ -26,6 +26,7 @@ public:
       const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) override;
   gtsam::Values CalculateEstimate() override;
   gtsam::NonlinearFactorGraph GetFactorsUnsafe() override;
+  gtsam::VectorValues GetDelta() override;
   bool ValueExists(gtsam::Key key) override;
   gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) override;
   gtsam::Point3 CalculateEstimatePoint3(gtsam::Key key) override;

@@ -38,6 +38,11 @@ gtsam::NonlinearFactorGraph IncrementalFixedLagSolver::GetFactorsUnsafe()
   return fixed_lag_smoother_->getFactors();
 }
 
+gtsam::VectorValues IncrementalFixedLagSolver::GetDelta()
+{
+  return fixed_lag_smoother_->getDelta();
+}
+
 bool IncrementalFixedLagSolver::ValueExists(gtsam::Key key)
 {
   return fixed_lag_smoother_->timestamps().count(key);

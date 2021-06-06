@@ -39,6 +39,11 @@ gtsam::NonlinearFactorGraph ISAM2Solver::GetFactorsUnsafe()
   return isam2_->getFactorsUnsafe();
 }
 
+gtsam::VectorValues ISAM2Solver::GetDelta()
+{
+  return isam2_->getDelta();
+}
+
 bool ISAM2Solver::ValueExists(gtsam::Key key)
 {
   return isam2_->valueExists(key);

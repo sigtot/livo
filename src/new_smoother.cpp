@@ -45,6 +45,7 @@ gtsam::ISAM2Params MakeISAM2Params()
   params.enableDetailedResults = true;
   params.evaluateNonlinearError = true;
   params.findUnusedFactorSlots = true;
+  params.factorization = gtsam::ISAM2Params::CHOLESKY; // Default: CHOLESKY. QR is slower and have no less ILS.
   if (GlobalParams::UseDogLeg())
   {
     params.optimizationParams =
@@ -218,8 +219,17 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
     return false;
   }
 
-  auto triangulation_result =
-      DepthTriangulation::Triangulate(measurements, cameras, MakeSmartFactorParams().getTriangulationParameters());
+  gtsam::TriangulationResult triangulation_result;
+
+  try {
+    triangulation_result =
+        DepthTriangulation::Triangulate(measurements, cameras, MakeSmartFactorParams().getTriangulationParameters());
+  }
+  catch (std::exception& e)
+  {
+    std::cout << "Caught exception during Triangulate" << std::endl;
+    std::cout << e.what() << std::endl;
+  }
 
   if (!triangulation_result)
   {
@@ -414,86 +424,90 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       continue;
     }
     // TODO rewrite this. Seems buggy.
-    if (track->HasDepth() && track->max_parallax > GlobalParams::MinParallaxForSmoothingDepth() &&
-        track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
-        track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing())
+    if (track->HasDepth())
     {
-      // If we have depth, find the first feature with depth, and use it to initialize the landmark
-      // First, we need to get frame we first observed the features from, because this will be used
-      boost::optional<std::shared_ptr<Frame>> frame_first_seen;
-      boost::optional<std::shared_ptr<Feature>> first_feature;
-      for (const auto& feature : track->features)
+      if (track->max_parallax > GlobalParams::MinParallaxForSmoothingDepth() &&
+          track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
+          track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing())
       {
-        if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+        // If we have depth, find the first feature with depth, and use it to initialize the landmark
+        // First, we need to get frame we first observed the features from, because this will be used
+        boost::optional<std::shared_ptr<Frame>> frame_first_seen;
+        boost::optional<std::shared_ptr<Feature>> first_feature;
+        for (const auto& feature : track->features)
         {
-          frame_first_seen = feature->frame;
-          first_feature = feature;
-          break;
+          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+          {
+            frame_first_seen = feature->frame;
+            first_feature = feature;
+            break;
+          }
         }
-      }
-      if (!frame_first_seen)
-      {
-        continue;
-      }
-      int frame_id_used_for_init = -1;
-      for (const auto& feature : track->features)
-      {
-        if (feature->depth && graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
-        {
-          std::cout << "Initializing lmk " << track->id << " with depth " << std::endl;
-          auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
-                                                                   graph_manager_.GetPose(feature->frame->id);
-          gtsam::Point2 pt_for_init(feature->pt.x, feature->pt.y);
-          // The initial point3 estimate can be obtained from any frame, so we used the first available with depth
-          auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt_for_init, feature->depth->depth);
-
-          // We do however need to use the first seen feature in the call to InitProjectionLandmark,
-          // as we can only add observations that come after this frame.
-          auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
-          // Careful with this. May be something weird going on with the timestamp
-          auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp((*frame_first_seen)->timestamp);
-          graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, ts_for_init, first_feature_pt,
-                                                init_point_estimate, K_, *body_p_cam_, feature_noise_,
-                                                feature_m_estimator_);
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, feature->depth->depth,
-                                             MakeRangeNoise(*feature->depth));
-          frame_id_used_for_init = (*frame_first_seen)->id;
-          obs_count++;
-          added_landmarks_count++;
-          break;
-        }
-      }
-      if (frame_id_used_for_init == -1)
-      {
-        std::cout << "WARN: " << track->id << " reports to have depth but could not find any." << std::endl;
-      }
-
-      // After initialization, add observations for all other features in the track
-      for (auto& feature : track->features)
-      {
-        if (feature->frame->id == frame_id_used_for_init ||
-            !graph_manager_.CanAddObservation(track->id, feature->frame->id))
+        if (!frame_first_seen)
         {
           continue;
         }
-        gtsam::Point2 gtsam_pt = gtsam::Point2(feature->pt.x, feature->pt.y);
-        if (feature->depth)
+        int frame_id_used_for_init = -1;
+        for (const auto& feature : track->features)
         {
-          if (!graph_manager_.CanAddRangeObservation(track->id, feature->frame->id))
+          if (feature->depth && graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
           {
+            std::cout << "Initializing lmk " << track->id << " with depth " << std::endl;
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
-                                                                     graph_manager_.GetPose(feature->frame->id);
-            auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, feature->depth->depth);
-            graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, timestamp_for_values, init_point);
+                                 graph_manager_.GetPose(feature->frame->id);
+            gtsam::Point2 pt_for_init(feature->pt.x, feature->pt.y);
+            // The initial point3 estimate can be obtained from any frame, so we used the first available with depth
+            auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt_for_init, feature->depth->depth);
+
+            // We do however need to use the first seen feature in the call to InitProjectionLandmark,
+            // as we can only add observations that come after this frame.
+            auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
+            // Careful with this. May be something weird going on with the timestamp
+            auto ts_for_init =
+                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->frame->timestamp);
+            graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, ts_for_init, first_feature_pt,
+                                                  init_point_estimate, K_, *body_p_cam_, feature_noise_,
+                                                  feature_m_estimator_);
+            graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, feature->depth->depth,
+                                               MakeRangeNoise(*feature->depth));
+            frame_id_used_for_init = (*frame_first_seen)->id;
+            obs_count++;
+            added_landmarks_count++;
+            break;
           }
-          graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, feature->depth->depth,
-                                             MakeRangeNoise(*feature->depth));
         }
-        graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values, gtsam_pt, K_,
-                                              *body_p_cam_);
-        obs_count++;
+        if (frame_id_used_for_init == -1)
+        {
+          std::cout << "WARN: " << track->id << " reports to have depth but could not find any." << std::endl;
+        }
+
+        // After initialization, add observations for all other features in the track
+        for (auto& feature : track->features)
+        {
+          if (feature->frame->id == frame_id_used_for_init ||
+              !graph_manager_.CanAddObservation(track->id, feature->frame->id))
+          {
+            continue;
+          }
+          gtsam::Point2 gtsam_pt = gtsam::Point2(feature->pt.x, feature->pt.y);
+          if (feature->depth)
+          {
+            if (!graph_manager_.CanAddRangeObservation(track->id, feature->frame->id))
+            {
+              auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
+                                   graph_manager_.GetPose(feature->frame->id);
+              auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, feature->depth->depth);
+              graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, timestamp_for_values, init_point);
+            }
+            graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values, feature->depth->depth,
+                                               MakeRangeNoise(*feature->depth));
+          }
+          graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values, gtsam_pt, K_,
+                                                *body_p_cam_);
+          obs_count++;
+        }
+        std::cout << "Added proj with " << obs_count << " observations" << std::endl;
       }
-      std::cout << "Added proj with " << obs_count << " observations" << std::endl;
     }
     else if (track->features.size() >= GlobalParams::MinTrackLengthForSmoothing())
     {
@@ -526,11 +540,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             {
               if (!frame->stationary)
               {
-                track->rejected = true;
+                //track->rejected = true;
               }
               goto for_tracks;
             }
-            auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(feature->frame->timestamp);
+            auto ts_for_init =
+                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->frame->timestamp);
             auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id, ts_for_init, track);
             if (!success)
             {
@@ -577,7 +592,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
         auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, feature->depth->depth);
         graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, timestamp_for_values, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame->id, timestamp_for_values, feature->depth->depth, MakeRangeNoise(*feature->depth));
+      graph_manager_.AddRangeObservation(lmk_id, frame->id, timestamp_for_values, feature->depth->depth,
+                                         MakeRangeNoise(*feature->depth));
       range_obs_count++;
     }
     feature_obs_count++;
@@ -616,6 +632,43 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   if (isam_result.errorAfter)
   {
     DebugValuePublisher::PublishNonlinearError(*isam_result.errorAfter);
+  }
+
+  if (isam_result.detail)
+  {
+    int poses_relinearized = 0;
+    int landmarks_relinearized = 0;
+    int velocities_relinearized = 0;
+    int biases_relinearized = 0;
+    for (const auto& x : isam_result.detail->variableStatus)
+    {
+      std::cout << "========== " << gtsam::_defaultKeyFormatter(x.first) << " ==========" << std::endl;
+      switch (gtsam::_defaultKeyFormatter(x.first)[0])
+      {
+        case 'x':
+          poses_relinearized++;
+          break;
+        case 'l':
+          landmarks_relinearized++;
+          break;
+        case 'v':
+          velocities_relinearized++;
+          break;
+        case 'b':
+          biases_relinearized++;
+          break;
+      }
+      PrintVariableStatus(x.second);
+    }
+    std::cout << poses_relinearized << " poses relinearized" << std::endl;
+    std::cout << landmarks_relinearized << " landmarks relinearized" << std::endl;
+    std::cout << velocities_relinearized << " velocities relinearized" << std::endl;
+    std::cout << biases_relinearized << " biases relinearized" << std::endl;
+  }
+
+  for (const auto& key : isam_result.markedKeys)
+  {
+    std::cout << gtsam::_defaultKeyFormatter(key) << " marked" << std::endl;
   }
 
   added_frames_[frame->id] = frame;
