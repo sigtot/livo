@@ -36,6 +36,10 @@ private:
                                       int cell_count_y, int max_features_per_cell, double quality_level,
                                       double min_distance);
 
+  void DetectNewFeaturesInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
+                                                  int cell_count_y, int min_features_per_cell,
+                                                  int max_features_per_cell, double quality_level, double min_distance);
+
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
   void RemoveRejectedTracks();

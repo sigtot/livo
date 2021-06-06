@@ -19,7 +19,14 @@ private:
   std::string cam_sub_topic_ = "/camera";
   std::string lidar_sub_topic_ = "/os1_cloud_node/points";
 
+  // If true, will extract new features per cell when the per-cell count falls below min_features_per_cell_
+  // If false, will instead extract new features when the total count falls below track_count_lower_thresh_
+  bool count_features_per_cell_ = false;
+  int min_features_per_cell_ = 3;  // Note: only used if count_features_per_cell_ is true
   int max_features_per_cell_ = 10;
+  int feature_extraction_interval_ = 5;
+  int track_count_lower_thresh_ = 100;
+  double track_nms_squared_dist_thresh_ = 16.;
   int max_features_ = 100;
   int grid_cells_x_ = 9;
   int grid_cells_y_ = 7;
@@ -34,24 +41,21 @@ private:
   double lidar_frame_manager_timestamp_thresh_ = 0.05;
   bool init_on_ground_truth_ = false;
   double match_max_distance_ = 20;
-  double min_parallax_for_smoothing_ = 5.;  // Points need higher parallax than this to be added to the smoother
-  double min_parallax_for_smoothing_depth_ = 5.; // Depth features need higher parallax than this for smoothing
+  double min_parallax_for_smoothing_ = 5.;        // Points need higher parallax than this to be added to the smoother
+  double min_parallax_for_smoothing_depth_ = 5.;  // Depth features need higher parallax than this for smoothing
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
 
-  bool use_parallax_keyframes_ = false; // false: temporal keyframes, true: insert keyframes when enough parallax
+  bool use_parallax_keyframes_ = false;  // false: temporal keyframes, true: insert keyframes when enough parallax
   // If parallax keyframes: Need n points with higher than parallax than this to insert a new keyframe
   double min_parallax_for_keyframe_ = 10.;
   // If temporal keyframes: Initialize a keyframe every n frames
   int temporal_keyframe_interval_ = 60;
-  int frame_interval_ = 1; // Initialize a frame in the backend every n frames
+  int frame_interval_ = 1;  // Initialize a frame in the backend every n frames
 
-  int feature_extraction_interval_ = 5;
-  int track_count_lower_thresh_ = 100;
-  double track_nms_squared_dist_thresh_ = 16.;
   int min_track_length_for_smoothing_ = 15;
   int min_track_length_for_smoothing_depth_ = 15.;
-  int min_depth_measurements_for_smoothing_ = 3.; // Need more than n depth measurements to add as depth feat
+  int min_depth_measurements_for_smoothing_ = 3.;  // Need more than n depth measurements to add as depth feat
   double image_edge_padding_percent_ = 0.05;
   double stationary_thresh_ = 0.5;
   int init_keyframe_interval_ = 6;
@@ -125,7 +129,7 @@ private:
   double cam_fy_ = 430.24961762;
   double cam_u0_ = 427.4407802;
   double cam_v0_ = 238.52694868;
-  bool color_image_ = false; // False: 8UC1, True: 8UC3
+  bool color_image_ = false;  // False: 8UC1, True: 8UC3
 
   bool lidar_depth_enabled_ = true;
   int lidar_depth_calc_mode_ = 0;  // 0 = patch, 1 = line
@@ -133,7 +137,7 @@ private:
   int lidar_depth_search_window_height_ = 7;
   int lidar_depth_min_non_zero_neighbors_ = 3;
   double lidar_depth_max_allowed_feature_distance_ = 20.;
-  double lidar_depth_std_dev_tol_factor_ = 0.1; // Depth rejected if stddev > tol_factor * depth
+  double lidar_depth_std_dev_tol_factor_ = 0.1;  // Depth rejected if stddev > tol_factor * depth
 
   std::vector<double> distortion_coeffs_ = { 0., 0., 0., 0. };
   std::string distortion_model_ = "radtan";
@@ -158,6 +162,8 @@ public:
   static std::string CameraSubTopic();
   static std::string LidarSubTopic();
 
+  static bool CountFeaturesPerCell();
+  static int MinFeaturesPerCell();
   static int MaxFeaturesPerCell();
   static int MaxFeatures();
   static int GridCellsX();

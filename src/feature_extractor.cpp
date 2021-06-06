@@ -145,7 +145,34 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   // 30 -> 40ms when finding new features
-  if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
+  if (GlobalParams::CountFeaturesPerCell())
+  {
+    vector<Point2f> corners;
+    // 30 -> 40ms
+    DetectNewFeaturesInUnderpopulatedGridCells(img_undistorted, corners, GlobalParams::GridCellsX(),
+                                               GlobalParams::GridCellsY(), GlobalParams::MinFeaturesPerCell(),
+                                               GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+    std::vector<std::shared_ptr<Feature>> features;
+    for (const auto& corner : corners)
+    {
+      auto new_feature = std::make_shared<Feature>(new_frame, corner);
+      if (lidar_frame)
+      {
+        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+      }
+      features.push_back(new_feature);
+    }
+    SortFeaturesByDepthInPlace(features);
+    for (const auto& feature : features)
+    {
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
+      new_frame->features[new_track->id] = feature;
+      feature->track = new_track;
+      active_tracks_.push_back(std::move(new_track));
+    }
+    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
+  }
+  else if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
     vector<Point2f> corners;
     // 30 -> 40ms
@@ -214,6 +241,60 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   return new_frame;
+}
+
+void FeatureExtractor::DetectNewFeaturesInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners,
+                                                                  int cell_count_x, int cell_count_y,
+                                                                  int min_features_per_cell, int max_features_per_cell,
+                                                                  double quality_level, double min_distance)
+{
+  int cell_w = img.cols / cell_count_x;
+  int cell_h = img.rows / cell_count_y;
+
+  Mat_<int> feature_counts;
+  MakeFeatureCountPerCellTable(img.cols, img.rows, cell_count_x, cell_count_y,
+                               frames.empty() ? std::map<int, std::weak_ptr<Feature>>{} : frames.back()->features,
+                               feature_counts);
+
+  int cells_repopulated = 0;
+  for (int cell_x = 0; cell_x < cell_count_x; ++cell_x)
+  {
+    for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
+    {
+      if (feature_counts.at<int>(cell_y, cell_x) >= min_features_per_cell)
+      {
+        // If we already have enough features in the cell, there's no need to extract more.
+        continue;
+      }
+      auto max_features_to_extract = max_features_per_cell - feature_counts.at<int>(cell_y, cell_x);
+
+      cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
+      cv::Mat roi = img(mask);
+      vector<cv::Point2f> corners_in_roi;
+      // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
+      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_to_extract, quality_level, min_distance);
+
+      if (corners_in_roi.empty())
+      {
+        continue;  // Nothing further to do
+      }
+
+      Size winSize = Size(5, 5);
+      Size zeroZone = Size(-1, -1);
+      TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001);
+      cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
+
+      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_to_extract); ++i)
+      {
+        if (PointWasSubPixRefined(corners_in_roi[i]))
+        {
+          corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
+        }
+      }
+      cells_repopulated++;
+    }
+  }
+  std::cout << "Detected new features in " << cells_repopulated << " cells" << std::endl;
 }
 
 void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,

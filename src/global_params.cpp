@@ -57,6 +57,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/cam_sub_topic", GetInstance().cam_sub_topic_);
   ReadVariable(nh, "/orb_test_node/lidar_sub_topic", GetInstance().lidar_sub_topic_);
 
+  ReadVariable(nh, "/orb_test_node/count_features_per_cell", GetInstance().count_features_per_cell_);
+  ReadVariable(nh, "/orb_test_node/min_features_per_cell", GetInstance().min_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/max_features_per_cell", GetInstance().max_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/max_features", GetInstance().max_features_);
   ReadVariable(nh, "/orb_test_node/grid_cells_x", GetInstance().grid_cells_x_);
@@ -200,6 +202,15 @@ std::string GlobalParams::CameraSubTopic()
 std::string GlobalParams::LidarSubTopic()
 {
   return GetInstance().lidar_sub_topic_;
+}
+
+bool GlobalParams::CountFeaturesPerCell()
+{
+  return GetInstance().count_features_per_cell_;
+}
+int GlobalParams::MinFeaturesPerCell()
+{
+  return GetInstance().min_features_per_cell_;
 }
 int GlobalParams::MaxFeaturesPerCell()
 {

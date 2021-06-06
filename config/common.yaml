@@ -1,3 +1,5 @@
+count_features_per_cell: false
+min_features_per_cell: 3
 max_features_per_cell: 10
 max_features: 100
 grid_cells_x: 9

@@ -41,6 +41,8 @@ isam_relinearize_thresh: 0.1
 isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
+count_features_per_cell: true
+min_features_per_cell: 3
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
 max_features_per_cell: 3
