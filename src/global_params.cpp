@@ -93,6 +93,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_parallax_for_keyframe", GetInstance().min_parallax_for_keyframe_);
   ReadVariable(nh, "/orb_test_node/temporal_keyframe_interval", GetInstance().temporal_keyframe_interval_);
   ReadVariable(nh, "/orb_test_node/frame_interval", GetInstance().frame_interval_);
+  ReadVariable(nh, "/orb_test_node/second_ransac_n_frames", GetInstance().second_ransac_n_frames_);
 
   ReadVariable(nh, "/orb_test_node/use_isam", GetInstance().use_isam_);
   ReadVariable(nh, "/orb_test_node/use_dogleg", GetInstance().use_dogleg_);
@@ -517,6 +518,10 @@ int GlobalParams::TemporalKeyframeInterval()
 int GlobalParams::FrameInterval()
 {
   return GetInstance().frame_interval_;
+}
+int GlobalParams::SecondRANSACNFrames()
+{
+  return GetInstance().second_ransac_n_frames_;
 }
 
 double GlobalParams::IsamRelinThreshXRotation()

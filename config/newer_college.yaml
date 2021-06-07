@@ -63,6 +63,7 @@ use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
 temporal_keyframe_interval: 60
 frame_interval: 2
+second_ransac_n_frames: 19
 
 body_p_cam_quat: [ -0.499321, 0.499958, -0.499171, 0.501547 ]
 body_p_cam_vec: [ 0.0159205, 0.00583189, 0.0174204 ]

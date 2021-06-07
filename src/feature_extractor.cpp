@@ -86,34 +86,22 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       }
     }
 
-    // Discard RANSAC outliers and add the rest as new features
-    vector<uchar> inlier_mask;
-    if (new_points.size() >= 8)
+    // Initialize tracks for the new features. We will remove outliers later.
+    for (int i = 0; i < new_points.size(); ++i)
     {
-      auto F = findFundamentalMat(prev_points, new_points, CV_FM_RANSAC, 3., 0.99, inlier_mask);
-      for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
-           --i)  // iterate backwards to not mess up vector when erasing
+      auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
+      if (lidar_frame)
       {
-        if (inlier_mask[i])
-        {
-          auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
-          if (lidar_frame)
-          {
-            new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-          }
-          new_frame->features[active_tracks_[i]->id] = new_feature;
-          active_tracks_[i]->features.push_back(std::move(new_feature));
-        }
-        else
-        {
-          // TODO perf erase-remove?
-          old_tracks_.push_back(std::move(active_tracks_[i]));
-          active_tracks_.erase(active_tracks_.begin() + i);
-          prev_points.erase(prev_points.begin() + i);
-          new_points.erase(new_points.begin() + i);
-        }
+        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
       }
+      new_frame->features[active_tracks_[i]->id] = new_feature;
+      active_tracks_[i]->features.push_back(std::move(new_feature));
     }
+
+    // Discard RANSAC outliers
+    std::cout << "Discarding RANSAC outliers" << std::endl;
+    RANSACRemoveOutlierTracks(1);
+    RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames());
 
     double total_dist = 0;
     for (size_t i = 0; i < new_points.size(); ++i)
@@ -574,4 +562,43 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());
   std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
+}
+
+void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
+{
+  std::vector<int> track_indices;
+  std::vector<cv::Point2f> points_1;
+  std::vector<cv::Point2f> points_2;
+  for (int i = 0; i < active_tracks_.size(); ++i)
+  {
+    int track_len = static_cast<int>(active_tracks_[i]->features.size());
+    if (track_len <= n_frames)
+    {
+      // We need features from the n_frames-th previous frame, but the track length is not long enough for it
+      continue;
+    }
+
+    track_indices.push_back(i);
+    points_1.push_back(active_tracks_[i]->features.back()->pt);
+    points_2.push_back(active_tracks_[i]->features[track_len - n_frames - 1]->pt);
+  }
+
+  if (track_indices.size() < 8)
+  {
+    return;
+  }
+
+  std::vector<uchar> inliers;
+
+  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3., 0.99, inliers);
+
+  // iterate backwards to not mess up vector when erasing
+  for (int i = static_cast<int>(track_indices.size()) - 1; i >= 0; --i)
+  {
+    if (!inliers[i])
+    {
+      std::cout << "Removing outlier track " << active_tracks_[track_indices[i]]->id << std::endl;
+      active_tracks_.erase(active_tracks_.begin() + track_indices[i]);
+    }
+  }
 }

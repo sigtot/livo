@@ -46,6 +46,8 @@ private:
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
 
+  int second_ransac_n_frames_ = 30; // Perform a second fundamentalMat RANSAC outlier rejection with the nth prev frame
+
   bool use_parallax_keyframes_ = false;  // false: temporal keyframes, true: insert keyframes when enough parallax
   // If parallax keyframes: Need n points with higher than parallax than this to insert a new keyframe
   double min_parallax_for_keyframe_ = 10.;
@@ -188,6 +190,8 @@ public:
   static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
   static int MinActiveTrackCount();
+
+  static int SecondRANSACNFrames();
 
   static bool UseParallaxKeyframes();
   static double MinParallaxForKeyframe();

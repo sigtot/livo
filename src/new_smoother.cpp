@@ -666,11 +666,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
     std::cout << biases_relinearized << " biases relinearized" << std::endl;
   }
 
-  for (const auto& key : isam_result.markedKeys)
-  {
-    std::cout << gtsam::_defaultKeyFormatter(key) << " marked" << std::endl;
-  }
-
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
 

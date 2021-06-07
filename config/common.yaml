@@ -22,6 +22,7 @@ use_parallax_keyframes: false
 min_parallax_for_keyframe: 10
 temporal_keyframe_interval: 60
 frame_interval: 1
+second_ransac_n_frames: 20
 
 use_isam: true
 use_dogleg: false

@@ -42,6 +42,8 @@ private:
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
+  void RANSACRemoveOutlierTracks(int n_frames);
+
   void RemoveRejectedTracks();
 
   void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
