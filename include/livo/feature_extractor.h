@@ -14,6 +14,7 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <vector>
 #include <memory>
+#include <mutex>
 
 using namespace std;
 using namespace cv;
@@ -31,6 +32,8 @@ private:
 
   shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
   std::shared_ptr<ImageUndistorter> image_undistorter_;
+
+  std::mutex& mu_;
 
   void FindGoodFeaturesToTrackGridded(const cv::Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                       int cell_count_y, int max_features_per_cell, double quality_level,
@@ -59,7 +62,7 @@ private:
 
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                            std::shared_ptr<ImageUndistorter> image_undistorter);
+                            std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu);
 
   shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 

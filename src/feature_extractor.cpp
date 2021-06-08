@@ -15,8 +15,9 @@
 #include <memory>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                                   std::shared_ptr<ImageUndistorter> image_undistorter)
-  : tracks_pub_(tracks_pub), lidar_frame_manager_(lidar_frame_manager), image_undistorter_(std::move(image_undistorter))
+                                   std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu)
+  : tracks_pub_(tracks_pub), lidar_frame_manager_(lidar_frame_manager), image_undistorter_(std::move(image_undistorter)),
+  mu_(mu)
 {
 }
 
@@ -71,31 +72,34 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2,
                              criteria);
 
-    // Discard bad points
-    for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
-         --i)  // iterate backwards to not mess up vector when erasing
     {
-      // Select good points
-      if (status[i] != 1)
+      std::lock_guard<std::mutex> lk(mu_);
+      // Discard bad points
+      for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
+           --i)  // iterate backwards to not mess up vector when erasing
       {
-        // TODO perf erase-remove?
-        old_tracks_.push_back(std::move(active_tracks_[i]));
-        active_tracks_.erase(active_tracks_.begin() + i);
-        prev_points.erase(prev_points.begin() + i);
-        new_points.erase(new_points.begin() + i);
+        // Select good points
+        if (status[i] != 1)
+        {
+          active_tracks_.erase(active_tracks_.begin() + i);
+          prev_points.erase(prev_points.begin() + i);
+          new_points.erase(new_points.begin() + i);
+        }
       }
     }
-
-    // Initialize tracks for the new features. We will remove outliers later.
-    for (int i = 0; i < new_points.size(); ++i)
     {
-      auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
-      if (lidar_frame)
+      std::lock_guard<std::mutex> lk(mu_);
+      // Initialize tracks for the new features. We will remove outliers later.
+      for (int i = 0; i < new_points.size(); ++i)
       {
-        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+        auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
+        if (lidar_frame)
+        {
+          new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+        }
+        new_frame->features[active_tracks_[i]->id] = new_feature;
+        active_tracks_[i]->features.push_back(std::move(new_feature));
       }
-      new_frame->features[active_tracks_[i]->id] = new_feature;
-      active_tracks_[i]->features.push_back(std::move(new_feature));
     }
 
     // Discard RANSAC outliers
@@ -114,21 +118,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     if (average_dist > GlobalParams::StationaryThresh())
     {
+      std::lock_guard<std::mutex> lk(mu_);
       new_frame->stationary = false;
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
 
-    // Truncate the tracks because we're still stationary and the tracks contain no information
-    if (new_frame->stationary)
-    {
-      /*
-      for (auto& track : active_tracks_)
-      {
-        track->features = std::vector<std::shared_ptr<Feature>>{ track->features.back() };
-      }
-       */
-      old_tracks_.clear();
-    }
     PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
   }
 
@@ -151,14 +145,17 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       features.push_back(new_feature);
     }
     SortFeaturesByDepthInPlace(features);
-    for (const auto& feature : features)
     {
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
-      new_frame->features[new_track->id] = feature;
-      feature->track = new_track;
-      active_tracks_.push_back(std::move(new_track));
+      std::lock_guard<std::mutex> lk(mu_);
+      for (const auto& feature : features)
+      {
+        auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
+        new_frame->features[new_track->id] = feature;
+        feature->track = new_track;
+        active_tracks_.push_back(std::move(new_track));
+      }
+      NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
     }
-    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
   else if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
@@ -187,22 +184,22 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
     KeepOnlyNTracks(GlobalParams::MaxFeatures());
   }
-
-  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
-    if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_undistorted.cols, img_undistorted.rows,
-                           GlobalParams::ImageEdgePaddingPercent()))
+    std::lock_guard<std::mutex> lk(mu_);
+    for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
-      // TODO perf erase-remove?
-      if (active_tracks_[i]->features.size() >= 3)
+      if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_undistorted.cols, img_undistorted.rows,
+                             GlobalParams::ImageEdgePaddingPercent()))
       {
-        old_tracks_.push_back(std::move(active_tracks_[i]));
+        active_tracks_.erase(active_tracks_.begin() + i);
       }
-      active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
 
-  frames.push_back(new_frame);
+  {
+    std::lock_guard<std::mutex> lk(mu_);
+    frames.push_back(new_frame);
+  }
 
   if (GlobalParams::UseParallaxKeyframes())
   {
@@ -217,14 +214,18 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
   else if (new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
   {
+    std::lock_guard<std::mutex> lk(mu_);
     new_frame->is_keyframe = true;
   }
 
-  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
-    if (active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
+    std::lock_guard<std::mutex> lk(mu_);
+    for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
-      active_tracks_.erase(active_tracks_.begin() + i);
+      if (active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
+      {
+        active_tracks_.erase(active_tracks_.begin() + i);
+      }
     }
   }
 
@@ -376,6 +377,7 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
 
 void FeatureExtractor::RemoveRejectedTracks()
 {
+  std::lock_guard<std::mutex> lk(mu_);
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i > 0; --i)
   {
     if (active_tracks_[i]->rejected)
@@ -426,13 +428,6 @@ std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
 std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
 {
   std::vector<shared_ptr<Track>> tracks;
-  for (auto& track : old_tracks_)
-  {
-    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
-    {
-      tracks.push_back(track);
-    }
-  }
   for (auto& track : active_tracks_)
   {
     if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
@@ -561,11 +556,12 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
   }
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());
-  std::cout << "track count: " << active_tracks_.size() << " active, " << old_tracks_.size() << " old." << std::endl;
+  std::cout << "track count: " << active_tracks_.size() << std::endl;
 }
 
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
 {
+  std::lock_guard<std::mutex> lk(mu_); // Lock for the whole method so that indexes are not changed
   std::vector<int> track_indices;
   std::vector<cv::Point2f> points_1;
   std::vector<cv::Point2f> points_2;

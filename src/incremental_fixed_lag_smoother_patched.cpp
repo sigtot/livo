@@ -102,7 +102,7 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
   try {
     isamResult_ = isam_.update(newFactors, newTheta, params);
   }
-  catch (std::exception& e)
+  catch (gtsam::IndeterminantLinearSystemException& e)
   {
     /* Comment this in to print factors and their jacobians
     auto graph = isam_.getFactorsUnsafe();

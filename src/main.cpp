@@ -103,8 +103,9 @@ int main(int argc, char** argv)
   LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider,
                                         image_undistorter);
 
-  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter);
-  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter);
+  std::mutex mu;
+  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu);
+  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, mu);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,
                         posearr_pub, landmarks_pub);

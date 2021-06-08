@@ -51,6 +51,8 @@ private:
   int last_frame_id_ = -1;
   int last_keyframe_id_ = -1;
   std::map<int, std::shared_ptr<Frame>> added_frames_;
+  std::mutex& mu_;
+
   boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_;
   boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_keyframe_;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise_;
@@ -79,7 +81,7 @@ private:
 
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
-              const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider);
+              const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider, std::mutex& mu);
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
