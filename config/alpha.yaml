@@ -1,14 +1,14 @@
 imu_sub_topic: /vn100/imu
-cam_sub_topic: /cam0/cam0
+cam_sub_topic: /camera/image_raw
 lidar_sub_topic: /velodyne_points
 
-resize_factor: 1.0
+resize_factor: 0.5
 lidar_time_offset_type: zero
 ground_truth_file: ""
 init_on_ground_truth: false
 
 timeshift_cam_imu: 0.0
-imu_g: 9.81
+imu_g: 9.9
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
@@ -49,7 +49,7 @@ noise_params:
   prior_gyro: 0.01
   prior_accel: 0.01
   prior_velocity: 0.00001
-  between_rotation: 0.001
+  between_rotation: 0.01
   between_translation: 0.03
   between_rotation_keyframe: 0.001
   between_translation_keyframe: 0.01
@@ -100,13 +100,13 @@ proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 
 use_fixed_lag: true
-smoother_lag: 10
+smoother_lag: 20
 enable_smart_factors: false
 
 loam_between_factors_enabled: true
-frame_between_factors: true
+frame_between_factors: false
 keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 
-draw_lidar_lines: true
+draw_lidar_lines: false

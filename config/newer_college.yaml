@@ -45,18 +45,18 @@ count_features_per_cell: true
 min_features_per_cell: 3
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 3
+max_features_per_cell: 4
 max_features: 40
-grid_cells_x: 9
-grid_cells_y: 7
+grid_cells_x: 5
+grid_cells_y: 5
 track_count_lower_thresh: 30
 
-min_parallax_for_smoothing: 5
+min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_track_length_for_smoothing_depth: 20
-min_depth_measurements_for_smoothing: 3
+min_depth_measurements_for_smoothing: 5
 min_active_track_count: 20
 
 use_parallax_keyframes: false
@@ -81,6 +81,7 @@ cam_fy: 430.24961762
 cam_u0: 427.4407802
 cam_v0: 238.52694868
 color_image: false
+image_edge_padding_percent: .00
 
 distortion_model:
   coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
@@ -106,11 +107,11 @@ use_fixed_lag: true
 smoother_lag: 5
 enable_smart_factors: false
 isam_relin_thresh:
-  x_rotation: 0.01
-  x_translation: 0.01
-  v: 0.01
-  b: 0.01
-  l: 0.01
+  x_rotation: 0.1
+  x_translation: 1.0
+  v: 0.1
+  b: 0.1
+  l: 1.0
 
 loam_between_factors_enabled: false
 frame_between_factors: false

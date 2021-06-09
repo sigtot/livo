@@ -366,6 +366,7 @@ void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
 
 void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe)
 {
+  // TODO add timing checks to see how long we wait before acquiring the lock. also in frontend
   mu_.lock();
   if (frame->is_keyframe)
   {
@@ -649,7 +650,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
     int biases_relinearized = 0;
     for (const auto& x : isam_result.detail->variableStatus)
     {
-      std::cout << "========== " << gtsam::_defaultKeyFormatter(x.first) << " ==========" << std::endl;
       switch (gtsam::_defaultKeyFormatter(x.first)[0])
       {
         case 'x':
@@ -665,7 +665,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           biases_relinearized++;
           break;
       }
-      PrintVariableStatus(x.second);
+      //std::cout << "========== " << gtsam::_defaultKeyFormatter(x.first) << " ==========" << std::endl;
+      //PrintVariableStatus(x.second);
     }
     std::cout << poses_relinearized << " poses relinearized" << std::endl;
     std::cout << landmarks_relinearized << " landmarks relinearized" << std::endl;

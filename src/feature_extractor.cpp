@@ -86,10 +86,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
           new_points.erase(new_points.begin() + i);
         }
       }
-    }
-    {
-      std::lock_guard<std::mutex> lk(mu_);
-      // Initialize tracks for the new features. We will remove outliers later.
+
+      // Initialize features. We will remove outliers later.
       for (int i = 0; i < new_points.size(); ++i)
       {
         auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
@@ -105,6 +103,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     // Discard RANSAC outliers
     std::cout << "Discarding RANSAC outliers" << std::endl;
     RANSACRemoveOutlierTracks(1);
+    RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames() / 2);
     RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames());
 
     double total_dist = 0;
@@ -551,6 +550,23 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       stream << std::fixed << std::setprecision(2) << depth->depth;
       std::string depth_str = stream.str();
       cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
+                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+    }
+    else {
+      // Draw parallax string
+      std::stringstream stream1;
+      stream1 << std::fixed << std::setprecision(2) << track->max_parallax << std::endl;
+      std::string parallax_str = stream1.str();
+
+      cv::putText(tracks_out_img.image, parallax_str, track->features.back()->pt + cv::Point2f(7., 20.),
+                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+
+      // Draw track length string
+      std::stringstream stream2;
+      stream2 << track->features.size() << std::endl;
+      std::string len_str = stream2.str();
+
+      cv::putText(tracks_out_img.image, len_str, track->features.back()->pt + cv::Point2f(7., 40.),
                   cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
     }
   }
