@@ -28,7 +28,6 @@ private:
   const LidarFrameManager& lidar_frame_manager_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
-  std::vector<std::shared_ptr<Track>> old_tracks_;
 
   shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
   std::shared_ptr<ImageUndistorter> image_undistorter_;
