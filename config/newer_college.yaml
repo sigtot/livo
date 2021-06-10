@@ -96,6 +96,7 @@ lidar_depth:
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 60
   std_dev_tol_factor: 0.1
+  max_messages_retained: 100
 
 lidar_frame_manager_timestamp_thresh: 0.05
 

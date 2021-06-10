@@ -180,8 +180,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
                GetInstance().lidar_depth_min_non_zero_neighbors_);
   ReadVariable(nh, "/orb_test_node/lidar_depth/max_allowed_feature_distance",
                GetInstance().lidar_depth_max_allowed_feature_distance_);
-  ReadVariable(nh, "/orb_test_node/lidar_depth/std_dev_tol_factor",
-               GetInstance().lidar_depth_std_dev_tol_factor_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/std_dev_tol_factor", GetInstance().lidar_depth_std_dev_tol_factor_);
+  ReadVariable(nh, "/orb_test_node/lidar_depth/max_messages_retained", GetInstance().lidar_max_messages_retained_);
 
   ReadVariable(nh, "/orb_test_node/loam_between_factors_enabled", GetInstance().loam_between_factors_enabled_);
   ReadVariable(nh, "/orb_test_node/frame_between_factors", GetInstance().frame_between_factors_);
@@ -634,6 +634,10 @@ double GlobalParams::LidarDepthMaxAllowedFeatureDistance()
 double GlobalParams::LidarDepthStdDevTolFactor()
 {
   return GetInstance().lidar_depth_std_dev_tol_factor_;
+}
+int GlobalParams::LidarMaxMessagesRetained()
+{
+  return GetInstance().lidar_max_messages_retained_;
 }
 
 int GlobalParams::IsamRelinearizeSkip()

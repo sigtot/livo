@@ -22,6 +22,11 @@ void LidarFrameManager::LidarCallback(const boost::shared_ptr<pcl::PointCloud<pc
   projectPCLtoImgFrame(cloud, getLidar2CameraTF(), K_, depth_image);
   lidar_frames_[compensated_timestamp] = std::make_shared<LidarFrame>(LidarFrame{ depth_image, compensated_timestamp });
   DebugImagePublisher::PublishDepthImage(depth_image, compensated_timestamp);
+
+  if (lidar_frames_.size() > GlobalParams::LidarMaxMessagesRetained())
+  {
+    lidar_frames_.erase(lidar_frames_.begin());
+  }
 }
 
 boost::optional<std::shared_ptr<LidarFrame>> LidarFrameManager::At(double timestamp) const
