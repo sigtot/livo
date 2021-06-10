@@ -15,6 +15,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <deque>
 
 using namespace std;
 using namespace cv;
@@ -23,8 +24,8 @@ class FeatureExtractor
 {
 private:
   ros::Publisher tracks_pub_;
-  vector<shared_ptr<Frame>> frames;
-  int frame_count_ = 0;
+  std::deque<shared_ptr<Frame>> frames;
+  int frame_count_ = 0; // Number of frames we have added. The current number of frames in memory may be lower.
   const LidarFrameManager& lidar_frame_manager_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
