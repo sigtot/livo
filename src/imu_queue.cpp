@@ -102,33 +102,33 @@ int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType
   std::lock_guard<std::mutex> lock(mu);
   int numIntg = 0;
   auto lastTime = start;
-  bool ranToEnd = true;
+  bool ran_to_end_of_queue = true;
   bool isPastEnd = false;
-  for (auto& it : imuMap)
+  auto it = GetFirstMeasurementInRange(start.toSec(), end.toSec());
+  for (; it != imuMap.end(); ++it)
   {
-    auto imuMsg = it.second;
+    auto imuMsg = it->second;
     if (imuMsg.header.stamp > end)
     {
       isPastEnd = true;
     }
-    if (imuMsg.header.stamp > start)
-  {
+
     auto dt = isPastEnd ? end - lastTime : imuMsg.header.stamp - lastTime;
-      auto linearMsg = imuMsg.linear_acceleration;
-      auto acc = gtsam::Vector3(linearMsg.x, linearMsg.y, linearMsg.z);
-      auto angularMsg = imuMsg.angular_velocity;
-      auto omega = gtsam::Vector3(angularMsg.x, angularMsg.y, angularMsg.z);
-      imuMeasurements->integrateMeasurement(acc, omega, dt.toSec());
-      lastTime = imuMsg.header.stamp;
-      numIntg++;
-    }
+    auto linearMsg = imuMsg.linear_acceleration;
+    auto acc = gtsam::Vector3(linearMsg.x, linearMsg.y, linearMsg.z);
+    auto angularMsg = imuMsg.angular_velocity;
+    auto omega = gtsam::Vector3(angularMsg.x, angularMsg.y, angularMsg.z);
+    imuMeasurements->integrateMeasurement(acc, omega, dt.toSec());
+    lastTime = imuMsg.header.stamp;
+    numIntg++;
+
     if (isPastEnd)
     {
-      ranToEnd = false;
+      ran_to_end_of_queue = false;
       break;
     }
   }
-  if (ranToEnd)
+  if (ran_to_end_of_queue)
   {
     std::cout << "WARN: imu integration ran to the end of the queue. This could imply that some msgs were lost"
               << std::endl;
