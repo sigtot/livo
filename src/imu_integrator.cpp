@@ -54,5 +54,5 @@ std::shared_ptr<gtsam::PreintegrationType> IMUIntegrator::GetPim() const
 
 gtsam::Rot3 IMUIntegrator::RefineInitialAttitude(double start, double end, const gtsam::Rot3& initial_attitude) const
 {
-  return ToGtsamRot(imu_queue_->RefineInitialAttitude(start, end, ToRot(initial_attitude)));
+  return imu_queue_->RefineInitialAttitude(start, end, initial_attitude, pim_->params()->body_P_sensor->rotation());
 }

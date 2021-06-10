@@ -74,7 +74,8 @@ int main(int argc, char** argv)
 
   DebugValuePublisher::SetPublishers(nh);
 
-  std::shared_ptr<IMUQueue> imu_queue = std::make_shared<IMUQueue>();
+  std::shared_ptr<IMUQueue> imu_queue =
+      std::make_shared<IMUQueue>(GlobalParams::TimeshiftCamImu(), GlobalParams::IMUMaxMessagesRetained());
   auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
 
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);

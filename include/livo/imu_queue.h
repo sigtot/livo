@@ -5,8 +5,7 @@
 #include <mutex>
 #include <sensor_msgs/Imu.h>
 #include <memory>
-
-#include "rot3.h"
+#include <gtsam/geometry/Rot3.h>
 
 // Forward declarations for gtsam
 namespace gtsam
@@ -21,11 +20,21 @@ private:
   std::map<double, sensor_msgs::Imu> imuMap;
   std::mutex mu;
 
+  double timeshift_cam_imu_;
+
+public:
+  IMUQueue(double timeshift_cam_imu, int max_messages_retained);
+
+private:
+  int max_messages_retained_;
+
 public:
   void addMeasurement(const sensor_msgs::Imu& measurement);
 
-  Rot3 RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3& init_rot);
-  Rot3 RefineInitialAttitude(double start, double end, const Rot3& init_rot);
+  gtsam::Rot3 RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& init_rot,
+                                    const gtsam::Rot3& body_R_imu);
+  gtsam::Rot3 RefineInitialAttitude(double start, double end, const gtsam::Rot3& init_rot,
+                                    const gtsam::Rot3& body_R_imu);
 
   bool hasMeasurementsInRange(ros::Time start, ros::Time end);
   bool hasMeasurementsInRange(double start, double end);

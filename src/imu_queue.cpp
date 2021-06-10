@@ -1,23 +1,27 @@
 #include "imu_queue.h"
-#include "global_params.h"
 #include "gtsam_conversions.h"
 
 #include <iostream>
 #include <gtsam/navigation/CombinedImuFactor.h>
 
+IMUQueue::IMUQueue(double timeshift_cam_imu, int max_messages_retained)
+  : timeshift_cam_imu_(timeshift_cam_imu), max_messages_retained_(max_messages_retained)
+{
+}
+
 void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
 {
   std::lock_guard<std::mutex> lock(mu);
   auto stampCorrectedMeasurement = measurement;
-  stampCorrectedMeasurement.header.stamp = measurement.header.stamp - ros::Duration(GlobalParams::TimeshiftCamImu());
+  stampCorrectedMeasurement.header.stamp = measurement.header.stamp - ros::Duration(timeshift_cam_imu_);
   imuMap[stampCorrectedMeasurement.header.stamp.toSec()] = stampCorrectedMeasurement;
 
-  if (imuMap.size() > GlobalParams::IMUMaxMessagesRetained())
+  if (imuMap.size() > max_messages_retained_)
   {
     imuMap.erase(imuMap.begin());
   }
 
-  /* Debug IMU orientation
+  /* Debug IMU orientation make sure to include "global_params.h"
   gtsam::Rot3 body_R_imu = gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
                                                    GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]);
 
@@ -29,15 +33,13 @@ void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
    */
 }
 
-Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3& init_rot)
+gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& init_rot,
+                                            const gtsam::Rot3& body_R_imu)
 {
   if (!hasMeasurementsInRange(start, end))
   {
-    return Rot3::Eye();
+    return init_rot;
   }
-
-  gtsam::Rot3 body_R_imu = gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
-                                                   GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]);
 
   int num_summed = 0;
   gtsam::Vector3 acc_sum(0, 0, 0);
@@ -59,27 +61,27 @@ Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const Rot3&
     }
   }
   acc_sum /= static_cast<double>(num_summed);
-  auto acc_sum_corrected = ToGtsamRot(init_rot) * body_R_imu * acc_sum;
+  auto acc_sum_corrected = init_rot * body_R_imu * acc_sum;
   acc_sum_corrected.normalize();           // Normalize so both vectors have length 1
   gtsam::Vector3 acc_at_rest(0., 0., 1.);  // An accelerometer at rest will measure 9.81 m/s^2 straight upwards
   auto rotation_diff = gtsam::Rot3(Eigen::Quaterniond().setFromTwoVectors(acc_sum_corrected, acc_at_rest));
-  auto aligned_init_rot = rotation_diff * ToGtsamRot(init_rot);
-  Rot3 aligned = ToRot(aligned_init_rot);
+  auto aligned = rotation_diff * init_rot;
 
   std::cout << "Aligned initial attitude along gravity using stationary IMU measurements." << std::endl;
-  std::cout << "Initial: " << init_rot.x << ", " << init_rot.y << ", " << init_rot.z << ", " << init_rot.w << std::endl;
-  std::cout << "Aligned: " << aligned.x << ", " << aligned.y << ", " << aligned.z << ", " << aligned.w << std::endl;
+  std::cout << "Initial: " << init_rot.toQuaternion().coeffs().transpose() << std::endl;
+  std::cout << "Aligned: " << aligned.toQuaternion().coeffs().transpose() << std::endl;
 
-  auto aligned_acc = aligned_init_rot * body_R_imu * acc_sum;
+  auto aligned_acc = aligned * body_R_imu * acc_sum;
   std::cout << "Measured acceleration stationary accel unaligned: " << (body_R_imu * acc_sum).transpose() << std::endl;
   std::cout << "Measured acceleration stationary accel aligned: " << aligned_acc.transpose() << std::endl;
 
   return aligned;
 }
 
-Rot3 IMUQueue::RefineInitialAttitude(double start, double end, const Rot3& init_rot)
+gtsam::Rot3 IMUQueue::RefineInitialAttitude(double start, double end, const gtsam::Rot3& init_rot,
+                                            const gtsam::Rot3& body_R_imu)
 {
-  return RefineInitialAttitude(ros::Time(start), ros::Time(end), init_rot);
+  return RefineInitialAttitude(ros::Time(start), ros::Time(end), init_rot, body_R_imu);
 }
 
 bool IMUQueue::hasMeasurementsInRange(ros::Time start, ros::Time end)
@@ -122,8 +124,8 @@ int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType
       isPastEnd = true;
     }
     if (imuMsg.header.stamp > start)
-    {
-      auto dt = isPastEnd ? end - lastTime : imuMsg.header.stamp - lastTime;
+  {
+    auto dt = isPastEnd ? end - lastTime : imuMsg.header.stamp - lastTime;
       auto linearMsg = imuMsg.linear_acceleration;
       auto acc = gtsam::Vector3(linearMsg.x, linearMsg.y, linearMsg.z);
       auto angularMsg = imuMsg.angular_velocity;
