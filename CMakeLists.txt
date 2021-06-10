@@ -165,11 +165,13 @@ catkin_add_gtest(livo_tests
         tests/helpers.h
         tests/fixed_lag_smoother_patched_tests.cpp
         tests/test_keyframe_timestamps.cpp
+        tests/imu_queue_tests.cpp
         src/graph_manager.cpp
         src/depth_triangulation.cpp
         src/isam2_solver.cpp
         src/incremental_fixed_lag_solver.cpp
         src/incremental_fixed_lag_smoother_patched.cpp
+        src/imu_queue.cpp
         src/gtsam_helpers.cpp
         src/gtsam_conversions.cpp
         src/feature_helpers.cpp

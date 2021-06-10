@@ -87,20 +87,8 @@ gtsam::Rot3 IMUQueue::RefineInitialAttitude(double start, double end, const gtsa
 bool IMUQueue::hasMeasurementsInRange(ros::Time start, ros::Time end)
 {
   std::lock_guard<std::mutex> lock(mu);
-  int betweenCount = 0;
-  for (auto& it : imuMap)
-  {
-    auto imuStamp = it.second.header.stamp;
-    if (imuStamp > end)
-    {
-      break;
-    }
-    if (imuStamp > start)
-    {
-      ++betweenCount;
-    }
-  }
-  return betweenCount > 0;
+  auto first_in_range = GetFirstMeasurementInRange(start.toSec(), end.toSec());
+  return first_in_range != imuMap.end();
 }
 
 bool IMUQueue::hasMeasurementsInRange(double start, double end)
@@ -152,4 +140,19 @@ int IMUQueue::integrateIMUMeasurements(std::shared_ptr<gtsam::PreintegrationType
                                        double end)
 {
   return integrateIMUMeasurements(imuMeasurements, ros::Time(start), ros::Time(end));
+}
+
+std::map<double, sensor_msgs::Imu>::iterator IMUQueue::GetFirstMeasurementInRange(double start, double end)
+{
+  auto it = imuMap.lower_bound(start);
+
+  // If we have a non-end iterator here, we know from the lower_bound that it will be after start, but we still need to
+  // check that it is before end.
+  if (it != imuMap.end() && it->first > end)
+  {
+    return imuMap.end();
+  }
+
+  // The final return can be either imuMap.end() or the first measurement in range
+  return it;
 }
