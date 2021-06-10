@@ -38,6 +38,7 @@ isam_relin_thresh:
   b: 0.2
   l: 1.0
 
+imu_max_messages_retained: 10000
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -9.81

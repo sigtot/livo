@@ -137,6 +137,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/stationary_thresh", GetInstance().stationary_thresh_);
 
   ReadVariable(nh, "/orb_test_node/timeshift_cam_imu", GetInstance().timeshift_cam_imu_);
+  ReadVariable(nh, "/orb_test_node/imu_max_messages_retained", GetInstance().imu_max_messages_retained_);
   ReadVariable(nh, "/orb_test_node/imu_g", GetInstance().imu_g_);
   ReadVariable(nh, "/orb_test_node/imu_n_gravity_x", GetInstance().imu_n_gravity_x_);
   ReadVariable(nh, "/orb_test_node/imu_n_gravity_y", GetInstance().imu_n_gravity_y_);
@@ -295,6 +296,11 @@ double GlobalParams::TimeshiftCamImu()
 {
   return GetInstance().timeshift_cam_imu_;
 }
+int GlobalParams::IMUMaxMessagesRetained()
+{
+  return GetInstance().imu_max_messages_retained_;
+}
+
 double GlobalParams::IMUAccelNoiseDensity()
 {
   return GetInstance().imu_accel_noise_density_;

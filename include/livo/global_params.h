@@ -99,6 +99,7 @@ private:
   double robust_range_k_ = 15;
 
   double timeshift_cam_imu_ = 0.01379378638037798;
+  int imu_max_messages_retained_ = 10000;
 
   // For explanation and units, see https://github.com/borglab/gtsam/issues/213
   double imu_g_ = 9.81000;
@@ -240,6 +241,7 @@ public:
   static double RobustRangeK();
 
   static double TimeshiftCamImu();  // t_imu = t_cam + shift
+  static int IMUMaxMessagesRetained();
   static double IMUG();
   static double IMUNGravityX();
   static double IMUNGravityY();

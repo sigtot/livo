@@ -12,6 +12,11 @@ void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
   stampCorrectedMeasurement.header.stamp = measurement.header.stamp - ros::Duration(GlobalParams::TimeshiftCamImu());
   imuMap[stampCorrectedMeasurement.header.stamp.toSec()] = stampCorrectedMeasurement;
 
+  if (imuMap.size() > GlobalParams::IMUMaxMessagesRetained())
+  {
+    imuMap.erase(imuMap.begin());
+  }
+
   /* Debug IMU orientation
   gtsam::Rot3 body_R_imu = gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
                                                    GlobalParams::BodyPImuQuat()[1], GlobalParams::BodyPImuQuat()[2]);

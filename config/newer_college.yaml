@@ -10,6 +10,7 @@ lidar_time_offset_type: newer_college
 init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
+imu_max_messages_retained: 10000
 imu_g: 9.78672
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
