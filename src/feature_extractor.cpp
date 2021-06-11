@@ -228,6 +228,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
   }
 
+  if (frames.front()->timestamp < new_frame->timestamp - GlobalParams::SmootherLag() - 10.)
+  {
+    frames.pop_front();
+  }
+
   return new_frame;
 }
 
