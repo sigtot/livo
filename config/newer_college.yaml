@@ -15,20 +15,34 @@ imu_g: 9.78672
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
-imu_accel_noise_density: 0.0014715 # m / (s^2 sqrt(Hz))
-imu_gyro_noise_density: 0.00174528 # rad / s
-imu_accel_random_walk: 0.000106 # Couldn't find in datasheet
-imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
+do_initial_gravity_alignment: false
+#imu_accel_noise_density: 0.0014715 # m / (s^2 sqrt(Hz))
+#imu_gyro_noise_density: 0.00174528 # rad / s
+#imu_accel_random_walk: 0.000208 # Couldn't find in datasheet
+#imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
+
+imu_accel_noise_density: 0.0013 # m / (s^2 sqrt(Hz))
+imu_gyro_noise_density: 0.00005398 # rad / s
+imu_accel_random_walk: 0.0001 # Couldn't find in datasheet
+imu_gyro_random_walk: 0.00000933 # Couldn't find in datasheet
+
+# Nikhil's params
+#accNoiseDensity: 1.3e-03
+#gyrNoiseDensity: 5.398e-05
+#accBiasRandomWalk: 1.0e-04
+#gyrBiasRandomWalk: 9.33e-06
+#accBiasPrior: 0.0
+#gyrBiasPrior: 0.0
 
 noise_params:
   prior_X_yaw: 0.00001
   prior_X_roll_pitch: 0.0001
   prior_X_translation: 0.00001
-  prior_gyro: 0.1
-  prior_accel: 0.1
+  prior_gyro: 0.00000001
+  prior_accel: 0.00000001
   prior_velocity: 0.00001
-  between_rotation: 0.001
-  between_translation: 0.03
+  between_rotation: 0.03
+  between_translation: 0.01
   between_rotation_keyframe: 0.001
   between_translation_keyframe: 0.01
   feature: 1.0
@@ -55,7 +69,7 @@ track_count_lower_thresh: 30
 min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 20
+min_track_length_for_smoothing: 30
 min_track_length_for_smoothing_depth: 20
 min_depth_measurements_for_smoothing: 5
 min_active_track_count: 20
@@ -115,8 +129,8 @@ isam_relin_thresh:
   b: 0.1
   l: 1.0
 
-loam_between_factors_enabled: false
-frame_between_factors: false
+loam_between_factors_enabled: true
+frame_between_factors: true
 keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
