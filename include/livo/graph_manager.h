@@ -125,6 +125,7 @@ public:
   void ConvertSmartFactorToProjectionFactor(int lmk_id, double timestamp, const gtsam::Point3& initial_estimate);
   void AddBetweenFactor(int frame_id_1, int frame_id_2, const gtsam::Pose3& pose,
                         const boost::shared_ptr<gtsam::noiseModel::Base>& between_noise);
+  void RemoveLandmark(int lmk_id);
   gtsam::ISAM2Result Update();
 
   gtsam::Pose3 GetPose(int frame_id) const;

@@ -23,7 +23,8 @@ public:
 
   gtsam::ISAM2Result Update(
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) override;
+      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& new_affected_keys,
+      const gtsam::FactorIndices& factors_to_remove) override;
   gtsam::Values CalculateEstimate() override;
   gtsam::NonlinearFactorGraph GetFactorsUnsafe() override;
   gtsam::VectorValues GetDelta() override;

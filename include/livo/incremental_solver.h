@@ -4,6 +4,7 @@
 #include <map>
 #include <Eigen/Core>
 #include <boost/optional.hpp>
+#include <gtsam/base/FastVector.h>
 
 namespace gtsam
 {
@@ -23,6 +24,7 @@ template <typename KEY, typename VALUE>
 class FastMap;
 
 typedef uint64_t FactorIndex;
+typedef FastVector<FactorIndex> FactorIndices;
 
 template <typename VALUE>
 class FastSet;
@@ -41,7 +43,8 @@ public:
 
   virtual gtsam::ISAM2Result Update(
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys) = 0;
+      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys,
+      const gtsam::FactorIndices& factorsToRemove) = 0;
 
   virtual gtsam::Values CalculateEstimate() = 0;
   virtual gtsam::NonlinearFactorGraph GetFactorsUnsafe() = 0;

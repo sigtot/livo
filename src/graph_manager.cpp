@@ -62,7 +62,8 @@ void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const g
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_);
+  auto result =
+      incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_, gtsam::FactorIndices{});
   graph_->resize(0);
   values_->clear();
   timestamps_->clear();
@@ -187,7 +188,7 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, double times
                            landmark_in_smoother->second.noise_model;
     ProjectionFactor proj_factor(feature, noise_model, X(frame_id), L(lmk_id), K, body_p_cam);
     graph_->add(proj_factor);
-    // We must update the timestamp for to this landmark so it doesn't get marginalized before its newest observation
+    // We must update the timestamp for this landmark so it doesn't get marginalized before its newest observation
     timestamps_->insert({ L(lmk_id), timestamp });
   }
 }

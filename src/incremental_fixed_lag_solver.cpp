@@ -14,17 +14,19 @@ IncrementalFixedLagSolver::IncrementalFixedLagSolver(double lag, const gtsam::IS
 {
 }
 
-gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
-    const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps)
+gtsam::ISAM2Result IncrementalFixedLagSolver::Update(const gtsam::NonlinearFactorGraph& graph,
+                                                     const gtsam::Values& values,
+                                                     const gtsam::KeyTimestampMap& timestamps)
 {
-  return Update(graph, values, timestamps, boost::none);
+  return Update(graph, values, timestamps, boost::none, gtsam::FactorIndices{});
 }
 
 gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
     const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys)
+    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& new_affected_keys,
+    const gtsam::FactorIndices& factors_to_remove)
 {
-  fixed_lag_smoother_->update(graph, values, timestamps, newAffectedKeys);
+  fixed_lag_smoother_->update(graph, values, timestamps, new_affected_keys, factors_to_remove);
   return fixed_lag_smoother_->getISAM2Result();
 }
 
