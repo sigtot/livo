@@ -10,7 +10,6 @@
 #include "debug_value_publisher.h"
 #include "isam2_solver.h"
 #include "incremental_fixed_lag_solver.h"
-#include "tf2_between_transform_provider.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -102,7 +101,7 @@ std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
 NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
                          std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
                          const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
-                         std::mutex& mu)
+                         const std::shared_ptr<BetweenTransformProvider>& between_transform_provider, std::mutex& mu)
   : between_noise_(gtsam::noiseModel::Diagonal::Sigmas(
         (gtsam::Vector(6) << gtsam::Vector3::Constant(GlobalParams::NoiseBetweenRotation()),
          gtsam::Vector3::Constant(GlobalParams::NoiseBetweenTranslation()))
@@ -119,12 +118,7 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
   , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
-  , between_transform_provider_(std::make_shared<TF2BetweenTransformProvider>(
-        gtsam::Pose3(gtsam::Rot3::Quaternion(GlobalParams::BodyPLidarQuat()[3], GlobalParams::BodyPLidarQuat()[0],
-                                             GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
-                     gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
-                                   GlobalParams::BodyPLidarVec()[2])),
-        GlobalParams::LoamWorldFrame(), GlobalParams::LoamSensorFrame()))
+  , between_transform_provider_(between_transform_provider)
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
         gtsam::Rot3::Quaternion(GlobalParams::BodyPCamQuat()[3], GlobalParams::BodyPCamQuat()[0],
                                 GlobalParams::BodyPCamQuat()[1], GlobalParams::BodyPCamQuat()[2]),
@@ -665,8 +659,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           biases_relinearized++;
           break;
       }
-      //std::cout << "========== " << gtsam::_defaultKeyFormatter(x.first) << " ==========" << std::endl;
-      //PrintVariableStatus(x.second);
+      // std::cout << "========== " << gtsam::_defaultKeyFormatter(x.first) << " ==========" << std::endl;
+      // PrintVariableStatus(x.second);
     }
     std::cout << poses_relinearized << " poses relinearized" << std::endl;
     std::cout << landmarks_relinearized << " landmarks relinearized" << std::endl;

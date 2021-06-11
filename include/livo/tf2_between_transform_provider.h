@@ -12,10 +12,6 @@
 class TF2BetweenTransformProvider : public BetweenTransformProvider
 {
 private:
-public:
-  TF2BetweenTransformProvider(const gtsam::Pose3& body_p_sensor, std::string world_frame, std::string sensor_frame);
-
-private:
   // Configuration
   std::shared_ptr<gtsam::Pose3> body_p_sensor_;
   std::string world_frame_;
@@ -26,7 +22,22 @@ private:
   tf2_ros::TransformListener tf_listener;
 
 public:
+  TF2BetweenTransformProvider(const gtsam::Pose3& body_p_sensor, std::string world_frame, std::string sensor_frame);
+
+  /**
+   * Constructor taking std::vectors for body_p_sensor.
+   *
+   * @param body_p_sensor_quat vector with order [x, y, z, w]
+   * @param body_p_sensor_vector vector with order [x, y, z]
+   * @param world_frame
+   * @param sensor_frame
+   */
+  TF2BetweenTransformProvider(const std::vector<double>& body_p_sensor_quat,
+                              const std::vector<double>& body_p_sensor_vector, std::string world_frame,
+                              std::string sensor_frame);
+
   boost::optional<gtsam::Pose3> GetBetweenTransform(double timestamp1, double timestamp2) override;
+  bool CanTransform(double timestamp) override;
 };
 
 #endif  // ORB_TEST_SRC_TF2_BETWEEN_TRANSFORM_PROVIDER_H_

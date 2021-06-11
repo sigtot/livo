@@ -20,6 +20,7 @@
 #include "zero_time_offset_provider.h"
 #include "radtan_undistorter.h"
 #include "equidistant_undistorter.h"
+#include "tf2_between_transform_provider.h"
 
 #include <memory>
 
@@ -103,16 +104,19 @@ int main(int argc, char** argv)
   std::shared_ptr<ImageUndistorter> image_undistorter = makeUndistorter();
   LidarFrameManager lidar_frame_manager(GlobalParams::LidarFrameManagerTimestampThresh(), lidar_time_offset_provider,
                                         image_undistorter);
+  auto between_transform_provider =
+      std::make_shared<TF2BetweenTransformProvider>(GlobalParams::BodyPLidarQuat(), GlobalParams::BodyPLidarVec(),
+                                                    GlobalParams::LoamWorldFrame(), GlobalParams::LoamSensorFrame());
 
   std::mutex mu;
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu);
-  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, mu);
+  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
-  Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother, path_pub,
-                        posearr_pub, landmarks_pub);
+  Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother,
+                        between_transform_provider, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
-      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 30);
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 50);
   auto img_sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
                               &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
                               &image_messages_processor);

@@ -8,6 +8,17 @@
 
 #include <utility>
 
+TF2BetweenTransformProvider::TF2BetweenTransformProvider(const std::vector<double>& body_p_sensor_quat,
+                                                         const std::vector<double>& body_p_sensor_vector,
+                                                         std::string world_frame, std::string sensor_frame)
+  : TF2BetweenTransformProvider(
+        gtsam::Pose3(gtsam::Rot3::Quaternion(body_p_sensor_quat[3], body_p_sensor_quat[0], body_p_sensor_quat[1],
+                                             body_p_sensor_quat[2]),
+                     gtsam::Point3(body_p_sensor_vector[0], body_p_sensor_vector[1], body_p_sensor_quat[2])),
+        std::move(world_frame), std::move(sensor_frame))
+{
+}
+
 TF2BetweenTransformProvider::TF2BetweenTransformProvider(const gtsam::Pose3& body_p_sensor, std::string world_frame,
                                                          std::string sensor_frame)
   : body_p_sensor_(std::make_shared<gtsam::Pose3>(body_p_sensor))
@@ -22,10 +33,8 @@ boost::optional<gtsam::Pose3> TF2BetweenTransformProvider::GetBetweenTransform(d
 {
   try
   {
-    auto tf_1 =
-        tf_buffer.lookupTransform(world_frame_, sensor_frame_, ros::Time(timestamp1)).transform;
-    auto tf_2 =
-        tf_buffer.lookupTransform(world_frame_, sensor_frame_, ros::Time(timestamp2)).transform;
+    auto tf_1 = tf_buffer.lookupTransform(world_frame_, sensor_frame_, ros::Time(timestamp1)).transform;
+    auto tf_2 = tf_buffer.lookupTransform(world_frame_, sensor_frame_, ros::Time(timestamp2)).transform;
 
     gtsam::Pose3 w_T_l1(gtsam::Rot3::Quaternion(tf_1.rotation.w, tf_1.rotation.x, tf_1.rotation.y, tf_1.rotation.z),
                         gtsam::Point3(tf_1.translation.x, tf_1.translation.y, tf_1.translation.z));
@@ -41,4 +50,9 @@ boost::optional<gtsam::Pose3> TF2BetweenTransformProvider::GetBetweenTransform(d
     ROS_WARN("%s", ex.what());
   }
   return boost::none;
+}
+
+bool TF2BetweenTransformProvider::CanTransform(double timestamp)
+{
+  return tf_buffer.canTransform(world_frame_, sensor_frame_, ros::Time(timestamp));
 }

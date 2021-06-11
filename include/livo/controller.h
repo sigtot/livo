@@ -10,6 +10,7 @@
 #include "imu_ground_truth_smoother.h"
 #include "lidar_frame_manager.h"
 #include "landmark_result.h"
+#include "between_transform_provider.h"
 
 #include <mutex>
 #include <condition_variable>
@@ -27,14 +28,17 @@ private:
   ros::Publisher path_publisher_;
   ros::Publisher landmark_publisher_;
   ros::Publisher pose_arr_publisher_;
+  std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
 
   std::mutex back_cv_m_;
   std::condition_variable back_cv_;
-  boost::optional<std::shared_ptr<Frame>> latest_frame_; // Protected by back_cv_m_
-  std::thread backend_thread_; // Thread for backend. Frontend thread is the current thread.
+  boost::optional<std::shared_ptr<Frame>> latest_frame_;  // Protected by back_cv_m_
+  std::thread backend_thread_;                            // Thread for backend. Frontend thread is the current thread.
 
 public:
-  explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend, IMUGroundTruthSmoother& imu_ground_truth_smoother,
+  explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
+                      IMUGroundTruthSmoother& imu_ground_truth_smoother,
+                      std::shared_ptr<BetweenTransformProvider> between_transform_provider,
                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                       ros::Publisher& landmark_publisher);
 

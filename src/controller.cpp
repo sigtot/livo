@@ -13,14 +13,18 @@
 
 #include <global_params.h>
 #include <chrono>
+#include <utility>
 
 Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
-                       IMUGroundTruthSmoother& imu_ground_truth_smoother, ros::Publisher& path_publisher,
-                       ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
+                       IMUGroundTruthSmoother& imu_ground_truth_smoother,
+                       std::shared_ptr<BetweenTransformProvider> between_transform_provider,
+                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
+                       ros::Publisher& landmark_publisher)
   : frontend_(frontend)
   , lidar_frame_manager_(lidar_frame_manager)
   , new_backend_(new_backend)
   , imu_ground_truth_smoother_(imu_ground_truth_smoother)
+  , between_transform_provider_(std::move(between_transform_provider))
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
   , landmark_publisher_(landmark_publisher)
@@ -52,14 +56,14 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
   if (i++ % GlobalParams::FrameInterval() != 0)
   {
-    return; // Return before feeding into backend. I.e. frontend has twice the rate of the backend
+    return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
   }
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;
   std::cout << "Frontend frame " << new_frame->id << " (took: " << millis << " ms)" << std::endl;
 
-  SetLatestFrameForBackend(new_frame); // Will block if backend is still processing the previous frame.
+  SetLatestFrameForBackend(new_frame);  // Will block if backend is still processing the previous frame.
 }
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
@@ -104,11 +108,11 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     new_backend_.AddKeyframe(frame, frame->is_keyframe);
   }
 
-  if (!new_backend_.IsInitialized() && frame->HasDepth())
+  if (!new_backend_.IsInitialized() && frame->HasDepth() && between_transform_provider_->CanTransform(frame->timestamp))
   {
     if (frame->stationary)
     {
-      if (frontend_.GetFramesForIMUAttitudeInitialization(frame->id))
+      if (GlobalParams::DoInitialGravityAlignment() && frontend_.GetFramesForIMUAttitudeInitialization(frame->id))
       {
         auto imu_init_frames = frontend_.GetFramesForIMUAttitudeInitialization(frame->id);
         // We wait until we have > 1.0 seconds of imu integration before using it for gravity alignment
