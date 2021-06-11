@@ -108,7 +108,10 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     new_backend_.AddKeyframe(frame, frame->is_keyframe);
   }
 
-  if (!new_backend_.IsInitialized() && frame->HasDepth() && between_transform_provider_->CanTransform(frame->timestamp))
+  bool must_wait_for_transform =
+      GlobalParams::LoamBetweenFactorsEnabled() && !between_transform_provider_->CanTransform(frame->timestamp);
+
+  if (!new_backend_.IsInitialized() && frame->HasDepth() && !must_wait_for_transform)
   {
     if (frame->stationary)
     {

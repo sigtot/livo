@@ -70,7 +70,8 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
   imu_params->gyroscopeCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroNoiseDensity(), 2.0);
   imu_params->biasAccCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUAccelRandomWalk(), 2.0);
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
-  imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;
+  imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;  // Try increasing this by factor of ~100-1000
+  // TODO set acc omega int to identity
 
   imu_params->body_P_sensor = gtsam::Pose3(
       gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],

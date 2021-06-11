@@ -116,7 +116,7 @@ int main(int argc, char** argv)
                         between_transform_provider, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
-      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 50);
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 30);
   auto img_sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
                               &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
                               &image_messages_processor);
