@@ -148,3 +148,8 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
 
   return result;
 }
+
+bool IncrementalFixedLagSmootherPatched::valueExists(gtsam::Key key)
+{
+  return isam_.valueExists(key);
+}

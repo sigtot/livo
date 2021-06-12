@@ -47,7 +47,7 @@ gtsam::VectorValues IncrementalFixedLagSolver::GetDelta()
 
 bool IncrementalFixedLagSolver::ValueExists(gtsam::Key key)
 {
-  return fixed_lag_smoother_->timestamps().count(key);
+  return fixed_lag_smoother_->valueExists(key);
 }
 
 gtsam::Pose3 IncrementalFixedLagSolver::CalculateEstimatePose3(gtsam::Key key)
