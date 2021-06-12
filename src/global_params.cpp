@@ -685,7 +685,7 @@ bool GlobalParams::LandmarkRemovalHighDepthDifference()
 {
   return GetInstance().landmark_removal_high_depth_distance_;
 }
-bool GlobalParams::MaxDepthDifferenceBeforeRemoval()
+double GlobalParams::MaxDepthDifferenceBeforeRemoval()
 {
   return GetInstance().max_depth_difference_before_removal_;
 }

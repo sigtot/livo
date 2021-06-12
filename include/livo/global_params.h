@@ -299,7 +299,7 @@ public:
 
   static bool LandmarkRemovalHighDelta();
   static bool LandmarkRemovalHighDepthDifference();
-  static bool MaxDepthDifferenceBeforeRemoval();
+  static double MaxDepthDifferenceBeforeRemoval();
 
   static bool DrawLidarLines();
 };
