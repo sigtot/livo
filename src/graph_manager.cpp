@@ -107,6 +107,8 @@ gtsam::ISAM2Result GraphManager::Update()
       std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is dangerously high! ===" << std::endl;
       std::cout << "delta = " << delta.second << std::endl;
       std::cout << "norm(delta) = " << delta.second.norm() << " > " << delta_danger_thresh << std::endl;
+      std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;
+      RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));
       std::cout << "=========================================" << std::endl;
     }
   }
