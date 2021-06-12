@@ -82,6 +82,7 @@ private:
   // Configuration
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
   double lag_;
+  bool remove_high_delta_landmarks_;
 
   // Bookkeeping
   std::map<int, LandmarkInSmoother> added_landmarks_;
@@ -96,7 +97,8 @@ private:
 
 public:
   GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver,
-               const gtsam::SmartProjectionParams& smart_factor_params, double lag = -1.);
+               const gtsam::SmartProjectionParams& smart_factor_params, double lag = -1.,
+               bool remove_high_delta_landmarks = false);
 
   void SetInitNavstate(int first_frame_id, double timestamp, const gtsam::NavState& nav_state,
                        const gtsam::imuBias::ConstantBias& bias,

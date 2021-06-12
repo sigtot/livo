@@ -46,6 +46,10 @@ private:
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
 
+  bool landmark_removal_high_delta_ = true;
+  bool landmark_removal_high_depth_distance_ = true;
+  double max_depth_difference_before_removal_ = 10.;
+
   int second_ransac_n_frames_ = 30; // Perform a second fundamentalMat RANSAC outlier rejection with the nth prev frame
 
   bool use_parallax_keyframes_ = false;  // false: temporal keyframes, true: insert keyframes when enough parallax
@@ -292,6 +296,10 @@ public:
   static bool LoamBetweenFactorsEnabled();
   static bool FrameBetweenFactors();
   static bool KeyframeBetweenFactors();
+
+  static bool LandmarkRemovalHighDelta();
+  static bool LandmarkRemovalHighDepthDifference();
+  static bool MaxDepthDifferenceBeforeRemoval();
 
   static bool DrawLidarLines();
 };

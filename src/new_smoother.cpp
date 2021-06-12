@@ -116,7 +116,8 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
   , range_noise_(
         gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
-  , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams()))
+  , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams(), GlobalParams::SmootherLag(),
+                                GlobalParams::LandmarkRemovalHighDelta()))
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , between_transform_provider_(between_transform_provider)

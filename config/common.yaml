@@ -97,3 +97,8 @@ lidar_depth:
   std_dev_tol_factor: 0.1
 
 draw_lidar_lines: false
+
+landmark_removal:
+  high_delta: false
+  high_depth_difference: true
+  max_depth_difference: 10.

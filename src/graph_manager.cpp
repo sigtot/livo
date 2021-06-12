@@ -28,7 +28,8 @@ using gtsam::symbol_shorthand::V;  // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::X;  // Pose3 (x,y,z,r,p,y)
 
 GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver,
-                           const gtsam::SmartProjectionParams& smart_factor_params, double lag)
+                           const gtsam::SmartProjectionParams& smart_factor_params, double lag,
+                           bool remove_high_delta_landmarks)
   : incremental_solver_(std::move(incremental_solver))
   , graph_(std::make_shared<gtsam::NonlinearFactorGraph>())
   , values_(std::make_shared<gtsam::Values>())
@@ -37,6 +38,7 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   , factors_to_remove_(std::make_shared<gtsam::FactorIndices>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
   , lag_(lag)
+  , remove_high_delta_landmarks_(remove_high_delta_landmarks)
 {
 }
 
@@ -107,8 +109,11 @@ gtsam::ISAM2Result GraphManager::Update()
       std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is dangerously high! ===" << std::endl;
       std::cout << "delta = " << delta.second << std::endl;
       std::cout << "norm(delta) = " << delta.second.norm() << " > " << delta_danger_thresh << std::endl;
-      std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;
-      RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));
+      if (remove_high_delta_landmarks_)
+      {
+        std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;
+        RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));
+      }
       std::cout << "=========================================" << std::endl;
     }
   }

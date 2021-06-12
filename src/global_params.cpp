@@ -190,6 +190,12 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
 
   ReadVariable(nh, "/orb_test_node/draw_lidar_lines", GetInstance().draw_lidar_lines_);
+
+  ReadVariable(nh, "/orb_test_node/landmark_removal/high_delta", GetInstance().landmark_removal_high_delta_);
+  ReadVariable(nh, "/orb_test_node/landmark_removal/high_depth_difference",
+               GetInstance().landmark_removal_high_depth_distance_);
+  ReadVariable(nh, "/orb_test_node/landmark_removal/max_depth_difference",
+               GetInstance().max_depth_difference_before_removal_);
 }
 
 // Implement parameter accessors here
@@ -669,4 +675,17 @@ std::string GlobalParams::LoamSensorFrame()
 bool GlobalParams::DrawLidarLines()
 {
   return GetInstance().draw_lidar_lines_;
+}
+
+bool GlobalParams::LandmarkRemovalHighDelta()
+{
+  return GetInstance().landmark_removal_high_delta_;
+}
+bool GlobalParams::LandmarkRemovalHighDepthDifference()
+{
+  return GetInstance().landmark_removal_high_depth_distance_;
+}
+bool GlobalParams::MaxDepthDifferenceBeforeRemoval()
+{
+  return GetInstance().max_depth_difference_before_removal_;
 }
