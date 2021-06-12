@@ -1,4 +1,5 @@
 #include "feature_helpers.h"
+#include <algorithm>
 
 bool CompareFeatureSharedPtrsByWhetherTheyHaveDepth(const std::shared_ptr<Feature>& a,
                                                     const std::shared_ptr<Feature>& b)
@@ -49,4 +50,26 @@ void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int ce
     int feat_cell_y = static_cast<int>(feature->pt.y) / cell_h;
     feature_counts.at<int>(feat_cell_y, feat_cell_x)++;
   }
+}
+
+/**
+ * Compute maximum difference in a track's lidar depth measurements.
+ * @param track
+ * @return max difference in depth or -1 in case the track has no depth.
+ */
+double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track)
+{
+  double min_depth = 999.;
+  double max_depth = 0.;
+  bool have_depth = false;  // We need to check that we don't have a track without any depth
+  for (const auto& feature : track->features)
+  {
+    if (feature->depth)
+    {
+      max_depth = std::max(max_depth, feature->depth->depth);
+      min_depth = std::min(min_depth, feature->depth->depth);
+      have_depth = true;
+    }
+  }
+  return have_depth ? max_depth - min_depth : -1.;
 }

@@ -2,6 +2,7 @@
 #define ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_
 
 #include "feature.h"
+#include "track.h"
 
 #include <vector>
 #include <map>
@@ -16,5 +17,7 @@ double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2
 
 void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int cell_count_y,
                                   const std::map<int, std::weak_ptr<Feature>>& features, cv::Mat_<int>& feature_counts);
+
+double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_
