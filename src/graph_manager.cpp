@@ -20,6 +20,7 @@
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/sam/RangeFactor.h>
 #include <gtsam/linear/LossFunctions.h>
+#include <gtsam/base/FastSet.h>
 
 using gtsam::symbol_shorthand::B;  // Bias  (ax,ay,az,gx,gy,gz)
 using gtsam::symbol_shorthand::L;  // Landmarks (x,y,z)
@@ -33,6 +34,7 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   , values_(std::make_shared<gtsam::Values>())
   , timestamps_(std::make_shared<gtsam::KeyTimestampMap>())
   , new_affected_keys_(std::make_shared<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>())
+  , factors_to_remove_(std::make_shared<gtsam::FactorIndices>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
   , lag_(lag)
 {
@@ -60,16 +62,42 @@ void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const g
   last_timestamp_ = timestamp;
 }
 
+void GraphManager::RemoveLandmark(int lmk_id)
+{
+  if (std::find_if(new_factor_indices_to_lmk_.begin(), new_factor_indices_to_lmk_.end(),
+                   [lmk_id](const std::pair<gtsam::FactorIndex, int>& v) { return v.second == lmk_id; }) !=
+      new_factor_indices_to_lmk_.end())
+  {
+    std::cout << "You can not remove a landmark and add factors to it in the same update. Exiting." << std::endl;
+    exit(1);
+  }
+
+  auto lmk_it = added_landmarks_.find(lmk_id);
+  if (lmk_it == added_landmarks_.end())
+  {
+    return;  // Requested removal of non-existent landmark. Ignoring.
+  }
+
+  factors_to_remove_->insert(factors_to_remove_->end(), lmk_it->second.factor_indices.begin(),
+                             lmk_it->second.factor_indices.end());
+  if (lmk_it->second.smart_factor_in_smoother)
+  {
+    lmk_it->second.smart_factor_in_smoother = boost::none;
+  }
+}
+
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result =
-      incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_, gtsam::FactorIndices{});
+  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_, *factors_to_remove_);
   graph_->resize(0);
   values_->clear();
   timestamps_->clear();
   new_affected_keys_->clear();
+  factors_to_remove_->clear();
 
-  SetNewAffectedKeys(result);
+  SetSmartFactorIdxInIsam(result);
+  SetLandmarkFactorInSmootherIndices(result.newFactorsIndices);
+  new_factor_indices_to_lmk_.clear();
 
   for (const auto& delta : incremental_solver_->GetDelta())
   {
@@ -125,7 +153,10 @@ void GraphManager::InitStructurelessLandmark(
   smart_factor_in_smoother.smart_factor =
       gtsam::make_shared<SmartFactor>(feature_noise, K, body_p_cam, *smart_factor_params_);
   smart_factor_in_smoother.smart_factor->add(feature, X(frame_id));
+
   smart_factor_in_smoother.idx_in_new_factors = graph_->size();
+  new_factor_indices_to_lmk_[graph_->size()] = lmk_id;
+
   graph_->add(smart_factor_in_smoother.smart_factor);
   landmark_in_smoother.smart_factor_in_smoother = smart_factor_in_smoother;
   added_landmarks_[lmk_id] = landmark_in_smoother;
@@ -149,6 +180,7 @@ void GraphManager::InitProjectionLandmark(
   ProjectionFactor proj_factor(
       feature, landmark_in_smoother.robust_noise_model ? *landmark_in_smoother.robust_noise_model : feature_noise,
       X(frame_id), L(lmk_id), K, body_p_cam);
+  new_factor_indices_to_lmk_[graph_->size()] = lmk_id;
   graph_->add(proj_factor);
   values_->insert(L(lmk_id), initial_estimate);
   timestamps_->insert({ L(lmk_id), timestamp });
@@ -187,6 +219,7 @@ void GraphManager::AddLandmarkObservation(int lmk_id, int frame_id, double times
                            *landmark_in_smoother->second.robust_noise_model :
                            landmark_in_smoother->second.noise_model;
     ProjectionFactor proj_factor(feature, noise_model, X(frame_id), L(lmk_id), K, body_p_cam);
+    new_factor_indices_to_lmk_[graph_->size()] = lmk_id;
     graph_->add(proj_factor);
     // We must update the timestamp for this landmark so it doesn't get marginalized before its newest observation
     timestamps_->insert({ L(lmk_id), timestamp });
@@ -207,6 +240,7 @@ void GraphManager::AddRangeObservation(int lmk_id, int frame_id, double timestam
   timestamps_->insert({ L(lmk_id), timestamp });
 
   RangeFactor range_factor(X(frame_id), L(lmk_id), range, range_noise);
+  new_factor_indices_to_lmk_[graph_->size()] = lmk_id;
   graph_->add(range_factor);
 }
 
@@ -216,6 +250,9 @@ void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double times
   assert(added_landmarks_.count(lmk_id) && added_landmarks_[lmk_id].smart_factor_in_smoother);
   auto landmark_in_smoother = added_landmarks_[lmk_id];
   boost::shared_ptr<SmartFactor> smart_factor = landmark_in_smoother.smart_factor_in_smoother->smart_factor;
+
+  landmark_in_smoother.factor_indices.clear();  // Clear the smart factor idx from the FactorIndices
+
   values_->insert(L(lmk_id), initial_estimate);
   timestamps_->insert({ L(lmk_id), timestamp });
   for (int i = 0; i < smart_factor->keys().size(); ++i)
@@ -227,6 +264,7 @@ void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double times
     auto noise_model = landmark_in_smoother.robust_noise_model ? *landmark_in_smoother.robust_noise_model :
                                                                  landmark_in_smoother.noise_model;
     ProjectionFactor proj_factor(feature, noise_model, frame_key, L(lmk_id), K, body_p_cam);
+    new_factor_indices_to_lmk_[graph_->size()] = lmk_id;
     graph_->add(proj_factor);
   }
   added_landmarks_[lmk_id].smart_factor_in_smoother->smart_factor.reset();  // Makes the shared pointer within isam a
@@ -236,7 +274,15 @@ void GraphManager::ConvertSmartFactorToProjectionFactor(int lmk_id, double times
   added_landmarks_[lmk_id].smart_factor_in_smoother = boost::none;  // Remove nullptr smart factor from our bookkeeping
 }
 
-void GraphManager::SetNewAffectedKeys(const gtsam::ISAM2Result& result)
+void GraphManager::SetLandmarkFactorInSmootherIndices(const gtsam::FactorIndices& new_indices_in_smoother)
+{
+  for (const auto idx_lmk : new_factor_indices_to_lmk_)
+  {
+    added_landmarks_[idx_lmk.second].factor_indices.push_back(new_indices_in_smoother[idx_lmk.first]);
+  }
+}
+
+void GraphManager::SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result)
 {
   for (auto& lmk_in_smoother : added_landmarks_)
   {
@@ -245,8 +291,6 @@ void GraphManager::SetNewAffectedKeys(const gtsam::ISAM2Result& result)
     {
       auto idx_in_new_factors = lmk_in_smoother.second.smart_factor_in_smoother->idx_in_new_factors;
       lmk_in_smoother.second.smart_factor_in_smoother->idx_in_isam = result.newFactorsIndices[idx_in_new_factors];
-      std::cout << "Set lmk " << lmk_in_smoother.first << " idx to " << result.newFactorsIndices[idx_in_new_factors]
-                << std::endl;
     }
   }
 }

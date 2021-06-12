@@ -5,6 +5,7 @@
 #include <Eigen/Core>
 #include <boost/optional.hpp>
 #include <gtsam/base/FastVector.h>
+#include <gtsam/base/FastSet.h>
 
 namespace gtsam
 {
@@ -25,9 +26,6 @@ class FastMap;
 
 typedef uint64_t FactorIndex;
 typedef FastVector<FactorIndex> FactorIndices;
-
-template <typename VALUE>
-class FastSet;
 
 namespace imuBias
 {

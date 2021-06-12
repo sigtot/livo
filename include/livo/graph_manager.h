@@ -8,6 +8,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/optional.hpp>
 #include <Eigen/Core>
+#include <gtsam/inference/Factor.h>
 
 struct LandmarkResultGtsam;
 
@@ -42,6 +43,9 @@ typedef Eigen::Vector3d Vector3;
 typedef Vector2 Point2;
 typedef Vector3 Point3;
 
+typedef uint64_t FactorIndex;
+typedef FastVector<FactorIndex> FactorIndices;
+
 namespace noiseModel
 {
 class Isotropic;
@@ -72,6 +76,8 @@ private:
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
   std::shared_ptr<gtsam::KeyTimestampMap> timestamps_;
   std::shared_ptr<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>> new_affected_keys_;
+  std::shared_ptr<gtsam::FactorIndices> factors_to_remove_;
+  std::map<gtsam::FactorIndex, int> new_factor_indices_to_lmk_;
 
   // Configuration
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;
@@ -82,7 +88,8 @@ private:
   int last_frame_id_ = -1;
   double last_timestamp_ = -1;
 
-  void SetNewAffectedKeys(const gtsam::ISAM2Result& result);
+  void SetLandmarkFactorInSmootherIndices(const gtsam::FactorIndices& new_indices_in_smoother);
+  void SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result);
 
   bool ExistsInSolverOrValues(gtsam::Key key) const;
   bool WithinLag(double timestamp) const;

@@ -5,6 +5,7 @@
 
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
+#include <gtsam/inference/Factor.h>
 
 namespace gtsam
 {
@@ -12,17 +13,18 @@ namespace noiseModel
 {
 class Base;
 class Isotropic;
-}
+}  // namespace noiseModel
 }  // namespace gtsam
 
 struct LandmarkInSmoother
 {
   boost::shared_ptr<gtsam::noiseModel::Isotropic> noise_model;
-  boost::optional<boost::shared_ptr<gtsam::noiseModel::Base>> robust_noise_model; // Optional for proj factors
+  boost::optional<boost::shared_ptr<gtsam::noiseModel::Base>> robust_noise_model;  // Optional for proj factors
   boost::optional<SmartFactorInSmoother> smart_factor_in_smoother;
-  int newest_frame_id_seen; // Assumes frame id is strictly increasing
-  int first_frame_id_seen; // Assumes frame id is strictly increasing
-  double init_timestamp; // Timestamp at which the landmark was initialized
+  int newest_frame_id_seen;  // Assumes frame id is strictly increasing
+  int first_frame_id_seen;   // Assumes frame id is strictly increasing
+  double init_timestamp;     // Timestamp at which the landmark was initialized
+  gtsam::FactorIndices factor_indices;
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_LANDMARK_IN_SMOOTHER_H_

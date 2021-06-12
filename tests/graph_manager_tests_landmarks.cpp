@@ -38,6 +38,7 @@ protected:
     noise_b = gtsam::noiseModel::Diagonal::Sigmas(
         (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
     feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 0.2);
+    range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
     feature_m_estimator = gtsam::noiseModel::mEstimator::Huber::Create(15);
     robust_noise = gtsam::noiseModel::Robust::Create(feature_m_estimator, feature_noise);
 
@@ -59,6 +60,7 @@ protected:
   boost::shared_ptr<gtsam::noiseModel::Isotropic> noise_v;
   boost::shared_ptr<gtsam::noiseModel::Diagonal> noise_b;
   boost::shared_ptr<gtsam::noiseModel::Isotropic> feature_noise;
+  boost::shared_ptr<gtsam::noiseModel::Isotropic> range_noise;
   boost::shared_ptr<gtsam::noiseModel::mEstimator::Base> feature_m_estimator;
   boost::shared_ptr<gtsam::noiseModel::Robust::Base> robust_noise;
   gtsam::NavState init_nav_state;
@@ -285,4 +287,78 @@ TEST_F(GraphManagerTest, CanAddRangeObservation)
   EXPECT_FALSE(graph_manager->CanAddRangeObservation(1, 1));
   graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
   EXPECT_TRUE(graph_manager->CanAddRangeObservation(1, 1));
+}
+
+TEST_F(GraphManagerTest, CanRemoveProjectionLandmark)
+{
+  SetUp(gtsam::ISAM2Params());
+
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitProjectionLandmark(1, 1, 0., first_feature, landmark, K, body_p_cam, feature_noise,
+                                        feature_m_estimator);
+
+  graph_manager->AddRangeObservation(1, 1, 0.0, init_nav_state.pose().range(landmark), range_noise);
+  graph_manager->Update();
+
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->RemoveLandmark(1);
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->Update();
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(1));
+}
+
+TEST_F(GraphManagerTest, CanRemoveStructureLessLandmark)
+{
+  SetUp(gtsam::ISAM2Params());
+
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, 0., first_feature, K, body_p_cam, feature_noise);
+  graph_manager->Update();
+
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->RemoveLandmark(1);
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(1)); // Note the different intermediary state compared to proj factors
+  graph_manager->Update();
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(1));
+}
+
+TEST_F(GraphManagerTest, CanRemoveConvertedSmartFactor)
+{
+  SetUp(gtsam::ISAM2Params());
+
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, 0., first_feature, K, body_p_cam, feature_noise);
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
+  graph_manager->Update();
+
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->RemoveLandmark(1);
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->Update();
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(1));
+}
+
+TEST_F(GraphManagerTest, CanRemoveConvertedSmartFactor2)
+{
+  SetUp(gtsam::ISAM2Params());
+
+  graph_manager->SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto first_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager->InitStructurelessLandmark(1, 1, 0., first_feature, K, body_p_cam, feature_noise);
+  graph_manager->Update();
+  graph_manager->ConvertSmartFactorToProjectionFactor(1, 0., landmark);
+  graph_manager->Update();
+
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->RemoveLandmark(1);
+  EXPECT_TRUE(graph_manager->IsLandmarkTracked(1));
+  graph_manager->Update();
+  EXPECT_FALSE(graph_manager->IsLandmarkTracked(1));
 }
