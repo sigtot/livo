@@ -75,21 +75,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2,
                              criteria);
 
+    KLTDiscardBadTracks(status, prev_points, new_points);
+
     {
       std::lock_guard<std::mutex> lk(mu_);
-      // Discard bad points
-      for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0;
-           --i)  // iterate backwards to not mess up vector when erasing
-      {
-        // Select good points
-        if (status[i] != 1)
-        {
-          active_tracks_.erase(active_tracks_.begin() + i);
-          prev_points.erase(prev_points.begin() + i);
-          new_points.erase(new_points.begin() + i);
-        }
-      }
-
       // Initialize features. We will remove outliers later.
       for (int i = 0; i < new_points.size(); ++i)
       {
@@ -611,6 +600,23 @@ void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
     {
       std::cout << "Removing outlier track " << active_tracks_[track_indices[i]]->id << std::endl;
       active_tracks_.erase(active_tracks_.begin() + track_indices[i]);
+    }
+  }
+}
+
+void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std::vector<cv::Point2f>& prev_points,
+                                           std::vector<cv::Point2f>& new_points)
+
+{
+  std::lock_guard<std::mutex> lk(mu_);
+  // iterate backwards to not mess up vector when erasing
+  for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i)
+  {
+    if (status[i] != 1)
+    {
+      active_tracks_.erase(active_tracks_.begin() + i);
+      prev_points.erase(prev_points.begin() + i);
+      new_points.erase(new_points.begin() + i);
     }
   }
 }

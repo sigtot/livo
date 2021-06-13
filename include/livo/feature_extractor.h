@@ -25,7 +25,7 @@ class FeatureExtractor
 private:
   ros::Publisher tracks_pub_;
   std::deque<shared_ptr<Frame>> frames;
-  int frame_count_ = 0; // Number of frames we have added. The current number of frames in memory may be lower.
+  int frame_count_ = 0;  // Number of frames we have added. The current number of frames in memory may be lower.
   const LidarFrameManager& lidar_frame_manager_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
@@ -46,6 +46,21 @@ private:
   void NonMaxSuppressTracks(double squared_dist_thresh);
 
   void RANSACRemoveOutlierTracks(int n_frames);
+
+  /**
+   *
+   * Discard tracks labeled by the KLT tracker as bad.
+   * Discards both tracks in active_tracks_ and the corresponding features in prev_points and new_points.
+   *
+   * All inputs should be ordered according to active_tracks_. The modified prev_points and new_points vectors are
+   * are modified in accordance with active_tracks_ so ordering is still valid after applying the method.
+   *
+   * @param status map of uchars that denote whether a track is bad and should be removed or not
+   * @param prev_points
+   * @param new_points
+   */
+  void KLTDiscardBadTracks(const std::vector<uchar>& status, std::vector<cv::Point2f>& prev_points,
+                           std::vector<cv::Point2f>& new_points);
 
   void RemoveRejectedTracks();
 
