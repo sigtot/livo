@@ -41,9 +41,12 @@ private:
 
   void ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                                   int cell_count_y, int min_features_per_cell,
-                                                  int max_features_per_cell, double quality_level, double min_distance);
+                                                  int max_initial_features_per_cell, double quality_level,
+                                                  double min_distance);
 
   void NonMaxSuppressTracks(double squared_dist_thresh);
+  static void NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features, double squared_dist_thresh,
+                                     int min_j = 1);
 
   void RANSACRemoveOutlierTracks(int n_frames);
 
@@ -87,6 +90,9 @@ private:
   void DoFeatureExtractionPerCellPopulation(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
                                             const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
+  void DoFeatureExtractionByTotalCount(const Mat& img, shared_ptr<Frame> new_frame,
+                                       const boost::optional<LidarFrame>& lidar_frame);
+
   void DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
                                        const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
@@ -116,8 +122,6 @@ public:
   KeyframeTransform GetNewestKeyframeTransform() const;
   boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
   GetFramesForIMUAttitudeInitialization(int stationary_frame_id);
-  void DoFeatureExtractionByTotalCount(const Mat& img, shared_ptr<Frame> new_frame,
-                                       const boost::optional<LidarFrame>& lidar_frame);
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H

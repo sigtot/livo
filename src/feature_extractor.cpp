@@ -173,8 +173,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   auto time_before_publish = std::chrono::system_clock::now();
   PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
   auto time_after_publish = std::chrono::system_clock::now();
-  auto micros_publish =
-      std::chrono::duration_cast<std::chrono::microseconds>(time_after_publish - time_before_publish);
+  auto micros_publish = std::chrono::duration_cast<std::chrono::microseconds>(time_after_publish - time_before_publish);
   double millis_publish = static_cast<double>(micros_publish.count()) / 1000.;
   DebugValuePublisher::PublishImagePublishDuration(millis_publish);
 
@@ -183,7 +182,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
 void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners,
                                                                   int cell_count_x, int cell_count_y,
-                                                                  int min_features_per_cell, int max_features_per_cell,
+                                                                  int min_features_per_cell,
+                                                                  int max_initial_features_per_cell,
                                                                   double quality_level, double min_distance)
 {
   int cell_w = img.cols / cell_count_x;
@@ -204,13 +204,11 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
         // If we already have enough features in the cell, there's no need to extract more.
         continue;
       }
-      auto max_features_to_extract = max_features_per_cell - feature_counts.at<int>(cell_y, cell_x);
 
       cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
       cv::Mat roi = img(mask);
       vector<cv::Point2f> corners_in_roi;
-      // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
-      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_to_extract, quality_level, min_distance);
+      goodFeaturesToTrack(roi, corners_in_roi, max_initial_features_per_cell, quality_level, min_distance);
 
       if (corners_in_roi.empty())
       {
@@ -222,11 +220,11 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
       TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001);
       cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
 
-      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_to_extract); ++i)
+      for (auto& i : corners_in_roi)
       {
-        if (PointWasSubPixRefined(corners_in_roi[i]))
+        if (PointWasSubPixRefined(i))
         {
-          corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
+          corners.push_back(i + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
         }
       }
       cells_repopulated++;
@@ -320,6 +318,23 @@ void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
           feature->frame->features.erase(active_tracks_[j]->id);
         }
         active_tracks_.erase(active_tracks_.begin() + j);
+      }
+    }
+  }
+}
+
+void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features,
+                                              double squared_dist_thresh, int min_j)
+{
+  for (int i = 0; i < features.size(); ++i)
+  {
+    for (int j = static_cast<int>(features.size()) - 1; j > i && j > min_j; --j)
+    {
+      auto d_vec = (features[i]->pt - features[j]->pt);
+      double d2 = d_vec.dot(d_vec);
+      if (d2 < squared_dist_thresh)
+      {
+        features.erase(features.begin() + j);
       }
     }
   }
@@ -620,26 +635,55 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
     const cv::Mat& img, std::shared_ptr<Frame> new_frame,
     const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
 {
+  // TODO pass this also to ExtractNewCorners... so not to create it twice
+  Mat_<int> feature_counts;
+  MakeFeatureCountPerCellTable(img.cols, img.rows, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
+                               frames.empty() ? std::map<int, std::weak_ptr<Feature>>{} : frames.back()->features,
+                               feature_counts);
+
   vector<Point2f> corners;
   // 30 -> 40ms
   ExtractNewCornersInUnderpopulatedGridCells(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
-                                             GlobalParams::MinFeaturesPerCell(), GlobalParams::MaxFeaturesPerCell(),
+                                             GlobalParams::MinFeaturesPerCell(), 3 * GlobalParams::MaxFeaturesPerCell(),
                                              0.3, 7);
 
-  std::vector<std::shared_ptr<Feature>> features;
-  InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
+  std::vector<std::shared_ptr<Feature>> new_features;
+  InitNewExtractedFeatures(corners, new_frame, new_features, lidar_frame);
 
-  SortFeaturesByDepthInPlace(features);
+  SortFeaturesByDepthInPlace(new_features);
+
+  std::vector<std::shared_ptr<Feature>> new_and_old_features;
+  new_and_old_features.reserve(active_tracks_.size() + new_features.size());
+  for (const auto& track : active_tracks_)
   {
+    new_and_old_features.push_back(track->features.back());
+  }
+
+  // Put the new features behind the old ones so that they are prioritized less during NMS
+  new_and_old_features.insert(new_and_old_features.end(), new_features.begin(), new_features.end());
+
+  FeatureExtractor::NonMaxSuppressFeatures(new_and_old_features, GlobalParams::TrackNMSSquaredDistThresh(),
+                                           static_cast<int>(active_tracks_.size()) - 1);
+
+  {
+    int cell_w = img.cols / GlobalParams::GridCellsX();
+    int cell_h = img.rows / GlobalParams::GridCellsY();
+
     std::lock_guard<std::mutex> lk(mu_);
-    for (const auto& feature : features)
+    for (int i = static_cast<int>(active_tracks_.size()); i < new_and_old_features.size(); ++i)
     {
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
-      new_frame->features[new_track->id] = feature;
-      feature->track = new_track;
+      auto feat_cell_idx = GetCellIndex(new_and_old_features[i]->pt, cell_w, cell_h);
+
+      if (feature_counts.at<int>(feat_cell_idx.y, feat_cell_idx.x) >= GlobalParams::MaxFeaturesPerCell())
+      {
+        continue;
+      }
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ new_and_old_features[i] });
+      new_frame->features[new_track->id] = new_and_old_features[i];
+      new_and_old_features[i]->track = new_track;
       active_tracks_.push_back(std::move(new_track));
+      feature_counts.at<int>(feat_cell_idx.y, feat_cell_idx.x)++;
     }
-    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   }
 }
 
