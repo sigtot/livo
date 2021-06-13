@@ -98,48 +98,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   // 30 -> 40ms when finding new features
   if (GlobalParams::CountFeaturesPerCell())
   {
-    vector<Point2f> corners;
-    // 30 -> 40ms
-    ExtractNewCornersInUnderpopulatedGridCells(img_undistorted, corners, GlobalParams::GridCellsX(),
-                                               GlobalParams::GridCellsY(), GlobalParams::MinFeaturesPerCell(),
-                                               GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
-
-    std::vector<std::shared_ptr<Feature>> features;
-    InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
-
-    SortFeaturesByDepthInPlace(features);
-    {
-      std::lock_guard<std::mutex> lk(mu_);
-      for (const auto& feature : features)
-      {
-        auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
-        new_frame->features[new_track->id] = feature;
-        feature->track = new_track;
-        active_tracks_.push_back(std::move(new_track));
-      }
-      NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
-    }
+    DoFeatureExtractionPerCellPopulation(img_undistorted, new_frame, lidar_frame);
   }
   else if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
   {
-    vector<Point2f> corners;
-    // 30 -> 40ms
-    FindGoodFeaturesToTrackGridded(img_undistorted, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
-                                   GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
-
-    std::vector<std::shared_ptr<Feature>> features;
-    InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
-
-    SortFeaturesByDepthInPlace(features);
-    for (const auto& feature : features)
-    {
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
-      new_frame->features[new_track->id] = feature;
-      feature->track = new_track;
-      active_tracks_.push_back(std::move(new_track));
-    }
-    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
-    KeepOnlyNTracks(GlobalParams::MaxFeatures());
+    DoFeatureExtractionByTotalCount(img_undistorted, new_frame, lidar_frame);
   }
   {
     std::lock_guard<std::mutex> lk(mu_);
@@ -629,4 +592,54 @@ void FeatureExtractor::InitNewExtractedFeatures(const std::vector<cv::Point2f>& 
     }
     features.push_back(new_feature);
   }
+}
+
+void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
+    const cv::Mat& img, std::shared_ptr<Frame> new_frame,
+    const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
+{
+  vector<Point2f> corners;
+  // 30 -> 40ms
+  ExtractNewCornersInUnderpopulatedGridCells(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
+                                             GlobalParams::MinFeaturesPerCell(), GlobalParams::MaxFeaturesPerCell(),
+                                             0.3, 7);
+
+  std::vector<std::shared_ptr<Feature>> features;
+  InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
+
+  SortFeaturesByDepthInPlace(features);
+  {
+    std::lock_guard<std::mutex> lk(mu_);
+    for (const auto& feature : features)
+    {
+      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
+      new_frame->features[new_track->id] = feature;
+      feature->track = new_track;
+      active_tracks_.push_back(std::move(new_track));
+    }
+    NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
+  }
+}
+
+void FeatureExtractor::DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
+                                                       const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
+{
+  vector<Point2f> corners;
+  // 30 -> 40ms
+  FindGoodFeaturesToTrackGridded(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
+                                 GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+
+  std::vector<std::shared_ptr<Feature>> features;
+  InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
+
+  SortFeaturesByDepthInPlace(features);
+  for (const auto& feature : features)
+  {
+    auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
+    new_frame->features[new_track->id] = feature;
+    feature->track = new_track;
+    active_tracks_.push_back(std::move(new_track));
+  }
+  NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
+  KeepOnlyNTracks(GlobalParams::MaxFeatures());
 }

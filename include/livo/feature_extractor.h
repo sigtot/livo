@@ -84,6 +84,12 @@ private:
                                        std::vector<std::shared_ptr<Feature>>& features,
                                        const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
+  void DoFeatureExtractionPerCellPopulation(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
+                                            const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
+
+  void DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
+                                       const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
+
   void RemoveRejectedTracks();
 
   void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
@@ -110,6 +116,8 @@ public:
   KeyframeTransform GetNewestKeyframeTransform() const;
   boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
   GetFramesForIMUAttitudeInitialization(int stationary_frame_id);
+  void DoFeatureExtractionByTotalCount(const Mat& img, shared_ptr<Frame> new_frame,
+                                       const boost::optional<LidarFrame>& lidar_frame);
 };
 
 #endif  // ORB_TEST_FEATUREEXTRACTOR_H
