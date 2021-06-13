@@ -39,7 +39,7 @@ private:
                                       int cell_count_y, int max_features_per_cell, double quality_level,
                                       double min_distance);
 
-  void DetectNewFeaturesInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
+  void ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                                   int cell_count_y, int min_features_per_cell,
                                                   int max_features_per_cell, double quality_level, double min_distance);
 
@@ -63,14 +63,26 @@ private:
                            std::vector<cv::Point2f>& new_points);
 
   /**
-   * Initialize new features for existing tracks obtained with KLT.
+   * Initialize new features and add to tracks for existing tracks obtained with KLT.
    *
    * @param new_points vector of points ordered 1-1 according to active_tracks_
    * @param new_frame the frame in which the new features were observed
-   * @param lidar_frame lidar frame to optionally add depth to applicable features
+   * @param lidar_frame lidar frame to optionally add depth to features if it is avilable
    */
   void KLTInitNewFeatures(const std::vector<cv::Point2f>& new_points, std::shared_ptr<Frame>& new_frame,
                           const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
+
+  /**
+   * Initialize new features without adding them to tracks.
+   *
+   * @param corners
+   * @param new_frame the frame in which the new features were observed
+   * @param features output features
+   * @param lidar_frame lidar frame to optionally add depth to features if it is available
+   */
+  static void InitNewExtractedFeatures(const std::vector<cv::Point2f>& corners, std::shared_ptr<Frame>& new_frame,
+                                       std::vector<std::shared_ptr<Feature>>& features,
+                                       const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
   void RemoveRejectedTracks();
 

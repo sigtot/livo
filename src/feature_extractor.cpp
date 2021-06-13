@@ -99,19 +99,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     vector<Point2f> corners;
     // 30 -> 40ms
-    DetectNewFeaturesInUnderpopulatedGridCells(img_undistorted, corners, GlobalParams::GridCellsX(),
+    ExtractNewCornersInUnderpopulatedGridCells(img_undistorted, corners, GlobalParams::GridCellsX(),
                                                GlobalParams::GridCellsY(), GlobalParams::MinFeaturesPerCell(),
                                                GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+
     std::vector<std::shared_ptr<Feature>> features;
-    for (const auto& corner : corners)
-    {
-      auto new_feature = std::make_shared<Feature>(new_frame, corner);
-      if (lidar_frame)
-      {
-        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-      }
-      features.push_back(new_feature);
-    }
+    InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
+
     SortFeaturesByDepthInPlace(features);
     {
       std::lock_guard<std::mutex> lk(mu_);
@@ -131,16 +125,10 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     // 30 -> 40ms
     FindGoodFeaturesToTrackGridded(img_undistorted, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
                                    GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+
     std::vector<std::shared_ptr<Feature>> features;
-    for (const auto& corner : corners)
-    {
-      auto new_feature = std::make_shared<Feature>(new_frame, corner);
-      if (lidar_frame)
-      {
-        new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-      }
-      features.push_back(new_feature);
-    }
+    InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
+
     SortFeaturesByDepthInPlace(features);
     for (const auto& feature : features)
     {
@@ -207,7 +195,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   return new_frame;
 }
 
-void FeatureExtractor::DetectNewFeaturesInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners,
+void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners,
                                                                   int cell_count_x, int cell_count_y,
                                                                   int min_features_per_cell, int max_features_per_cell,
                                                                   double quality_level, double min_distance)
@@ -622,5 +610,21 @@ void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_po
     }
     new_frame->features[active_tracks_[i]->id] = new_feature;
     active_tracks_[i]->features.push_back(std::move(new_feature));
+  }
+}
+
+void FeatureExtractor::InitNewExtractedFeatures(const std::vector<cv::Point2f>& corners,
+                                                std::shared_ptr<Frame>& new_frame,
+                                                std::vector<std::shared_ptr<Feature>>& features,
+                                                const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
+{
+  for (const auto& corner : corners)
+  {
+    auto new_feature = std::make_shared<Feature>(new_frame, corner);
+    if (lidar_frame)
+    {
+      new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+    }
+    features.push_back(new_feature);
   }
 }
