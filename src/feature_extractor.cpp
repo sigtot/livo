@@ -53,6 +53,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   new_frame->stationary = true;  // Assume stationary at first
 
   auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
+
   // 5 -> 17ms
   if (!frames.empty())
   {
@@ -121,9 +122,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
       new_frame->stationary = false;
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
-
-    PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
   }
+
 
   // 30 -> 40ms when finding new features
   if (GlobalParams::CountFeaturesPerCell())
@@ -232,6 +232,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     frames.pop_front();
   }
+
+  PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
 
   return new_frame;
 }
