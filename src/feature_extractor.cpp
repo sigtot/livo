@@ -77,20 +77,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     KLTDiscardBadTracks(status, prev_points, new_points);
 
-    {
-      std::lock_guard<std::mutex> lk(mu_);
-      // Initialize features. We will remove outliers later.
-      for (int i = 0; i < new_points.size(); ++i)
-      {
-        auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
-        if (lidar_frame)
-        {
-          new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-        }
-        new_frame->features[active_tracks_[i]->id] = new_feature;
-        active_tracks_[i]->features.push_back(std::move(new_feature));
-      }
-    }
+    // Initialize features. We will remove outliers after.
+    KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
     // Discard RANSAC outliers
     std::cout << "Discarding RANSAC outliers" << std::endl;
@@ -618,5 +606,21 @@ void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std
       prev_points.erase(prev_points.begin() + i);
       new_points.erase(new_points.begin() + i);
     }
+  }
+}
+
+void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_points, std::shared_ptr<Frame>& new_frame,
+                                          const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
+{
+  std::lock_guard<std::mutex> lk(mu_);
+  for (int i = 0; i < new_points.size(); ++i)
+  {
+    auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
+    if (lidar_frame)
+    {
+      new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+    }
+    new_frame->features[active_tracks_[i]->id] = new_feature;
+    active_tracks_[i]->features.push_back(std::move(new_feature));
   }
 }

@@ -52,7 +52,7 @@ private:
    * Discard tracks labeled by the KLT tracker as bad.
    * Discards both tracks in active_tracks_ and the corresponding features in prev_points and new_points.
    *
-   * All inputs should be ordered according to active_tracks_. The modified prev_points and new_points vectors are
+   * All inputs should be ordered 1-1 according to active_tracks_. The modified prev_points and new_points vectors are
    * are modified in accordance with active_tracks_ so ordering is still valid after applying the method.
    *
    * @param status map of uchars that denote whether a track is bad and should be removed or not
@@ -61,6 +61,16 @@ private:
    */
   void KLTDiscardBadTracks(const std::vector<uchar>& status, std::vector<cv::Point2f>& prev_points,
                            std::vector<cv::Point2f>& new_points);
+
+  /**
+   * Initialize new features for existing tracks obtained with KLT.
+   *
+   * @param new_points vector of points ordered 1-1 according to active_tracks_
+   * @param new_frame the frame in which the new features were observed
+   * @param lidar_frame lidar frame to optionally add depth to applicable features
+   */
+  void KLTInitNewFeatures(const std::vector<cv::Point2f>& new_points, std::shared_ptr<Frame>& new_frame,
+                          const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
   void RemoveRejectedTracks();
 
