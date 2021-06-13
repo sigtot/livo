@@ -73,3 +73,17 @@ double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track)
   }
   return have_depth ? max_depth - min_depth : -1.;
 }
+
+bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,
+                  double thresh)
+{
+  double total_dist = 0;
+  for (size_t i = 0; i < new_points.size(); ++i)
+  {
+    auto d_vec = (prev_points[i] - new_points[i]);
+    double d = std::sqrt(d_vec.dot(d_vec));
+    total_dist += d;
+  }
+  double average_dist = total_dist / static_cast<double>(new_points.size());
+  return average_dist < thresh;
+}

@@ -16,8 +16,10 @@
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
                                    std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu)
-  : tracks_pub_(tracks_pub), lidar_frame_manager_(lidar_frame_manager), image_undistorter_(std::move(image_undistorter)),
-  mu_(mu)
+  : tracks_pub_(tracks_pub)
+  , lidar_frame_manager_(lidar_frame_manager)
+  , image_undistorter_(std::move(image_undistorter))
+  , mu_(mu)
 {
 }
 
@@ -107,23 +109,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames() / 2);
     RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames());
 
-    double total_dist = 0;
-    for (size_t i = 0; i < new_points.size(); ++i)
-    {
-      auto d_vec = (prev_points[i] - new_points[i]);
-      double d = std::sqrt(d_vec.dot(d_vec));
-      total_dist += d;
-    }
-    double average_dist = total_dist / new_points.size();
-
-    if (average_dist > GlobalParams::StationaryThresh())
+    if (!IsStationary(prev_points, new_points, GlobalParams::StationaryThresh()))
     {
       std::lock_guard<std::mutex> lk(mu_);
       new_frame->stationary = false;
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
   }
-
 
   // 30 -> 40ms when finding new features
   if (GlobalParams::CountFeaturesPerCell())
@@ -559,7 +551,8 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
                   cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
     }
-    else {
+    else
+    {
       // Draw parallax string
       std::stringstream stream1;
       stream1 << std::fixed << std::setprecision(2) << track->max_parallax << std::endl;
@@ -584,7 +577,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
 {
-  std::lock_guard<std::mutex> lk(mu_); // Lock for the whole method so that indexes are not changed
+  std::lock_guard<std::mutex> lk(mu_);  // Lock for the whole method so that indexes are not changed
   std::vector<int> track_indices;
   std::vector<cv::Point2f> points_1;
   std::vector<cv::Point2f> points_2;

@@ -20,4 +20,7 @@ void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int ce
 
 double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track);
 
+bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,
+                  double thresh);
+
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_
