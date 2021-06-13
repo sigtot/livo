@@ -18,6 +18,8 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().extra_updates_duration_pub_ = nh.advertise<std_msgs::Int32>("/extra_updates_duration", 1000);
   GetInstance().frontend_duration_pub_ = nh.advertise<std_msgs::Float64>("/frontend_duration", 1000);
 
+  GetInstance().n_cells_repopulated_ = nh.advertise<std_msgs::Int32>("/n_cells_repopulated", 1000);
+
   GetInstance().bias_acc_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_x", 1000);
   GetInstance().bias_acc_y_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_y", 1000);
   GetInstance().bias_acc_z_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_z", 1000);
@@ -62,6 +64,11 @@ void DebugValuePublisher::PublishExtraUpdatesDuration(int duration)
 void DebugValuePublisher::PublishFrontendDuration(double duration)
 {
   DebugValuePublisher::PublishDoubleValue(duration, GetInstance().frontend_duration_pub_);
+}
+
+void DebugValuePublisher::PublishNCellsRepopulated(int n)
+{
+  DebugValuePublisher::PublishIntValue(n, GetInstance().n_cells_repopulated_);
 }
 
 void DebugValuePublisher::PublishDoubleValue(double value, ros::Publisher& publisher)

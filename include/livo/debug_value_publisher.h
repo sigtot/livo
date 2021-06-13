@@ -14,6 +14,8 @@ private:
   ros::Publisher extra_updates_duration_pub_;
   ros::Publisher frontend_duration_pub_;
 
+  ros::Publisher n_cells_repopulated_;
+
   ros::Publisher bias_acc_x_pub_;
   ros::Publisher bias_acc_y_pub_;
   ros::Publisher bias_acc_z_pub_;
@@ -45,6 +47,9 @@ public:
   static void PublishUpdateDuration(int duration);
   static void PublishExtraUpdatesDuration(int duration);
   static void PublishFrontendDuration(double duration);
+
+  static void PublishNCellsRepopulated(int n);
+
   static void PublishBias(const std::vector<double>& acc_bias, const std::vector<double>& gyro_bias);
   static void PublishVelocityNormAverage(double velocity_norm_average);
   static void PublishFrameId(int frame_id);

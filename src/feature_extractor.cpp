@@ -9,6 +9,7 @@
 #include "equidistant_undistorter.h"
 #include "lidar-depth.h"
 #include "feature_helpers.h"
+#include "debug_value_publisher.h"
 
 #include <algorithm>
 #include <utility>
@@ -247,6 +248,7 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
     }
   }
   std::cout << "Detected new features in " << cells_repopulated << " cells" << std::endl;
+  DebugValuePublisher::PublishNCellsRepopulated(cells_repopulated);
 }
 
 void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
