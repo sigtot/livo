@@ -28,7 +28,7 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   auto encoding =
       GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
 
-  auto cvPtr = cv_bridge::toCvCopy(msg, encoding);  // TODO perf maybe toCvShare?
+  auto cvPtr = cv_bridge::toCvShare(msg, encoding);
 
   Mat img_bw;
   if (GlobalParams::ColorImage())
