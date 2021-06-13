@@ -13,6 +13,9 @@ private:
   ros::Publisher update_duration_pub_;
   ros::Publisher extra_updates_duration_pub_;
   ros::Publisher frontend_duration_pub_;
+  ros::Publisher feature_extraction_duration_pub_;
+  ros::Publisher klt_duration_pub_;
+  ros::Publisher publish_image_duration_pub_;
 
   ros::Publisher n_cells_repopulated_;
 
@@ -47,6 +50,9 @@ public:
   static void PublishUpdateDuration(int duration);
   static void PublishExtraUpdatesDuration(int duration);
   static void PublishFrontendDuration(double duration);
+  static void PublishFeatureExtractionDuration(double duration);
+  static void PublishKLTDuration(double duration);
+  static void PublishImagePublishDuration(double duration);
 
   static void PublishNCellsRepopulated(int n);
 

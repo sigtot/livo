@@ -135,4 +135,4 @@ keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 
-draw_lidar_lines: true
+draw_lidar_lines: true  # Adds about 15ms to image publish

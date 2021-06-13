@@ -73,8 +73,15 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<uchar> status;
     vector<float> err;
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
+
+    auto time_before_klt = std::chrono::system_clock::now();
     cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2,
                              criteria);
+
+    auto time_after_klt = std::chrono::system_clock::now();
+    auto micros_klt = std::chrono::duration_cast<std::chrono::microseconds>(time_after_klt - time_before_klt);
+    double millis_klt = static_cast<double>(micros_klt.count()) / 1000.;
+    DebugValuePublisher::PublishKLTDuration(millis_klt);
 
     KLTDiscardBadTracks(status, prev_points, new_points);
 
@@ -96,6 +103,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   // 30 -> 40ms when finding new features
+
+  auto time_before_extraction = std::chrono::system_clock::now();
   if (GlobalParams::CountFeaturesPerCell())
   {
     DoFeatureExtractionPerCellPopulation(img_undistorted, new_frame, lidar_frame);
@@ -104,6 +113,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     DoFeatureExtractionByTotalCount(img_undistorted, new_frame, lidar_frame);
   }
+
+  auto time_after_extraction = std::chrono::system_clock::now();
+  auto micros_extraction =
+      std::chrono::duration_cast<std::chrono::microseconds>(time_after_extraction - time_before_extraction);
+  double millis_extraction = static_cast<double>(micros_extraction.count()) / 1000.;
+  DebugValuePublisher::PublishFeatureExtractionDuration(millis_extraction);
+
   {
     std::lock_guard<std::mutex> lk(mu_);
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
@@ -154,7 +170,13 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     frames.pop_front();
   }
 
+  auto time_before_publish = std::chrono::system_clock::now();
   PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
+  auto time_after_publish = std::chrono::system_clock::now();
+  auto micros_publish =
+      std::chrono::duration_cast<std::chrono::microseconds>(time_after_publish - time_before_publish);
+  double millis_publish = static_cast<double>(micros_publish.count()) / 1000.;
+  DebugValuePublisher::PublishImagePublishDuration(millis_publish);
 
   return new_frame;
 }

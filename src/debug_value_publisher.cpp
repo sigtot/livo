@@ -17,6 +17,10 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().update_duration_pub_ = nh.advertise<std_msgs::Int32>("/update_duration", 1000);
   GetInstance().extra_updates_duration_pub_ = nh.advertise<std_msgs::Int32>("/extra_updates_duration", 1000);
   GetInstance().frontend_duration_pub_ = nh.advertise<std_msgs::Float64>("/frontend_duration", 1000);
+  GetInstance().feature_extraction_duration_pub_ =
+      nh.advertise<std_msgs::Float64>("/feature_extraction_duration", 1000);
+  GetInstance().klt_duration_pub_ = nh.advertise<std_msgs::Float64>("/klt_duration", 1000);
+  GetInstance().publish_image_duration_pub_ = nh.advertise<std_msgs::Float64>("/publish_image_duration", 1000);
 
   GetInstance().n_cells_repopulated_ = nh.advertise<std_msgs::Int32>("/n_cells_repopulated", 1000);
 
@@ -64,6 +68,18 @@ void DebugValuePublisher::PublishExtraUpdatesDuration(int duration)
 void DebugValuePublisher::PublishFrontendDuration(double duration)
 {
   DebugValuePublisher::PublishDoubleValue(duration, GetInstance().frontend_duration_pub_);
+}
+void DebugValuePublisher::PublishFeatureExtractionDuration(double duration)
+{
+  DebugValuePublisher::PublishDoubleValue(duration, GetInstance().feature_extraction_duration_pub_);
+}
+void DebugValuePublisher::PublishKLTDuration(double duration)
+{
+  DebugValuePublisher::PublishDoubleValue(duration, GetInstance().klt_duration_pub_);
+}
+void DebugValuePublisher::PublishImagePublishDuration(double duration)
+{
+  DebugValuePublisher::PublishDoubleValue(duration, GetInstance().publish_image_duration_pub_);
 }
 
 void DebugValuePublisher::PublishNCellsRepopulated(int n)
