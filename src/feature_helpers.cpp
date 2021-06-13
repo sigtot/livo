@@ -28,6 +28,13 @@ double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2
   return dist;
 }
 
+cv::Point2i GetCellIndex(const cv::Point2f& pt, int cell_w, int cell_h)
+{
+  int feat_cell_x = static_cast<int>(pt.x) / cell_w;
+  int feat_cell_y = static_cast<int>(pt.y) / cell_h;
+  return cv::Point2i(feat_cell_x, feat_cell_y);
+}
+
 void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int cell_count_y,
                                   const std::map<int, std::weak_ptr<Feature>>& features, cv::Mat_<int>& feature_counts)
 {
@@ -46,9 +53,8 @@ void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int ce
     {
       continue;
     }
-    int feat_cell_x = static_cast<int>(feature->pt.x) / cell_w;
-    int feat_cell_y = static_cast<int>(feature->pt.y) / cell_h;
-    feature_counts.at<int>(feat_cell_y, feat_cell_x)++;
+    auto cell_idx = GetCellIndex(feature->pt, cell_w, cell_h);
+    feature_counts.at<int>(cell_idx.y, cell_idx.x)++;
   }
 }
 
