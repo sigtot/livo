@@ -152,6 +152,11 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     }
   }
 
+  if (!GlobalParams::UseParallaxKeyframes() && new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
+  {
+    new_frame->is_keyframe = true;
+  }
+
   {
     std::lock_guard<std::mutex> lk(mu_);
     frames.push_back(new_frame);
@@ -167,11 +172,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     {
       keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
     }
-  }
-  else if (new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
-  {
-    std::lock_guard<std::mutex> lk(mu_);
-    new_frame->is_keyframe = true;
   }
 
   {

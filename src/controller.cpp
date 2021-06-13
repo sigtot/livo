@@ -1,6 +1,7 @@
 #include "controller.h"
 #include "frame.h"
 #include "ros_helpers.h"
+#include "debug_value_publisher.h"
 
 #include <geometry_msgs/PoseStamped.h>
 #include <pose3_stamped.h>
@@ -61,6 +62,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;
+  DebugValuePublisher::PublishFrontendDuration(millis);
   std::cout << "Frontend frame " << new_frame->id << " (took: " << millis << " ms)" << std::endl;
 
   SetLatestFrameForBackend(new_frame);  // Will block if backend is still processing the previous frame.
