@@ -33,12 +33,12 @@ void IMUQueue::addMeasurement(const sensor_msgs::Imu& measurement)
    */
 }
 
-gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& init_rot,
+gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& w_R_body_init,
                                             const gtsam::Rot3& body_R_imu)
 {
   if (!hasMeasurementsInRange(start, end))
   {
-    return init_rot;
+    return w_R_body_init;
   }
 
   int num_summed = 0;
@@ -61,21 +61,22 @@ gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, cons
     }
   }
   acc_sum /= static_cast<double>(num_summed);
-  auto acc_sum_corrected = init_rot * body_R_imu * acc_sum;
-  acc_sum_corrected.normalize();           // Normalize so both vectors have length 1
-  gtsam::Vector3 acc_at_rest(0., 0., 1.);  // An accelerometer at rest will measure 9.81 m/s^2 straight upwards
-  auto rotation_diff = gtsam::Rot3(Eigen::Quaterniond().setFromTwoVectors(acc_sum_corrected, acc_at_rest));
-  auto aligned = rotation_diff * init_rot;
+  acc_sum.normalize();  // Normalize so both vectors have length 1
+  auto b_g = body_R_imu * acc_sum;  // Gravity in body frame
+  gtsam::Vector3 w_g(0., 0., 1.);  // An accelerometer at rest will measure 9.81 m/s^2 straight upwards
+  auto w_R_b_pitch_roll = gtsam::Rot3(Eigen::Quaterniond::FromTwoVectors(b_g, w_g));
 
-  std::cout << "Aligned initial attitude along gravity using stationary IMU measurements." << std::endl;
-  std::cout << "Initial: " << init_rot.toQuaternion().coeffs().transpose() << std::endl;
-  std::cout << "Aligned: " << aligned.toQuaternion().coeffs().transpose() << std::endl;
+  // Aligning gravity with [0, 0, 1] only makes roll and pitch observable. For yaw we use the value initially given.
+  auto w_R_b = gtsam::Rot3::Ypr(w_R_body_init.yaw(), w_R_b_pitch_roll.pitch(), w_R_b_pitch_roll.roll());
 
-  auto aligned_acc = aligned * body_R_imu * acc_sum;
-  std::cout << "Measured acceleration stationary accel unaligned: " << (body_R_imu * acc_sum).transpose() << std::endl;
-  std::cout << "Measured acceleration stationary accel aligned: " << aligned_acc.transpose() << std::endl;
+  std::cout << "Aligned attitude along gravity using stationary IMU measurements." << std::endl;
+  std::cout << "Aligned: " << w_R_b.toQuaternion().coeffs().transpose() << std::endl;
 
-  return aligned;
+  auto w_g_estimated = w_R_b * b_g;
+  std::cout << "Measured acceleration stationary accel unaligned: " << (b_g).transpose() << std::endl;
+  std::cout << "Measured acceleration stationary accel aligned: " << w_g_estimated.transpose() << std::endl;
+
+  return w_R_b;
 }
 
 gtsam::Rot3 IMUQueue::RefineInitialAttitude(double start, double end, const gtsam::Rot3& init_rot,

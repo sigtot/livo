@@ -40,7 +40,7 @@ private:
 public:
   void addMeasurement(const sensor_msgs::Imu& measurement);
 
-  gtsam::Rot3 RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& init_rot,
+  gtsam::Rot3 RefineInitialAttitude(ros::Time start, ros::Time end, const gtsam::Rot3& w_R_body_init,
                                     const gtsam::Rot3& body_R_imu);
   gtsam::Rot3 RefineInitialAttitude(double start, double end, const gtsam::Rot3& init_rot,
                                     const gtsam::Rot3& body_R_imu);
