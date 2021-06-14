@@ -21,6 +21,7 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
       nh.advertise<std_msgs::Float64>("/feature_extraction_duration", 1000);
   GetInstance().klt_duration_pub_ = nh.advertise<std_msgs::Float64>("/klt_duration", 1000);
   GetInstance().publish_image_duration_pub_ = nh.advertise<std_msgs::Float64>("/publish_image_duration", 1000);
+  GetInstance().img_queue_size_pub_ = nh.advertise<std_msgs::Int32>("/img_queue_size", 1000);
 
   GetInstance().n_cells_repopulated_ = nh.advertise<std_msgs::Int32>("/n_cells_repopulated", 1000);
 
@@ -80,6 +81,10 @@ void DebugValuePublisher::PublishKLTDuration(double duration)
 void DebugValuePublisher::PublishImagePublishDuration(double duration)
 {
   DebugValuePublisher::PublishDoubleValue(duration, GetInstance().publish_image_duration_pub_);
+}
+void DebugValuePublisher::PublishImageQueueSize(int size)
+{
+  DebugValuePublisher::PublishIntValue(size, GetInstance().img_queue_size_pub_);
 }
 
 void DebugValuePublisher::PublishNCellsRepopulated(int n)

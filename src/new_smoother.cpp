@@ -43,7 +43,7 @@ gtsam::ISAM2Params MakeISAM2Params()
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.enableDetailedResults = true;
   params.evaluateNonlinearError = true;
-  params.findUnusedFactorSlots = true;
+  params.findUnusedFactorSlots = true;  // This likely causes trouble for RemoveLandmark
   params.factorization = gtsam::ISAM2Params::CHOLESKY;  // Default: CHOLESKY. QR is slower and have no less ILS.
   if (GlobalParams::UseDogLeg())
   {

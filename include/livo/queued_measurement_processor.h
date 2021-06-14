@@ -6,8 +6,10 @@
 #include <condition_variable>
 #include <thread>
 #include <map>
-
 #include <ros/init.h>
+
+#include "debug_value_publisher.h"
+
 
 template <class T>
 class QueuedMeasurementProcessor
@@ -59,11 +61,13 @@ private:
     {
       T measurement;
       bool have_measurement = false;
+      int size = 0;
       {
         std::lock_guard<std::mutex> lock(measurement_mutex_);
         std::cout << "queue: have " << measurements_.size() << " msgs, need " << min_process_count_ << std::endl;
         if (measurements_.size() >= min_process_count_)
         {
+          size = static_cast<int>(measurements_.size());
           measurement = measurements_.begin()->second;
           measurements_.erase(measurements_.begin());
           have_measurement = true;
@@ -72,6 +76,13 @@ private:
       }
       if (have_measurement)
       {
+        if (size > 5)
+        {
+          // Temporary debug solution: Publish if this is an image measurement.
+          // We know for images we have > 30 in the queue at all times, whereas the other type, lidar messages
+          // are processed immediately and so typically only have 1.
+          DebugValuePublisher::PublishImageQueueSize(size);
+        }
         process_fn_(measurement);
       }
       if (measurements_.size() < min_process_count_)

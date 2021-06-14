@@ -16,6 +16,7 @@ private:
   ros::Publisher feature_extraction_duration_pub_;
   ros::Publisher klt_duration_pub_;
   ros::Publisher publish_image_duration_pub_;
+  ros::Publisher img_queue_size_pub_;
 
   ros::Publisher n_cells_repopulated_;
 
@@ -53,6 +54,7 @@ public:
   static void PublishFeatureExtractionDuration(double duration);
   static void PublishKLTDuration(double duration);
   static void PublishImagePublishDuration(double duration);
+  static void PublishImageQueueSize(int size);
 
   static void PublishNCellsRepopulated(int n);
 
