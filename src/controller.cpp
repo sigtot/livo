@@ -11,6 +11,7 @@
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/conversions.h>
 #include <pcl_ros/transforms.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 #include <global_params.h>
 #include <chrono>
