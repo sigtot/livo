@@ -113,7 +113,7 @@ int main(int argc, char** argv)
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother,
-                        between_transform_provider, path_pub, posearr_pub, landmarks_pub);
+                        between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
       std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 30);

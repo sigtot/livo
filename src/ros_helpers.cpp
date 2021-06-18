@@ -5,8 +5,10 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 namespace ros_helpers
 {
@@ -81,4 +83,25 @@ void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double tim
   }
   publisher.publish(markerArray);
 }
+
+void PublishTransform(const Pose3Stamped& pose_stamped, const std::string& frame_id, const std::string& child_frame_id,
+                      tf2_ros::TransformBroadcaster& broadcaster)
+{
+  geometry_msgs::TransformStamped transformStamped;
+  transformStamped.header.stamp = ros::Time::now();
+  transformStamped.header.frame_id = frame_id;
+  transformStamped.child_frame_id = child_frame_id;
+  transformStamped.transform.translation.x = pose_stamped.pose.point.x;
+  transformStamped.transform.translation.y = pose_stamped.pose.point.y;
+  transformStamped.transform.translation.z = pose_stamped.pose.point.z;
+
+  tf2::Quaternion q;
+  transformStamped.transform.rotation.x = pose_stamped.pose.rot.x;
+  transformStamped.transform.rotation.y = pose_stamped.pose.rot.y;
+  transformStamped.transform.rotation.z = pose_stamped.pose.rot.z;
+  transformStamped.transform.rotation.w = pose_stamped.pose.rot.w;
+
+  broadcaster.sendTransform(transformStamped);
+}
+
 }  // namespace ros_helpers

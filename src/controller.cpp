@@ -19,13 +19,14 @@
 Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                        IMUGroundTruthSmoother& imu_ground_truth_smoother,
                        std::shared_ptr<BetweenTransformProvider> between_transform_provider,
-                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
-                       ros::Publisher& landmark_publisher)
+                       std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider, ros::Publisher& path_publisher,
+                       ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
   : frontend_(frontend)
   , lidar_frame_manager_(lidar_frame_manager)
   , new_backend_(new_backend)
   , imu_ground_truth_smoother_(imu_ground_truth_smoother)
   , between_transform_provider_(std::move(between_transform_provider))
+  , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
   , landmark_publisher_(landmark_publisher)
@@ -71,6 +72,12 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
 {
   ros_helpers::PublishPoses(poses, path_publisher_, pose_arr_publisher_);
+}
+
+void Controller::PublishLatestLidarTransform(const Pose3Stamped& pose_stamped)
+{
+  static tf2_ros::TransformBroadcaster br;
+  ros_helpers::PublishTransform(pose_stamped, "world", "os1_lidar", br);
 }
 
 void Controller::PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp)
@@ -146,6 +153,10 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     pose_estimates_vector.push_back(pose_estimate.second);
   }
   PublishPoses(pose_estimates_vector);
+  if (!pose_estimates.empty())
+  {
+    PublishLatestLidarTransform(new_backend_.GetLatestLidarPose());
+  }
 
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);

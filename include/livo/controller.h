@@ -29,6 +29,7 @@ private:
   ros::Publisher landmark_publisher_;
   ros::Publisher pose_arr_publisher_;
   std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
+  std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider_;
 
   std::mutex back_cv_m_;
   std::condition_variable back_cv_;
@@ -39,6 +40,7 @@ public:
   explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                       IMUGroundTruthSmoother& imu_ground_truth_smoother,
                       std::shared_ptr<BetweenTransformProvider> between_transform_provider,
+                      std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,
                       ros::Publisher& landmark_publisher);
 
@@ -49,6 +51,7 @@ public:
   void ProcessWithBackend(const std::shared_ptr<Frame>& frame);
 
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
+  void PublishLatestLidarTransform(const Pose3Stamped& pose_stamped);
   void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
   virtual ~Controller();

@@ -43,7 +43,7 @@ gtsam::ISAM2Params MakeISAM2Params()
   params.relinearizeSkip = GlobalParams::IsamRelinearizeSkip();
   params.enableDetailedResults = true;
   params.evaluateNonlinearError = true;
-  params.findUnusedFactorSlots = true;  // This likely causes trouble for RemoveLandmark
+  params.findUnusedFactorSlots = true;                  // This likely causes trouble for RemoveLandmark
   params.factorization = gtsam::ISAM2Params::CHOLESKY;  // Default: CHOLESKY. QR is slower and have no less ILS.
   if (GlobalParams::UseDogLeg())
   {
@@ -710,6 +710,23 @@ void NewSmoother::GetPoses(std::map<int, Pose3Stamped>& poses) const
       poses[frame.first] = Pose3Stamped{ ToPose(graph_manager_.GetPose(frame.first)), frame.second->timestamp };
     }
   }
+}
+
+Pose3Stamped NewSmoother::GetLatestLidarPose()
+{
+  auto latest_world_T_body = graph_manager_.GetPose(last_frame_id_);
+  // TODO move to member variable
+  gtsam::Pose3 body_p_lidar(
+      gtsam::Rot3::Quaternion(GlobalParams::BodyPLidarQuat()[3], GlobalParams::BodyPLidarQuat()[0],
+                              GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
+      gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
+                    GlobalParams::BodyPLidarVec()[2]));
+  body_p_lidar.print("body p lidar");
+  auto latest_world_T_lidar = latest_world_T_body * body_p_lidar;
+  auto ts_cam = added_frames_[last_frame_id_]->timestamp;
+  auto ts_offset = lidar_time_offset_provider_->GetOffset(ts_cam);
+  auto ts_lidar = ts_cam - ts_offset;
+  return { ToPose(latest_world_T_lidar), ts_lidar };
 }
 
 void NewSmoother::GetLandmarks(std::map<int, LandmarkResult>& landmarks) const
