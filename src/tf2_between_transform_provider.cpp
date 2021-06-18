@@ -14,7 +14,7 @@ TF2BetweenTransformProvider::TF2BetweenTransformProvider(const std::vector<doubl
   : TF2BetweenTransformProvider(
         gtsam::Pose3(gtsam::Rot3::Quaternion(body_p_sensor_quat[3], body_p_sensor_quat[0], body_p_sensor_quat[1],
                                              body_p_sensor_quat[2]),
-                     gtsam::Point3(body_p_sensor_vector[0], body_p_sensor_vector[1], body_p_sensor_quat[2])),
+                     gtsam::Point3(body_p_sensor_vector[0], body_p_sensor_vector[1], body_p_sensor_vector[2])),
         std::move(world_frame), std::move(sensor_frame))
 {
 }
