@@ -67,5 +67,5 @@
     </node>
 
     <node pkg="tf" type="static_transform_publisher" name="world_broadcaster"
-          args="-0.0561262623 0.003222329 0.00869478206 0.0122215786 -0.00410931992 0.923332909 0.383784484 world map 100"/>
+          args="-0.0550308 0.00226642 0.0657462 0.0122215786 -0.00410931992 0.923332909 0.383784 world map 100"/>
 </launch>
