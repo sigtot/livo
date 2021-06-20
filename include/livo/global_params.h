@@ -114,6 +114,8 @@ private:
   double imu_gyro_noise_density_ = 0.1;
   double imu_accel_random_walk_ = 0.01;
   double imu_gyro_random_walk_ = 0.01;
+  std::vector<double> imu_init_bias_accel_ = std::vector<double> {0., 0., 0.};
+  std::vector<double> imu_init_bias_gyro_ = std::vector<double> {0., 0., 0.};
 
   bool do_initial_gravity_alignment_ = false;
   double dynamic_outlier_rejection_threshold_ = 8.0;
@@ -255,6 +257,8 @@ public:
   static double IMUGyroNoiseDensity();
   static double IMUAccelRandomWalk();
   static double IMUGyroRandomWalk();
+  static std::vector<double> IMUInitBiasAccel();
+  static std::vector<double> IMUInitBiasGyro();
 
   static bool DoInitialGravityAlignment();
   static double DynamicOutlierRejectionThreshold();

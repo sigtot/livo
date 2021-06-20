@@ -146,6 +146,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_gyro_noise_density", GetInstance().imu_gyro_noise_density_);
   ReadVariable(nh, "/orb_test_node/imu_accel_random_walk", GetInstance().imu_accel_random_walk_);
   ReadVariable(nh, "/orb_test_node/imu_gyro_random_walk", GetInstance().imu_gyro_random_walk_);
+  ReadVectorVariable(nh, "/orb_test_node/imu_init_bias_accel", GetInstance().imu_init_bias_accel_);
+  ReadVectorVariable(nh, "/orb_test_node/imu_init_bias_gyro", GetInstance().imu_init_bias_gyro_);
 
   ReadVariable(nh, "/orb_test_node/do_initial_gravity_alignment", GetInstance().do_initial_gravity_alignment_);
   ReadVariable(nh, "/orb_test_node/dynamic_outlier_rejection_threshold",
@@ -688,4 +690,12 @@ bool GlobalParams::LandmarkRemovalHighDepthDifference()
 double GlobalParams::MaxDepthDifferenceBeforeRemoval()
 {
   return GetInstance().max_depth_difference_before_removal_;
+}
+std::vector<double> GlobalParams::IMUInitBiasAccel()
+{
+  return GetInstance().imu_init_bias_accel_;
+}
+std::vector<double> GlobalParams::IMUInitBiasGyro()
+{
+  return GetInstance().imu_init_bias_gyro_;
 }

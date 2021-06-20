@@ -296,7 +296,11 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
           .finished());
 
   auto init_velocity = gtsam::Vector3::Zero();
-  auto init_bias = gtsam::imuBias::ConstantBias();
+  auto init_bias = gtsam::imuBias::ConstantBias(
+      gtsam::Vector3(GlobalParams::IMUInitBiasAccel()[0], GlobalParams::IMUInitBiasAccel()[1],
+                     GlobalParams::IMUInitBiasAccel()[2]),
+      gtsam::Vector3(GlobalParams::IMUInitBiasGyro()[0], GlobalParams::IMUInitBiasGyro()[1],
+                     GlobalParams::IMUInitBiasGyro()[2]));
 
   gtsam::NavState init_nav_state(refined_init_pose, init_velocity);
 
