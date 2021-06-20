@@ -72,7 +72,7 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
   imu_params->biasAccCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUAccelRandomWalk(), 2.0);
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
   imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;  // Try increasing this by factor of ~100-1000
-  // TODO set acc omega int to identity
+  imu_params->biasAccOmegaInt = gtsam::I_6x6;  // This is the default
 
   imu_params->body_P_sensor = gtsam::Pose3(
       gtsam::Rot3::Quaternion(GlobalParams::BodyPImuQuat()[3], GlobalParams::BodyPImuQuat()[0],
@@ -685,6 +685,14 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
     std::cout << biases_relinearized << " biases relinearized" << std::endl;
   }
 
+  if (!GlobalParams::GroundTruthFile().empty())
+  {
+    auto ts_offset = lidar_time_offset_provider_->GetOffset(frame->timestamp);
+    auto abs_gt_error =
+        ToGtsamPose(GroundTruth::At(frame->timestamp - ts_offset)).range(graph_manager_.GetPose(frame->id));
+    DebugValuePublisher::PublishAbsoluteGroundTruthError(abs_gt_error);
+  }
+
   added_frames_[frame->id] = frame;
   last_frame_id_ = frame->id;
 
@@ -726,7 +734,6 @@ Pose3Stamped NewSmoother::GetLatestLidarPose()
                               GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
       gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
                     GlobalParams::BodyPLidarVec()[2]));
-  body_p_lidar.print("body p lidar");
   auto latest_world_T_lidar = latest_world_T_body * body_p_lidar;
   auto ts_cam = added_frames_[last_frame_id_]->timestamp;
   auto ts_offset = lidar_time_offset_provider_->GetOffset(ts_cam);
