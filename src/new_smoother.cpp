@@ -59,8 +59,9 @@ gtsam::ISAM2Params MakeISAM2Params()
 
 boost::shared_ptr<gtsam::noiseModel::Robust> MakeRangeNoise(LidarDepthResult depth_result)
 {
-  return gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
-                                           gtsam::noiseModel::Isotropic::Sigma(1, depth_result.std_dev));
+  return gtsam::noiseModel::Robust::Create(
+      gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
+      gtsam::noiseModel::Isotropic::Sigma(1, std::max(depth_result.std_dev, GlobalParams::NoiseRange())));
 }
 
 boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
