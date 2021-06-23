@@ -118,14 +118,15 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     new_backend_.AddKeyframe(frame, frame->is_keyframe);
   }
 
-  bool must_wait_for_transform =
-      GlobalParams::LoamBetweenFactorsEnabled() && !between_transform_provider_->CanTransform(frame->timestamp);
+  bool must_wait_for_transform = GlobalParams::LoamBetweenFactorsEnabled() &&
+                                 !between_transform_provider_->CanTransform(
+                                     frame->timestamp - lidar_time_offset_provider_->GetOffset(frame->timestamp));
 
   if (!new_backend_.IsInitialized() && frame->HasDepth() && !must_wait_for_transform)
   {
-    if (frame->stationary)
+    if (GlobalParams::DoInitialGravityAlignment() && frame->stationary)
     {
-      if (GlobalParams::DoInitialGravityAlignment() && frontend_.GetFramesForIMUAttitudeInitialization(frame->id))
+      if (frontend_.GetFramesForIMUAttitudeInitialization(frame->id))
       {
         auto imu_init_frames = frontend_.GetFramesForIMUAttitudeInitialization(frame->id);
         // We wait until we have > 1.0 seconds of imu integration before using it for gravity alignment
@@ -139,7 +140,7 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     }
     else
     {
-      // Not stationary, no point in waiting for more stationary imu messages. Initialize immediately.
+      // Not stationary, or not aligning, no point in waiting for more stationary imu messages. Initialize immediately.
       std::cout << "Initializing without gravity alignment" << std::endl;
       new_backend_.Initialize(frame);
     }
