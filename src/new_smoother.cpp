@@ -276,14 +276,23 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
 {
   keyframe_timestamps_.AddKeyframeTimestamp(frame->timestamp);
 
-  auto unrefined_init_pose =
-      GlobalParams::InitOnGroundTruth() ? ToGtsamPose(GroundTruth::At(frame->timestamp)) : gtsam::Pose3();
-  auto refined_init_pose = gtsam::Pose3(
-      imu_gravity_alignment_timestamps ? imu_integrator_.RefineInitialAttitude(imu_gravity_alignment_timestamps->first,
-                                                                               imu_gravity_alignment_timestamps->second,
-                                                                               unrefined_init_pose.rotation()) :
-                                         unrefined_init_pose.rotation(),
-      unrefined_init_pose.translation());
+  auto gt_init_pose = ToGtsamPose(GroundTruth::At(frame->timestamp));
+  auto gt_init_pose_yaw_only =
+      gtsam::Pose3(gtsam::Rot3::Ypr(gt_init_pose.rotation().yaw(), 0., 0.), gt_init_pose.translation());
+
+  auto refined_rotation = imu_gravity_alignment_timestamps ?
+      imu_integrator_.RefineInitialAttitude(imu_gravity_alignment_timestamps->first,
+                                            imu_gravity_alignment_timestamps->second, gtsam::Rot3()) : gtsam::Rot3();
+
+  auto init_translation =
+      GlobalParams::InitOnGroundTruth() ? gt_init_pose_yaw_only.translation() : gtsam::Point3::Zero();
+  auto init_rotation = gtsam::Rot3::Ypr(GlobalParams::InitOnGroundTruth() ? gt_init_pose_yaw_only.rotation().yaw() : 0.,
+                                        refined_rotation.pitch(), refined_rotation.roll());
+
+  auto unrefined_init_pose = GlobalParams::InitOnGroundTruth() ? ToGtsamPose(GroundTruth::At(frame->timestamp)) : gtsam::Pose3();
+  auto refined_init_pose = gtsam::Pose3(init_rotation, init_translation);
+
+  refined_init_pose.print("Init pose: ");
 
   auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << gtsam::Vector3(GlobalParams::PriorNoiseXRollPitch(), GlobalParams::PriorNoiseXRollPitch(),
