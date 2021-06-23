@@ -276,9 +276,9 @@ void NewSmoother::Initialize(const std::shared_ptr<Frame>& frame,
 {
   keyframe_timestamps_.AddKeyframeTimestamp(frame->timestamp);
 
-  auto gt_init_pose = ToGtsamPose(GroundTruth::At(frame->timestamp));
+  auto init_pose = GlobalParams::InitOnGroundTruth() ? ToGtsamPose(GroundTruth::At(frame->timestamp)) : gtsam::Pose3();
   auto gt_init_pose_yaw_only =
-      gtsam::Pose3(gtsam::Rot3::Ypr(gt_init_pose.rotation().yaw(), 0., 0.), gt_init_pose.translation());
+      gtsam::Pose3(gtsam::Rot3::Ypr(init_pose.rotation().yaw(), 0., 0.), init_pose.translation());
 
   auto refined_rotation = imu_gravity_alignment_timestamps ?
       imu_integrator_.RefineInitialAttitude(imu_gravity_alignment_timestamps->first,
