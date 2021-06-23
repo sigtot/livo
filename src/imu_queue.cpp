@@ -61,6 +61,7 @@ gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, cons
     }
   }
   acc_sum /= static_cast<double>(num_summed);
+  std::cout << "Raw acceleration measured (imu frame): " << (acc_sum).transpose() << std::endl;
   acc_sum.normalize();  // Normalize so both vectors have length 1
   auto b_g = body_R_imu * acc_sum;  // Gravity in body frame
   gtsam::Vector3 w_g(0., 0., 1.);  // An accelerometer at rest will measure 9.81 m/s^2 straight upwards
@@ -70,7 +71,7 @@ gtsam::Rot3 IMUQueue::RefineInitialAttitude(ros::Time start, ros::Time end, cons
   auto w_R_b = gtsam::Rot3::Ypr(w_R_body_init.yaw(), w_R_b_pitch_roll.pitch(), w_R_b_pitch_roll.roll());
 
   std::cout << "Aligned attitude along gravity using stationary IMU measurements." << std::endl;
-  std::cout << "Aligned: " << w_R_b.toQuaternion().coeffs().transpose() << std::endl;
+  std::cout << "Aligned rpy: " << w_R_b.rpy().transpose() << std::endl;
 
   auto w_g_estimated = w_R_b * b_g;
   std::cout << "Measured acceleration stationary accel unaligned: " << (b_g).transpose() << std::endl;
