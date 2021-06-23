@@ -22,6 +22,8 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().klt_duration_pub_ = nh.advertise<std_msgs::Float64>("/klt_duration", 1000);
   GetInstance().publish_image_duration_pub_ = nh.advertise<std_msgs::Float64>("/publish_image_duration", 1000);
   GetInstance().img_queue_size_pub_ = nh.advertise<std_msgs::Int32>("/img_queue_size", 1000);
+  GetInstance().abs_gt_error_pub_ = nh.advertise<std_msgs::Float64>("/abs_gt_error", 1000);
+
 
   GetInstance().n_cells_repopulated_ = nh.advertise<std_msgs::Int32>("/n_cells_repopulated", 1000);
 
@@ -85,6 +87,10 @@ void DebugValuePublisher::PublishImagePublishDuration(double duration)
 void DebugValuePublisher::PublishImageQueueSize(int size)
 {
   DebugValuePublisher::PublishIntValue(size, GetInstance().img_queue_size_pub_);
+}
+void DebugValuePublisher::PublishAbsoluteGroundTruthError(double err)
+{
+  DebugValuePublisher::PublishDoubleValue(err, GetInstance().abs_gt_error_pub_);
 }
 
 void DebugValuePublisher::PublishNCellsRepopulated(int n)
