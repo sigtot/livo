@@ -1,0 +1,11 @@
+# import last to overwrite initial values
+imu_sub_topic: /os1_cloud_node/imu
+
+body_p_cam_quat: [ -0.648876, 0.261815, -0.276572, 0.658727]
+body_p_cam_vec: [ 0.0424927, 0.0646684, -0.0184578 ]
+
+body_p_imu_quat: [ 0., 0., 0., 1. ]
+body_p_imu_vec: [ 0, 0, 0 ]
+
+body_p_lidar_quat: [ 0., 0., 1., 0. ]
+body_p_lidar_vec: [ -0.006253, 0.011775, 0.028535 ]
