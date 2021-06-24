@@ -31,6 +31,12 @@ private:
   int grid_cells_x_ = 9;
   int grid_cells_y_ = 7;
   double resize_factor_ = 1.f;
+
+  int klt_max_iterations_ = 10;
+  double klt_convergence_epsilon_ = 0.03;
+  int klt_win_size_ = 15;
+  int klt_pyramids_ = 2;
+
   int landmark_culling_frame_count_ = 20;
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
@@ -179,6 +185,12 @@ public:
   static int GridCellsX();
   static int GridCellsY();
   static double ResizeFactor();
+
+  static int KLTMaxIterations();
+  static double KLTConvergenceEpsilon();
+  static int KLTWinSize();
+  static int KLTPyramids();
+
   static int LandmarkCullingFrameCount();
   static double LandmarkCullingObservationPercentage();
   static int LandmarkMatchingWindow();

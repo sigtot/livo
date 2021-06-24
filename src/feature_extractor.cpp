@@ -72,10 +72,12 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     vector<cv::Point2f> new_points;
     vector<uchar> status;
     vector<float> err;
-    TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 10, 0.03);
+    TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), GlobalParams::KLTMaxIterations(),
+                                         GlobalParams::KLTConvergenceEpsilon());
 
     auto time_before_klt = std::chrono::system_clock::now();
-    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err, Size(15, 15), 2,
+    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err,
+                             Size(GlobalParams::KLTWinSize(), GlobalParams::KLTWinSize()), GlobalParams::KLTPyramids(),
                              criteria);
 
     auto time_after_klt = std::chrono::system_clock::now();

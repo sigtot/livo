@@ -69,6 +69,12 @@ grid_cells_x: 5
 grid_cells_y: 5
 track_count_lower_thresh: 30
 
+klt:
+  max_iterations: 10
+  convergence_epsilon: 0.03
+  win_size: 15
+  pyramids: 2
+
 min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15

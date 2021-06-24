@@ -64,6 +64,12 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/grid_cells_x", GetInstance().grid_cells_x_);
   ReadVariable(nh, "/orb_test_node/grid_cells_y", GetInstance().grid_cells_y_);
   ReadVariable(nh, "/orb_test_node/resize_factor", GetInstance().resize_factor_);
+
+  ReadVariable(nh, "/orb_test_node/klt/max_iterations", GetInstance().klt_max_iterations_);
+  ReadVariable(nh, "/orb_test_node/klt/convergence_epsilon", GetInstance().klt_convergence_epsilon_);
+  ReadVariable(nh, "/orb_test_node/klt/win_size", GetInstance().klt_win_size_);
+  ReadVariable(nh, "/orb_test_node/klt/pyramids", GetInstance().klt_pyramids_);
+
   ReadVariable(nh, "/orb_test_node/landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
   ReadVariable(nh, "/orb_test_node/landmark_culling_observation_percentage",
                GetInstance().landmark_culling_observation_percentage_);
@@ -242,6 +248,24 @@ double GlobalParams::ResizeFactor()
 {
   return GetInstance().resize_factor_;
 }
+
+int GlobalParams::KLTMaxIterations()
+{
+  return GetInstance().klt_max_iterations_;
+}
+double GlobalParams::KLTConvergenceEpsilon()
+{
+  return GetInstance().klt_convergence_epsilon_;
+}
+int GlobalParams::KLTWinSize()
+{
+  return GetInstance().klt_win_size_;
+}
+int GlobalParams::KLTPyramids()
+{
+  return GetInstance().klt_pyramids_;
+}
+
 int GlobalParams::LandmarkCullingFrameCount()
 {
   return GetInstance().landmark_culling_frame_count_;

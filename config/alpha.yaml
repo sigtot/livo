@@ -25,7 +25,13 @@ grid_cells_x: 9
 grid_cells_y: 7
 track_count_lower_thresh: 40
 
-min_parallax_for_smoothing: 5
+klt:
+  max_iterations: 10
+  convergence_epsilon: 0.03
+  win_size: 15
+  pyramids: 2
+
+min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 40
