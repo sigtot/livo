@@ -35,7 +35,7 @@
     <node pkg="nodelet" type="nodelet" name="laser_multiscan_registration_nodelet"
           args="load laser_multiscan_registration_nodelet loam_nodelet_manager" output="screen"
           launch-prefix="taskset -c 0-1">
-        <rosparam file="$(find loam)/config/loam_params.yaml" command="load"/>
+        <rosparam file="$(find orb_test)/config/loam/loam_params_ouster.yaml" command="load"/>
         <remap from="/multi_scan_points" to="$(arg pointcloud_topic_name)"/>
         <remap from="/imu" to="$(arg imu_topic_name)"/>
     </node>
@@ -43,13 +43,13 @@
     <!-- Laser Odometry Nodelet -->
     <node pkg="nodelet" type="nodelet" name="laser_odometry_nodelet"
           args="load laser_odometry_nodelet loam_nodelet_manager" output="screen" launch-prefix="taskset -c 0-1">
-        <rosparam file="$(find loam)/config/loam_params.yaml" command="load"/>
+        <rosparam file="$(find orb_test)/config/loam/loam_params_ouster.yaml" command="load"/>
     </node>
 
     <!-- Laser Mapping Nodelet -->
     <node pkg="nodelet" type="nodelet" name="laser_mapping_nodelet"
           args="load laser_mapping_nodelet loam_nodelet_manager" output="screen" launch-prefix="taskset -c 0-1">
-        <rosparam file="$(find loam)/config/loam_params.yaml" command="load"/>
+        <rosparam file="$(find orb_test)/config/loam/loam_params_ouster.yaml" command="load"/>
         <param name="saved_submaps_filepath" value="$(find loam)"/>
     </node>
 
@@ -57,7 +57,7 @@
     <node pkg="nodelet" type="nodelet" name="laser_transform_maintenance_nodelet"
           args="load laser_transform_maintenance_nodelet loam_nodelet_manager" output="screen"
           launch-prefix="taskset -c 0-1">
-        <rosparam file="$(find loam)/config/loam_params.yaml" command="load"/>
+        <rosparam file="$(find orb_test)/config/loam/loam_params_ouster.yaml" command="load"/>
     </node>
     <!-- End LOAM stuff -->
 
