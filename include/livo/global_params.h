@@ -163,6 +163,7 @@ private:
   bool keyframe_between_factors_ = true;
   std::string loam_world_frame_ = "unknown";
   std::string loam_sensor_frame_ = "unknown";
+  std::string loam_degeneracy_topic_ = "";  // Use empty string if no degeneracy topic available
 
   // If true, will draw lidar depth lines published in landmarks image.
   // When lidar depth is not available, no landmarks image will be published.
@@ -309,6 +310,7 @@ public:
 
   static std::string LoamWorldFrame();
   static std::string LoamSensorFrame();
+  static std::string LoamDegeneracySubTopic();
   static bool LoamBetweenFactorsEnabled();
   static bool FrameBetweenFactors();
   static bool KeyframeBetweenFactors();

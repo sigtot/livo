@@ -114,5 +114,6 @@ frame_between_factors: false
 keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
+loam_degeneracy_topic: /laser_odom_status
 
 draw_lidar_lines: false

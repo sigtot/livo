@@ -108,6 +108,10 @@ int main(int argc, char** argv)
       std::make_shared<TF2BetweenTransformProvider>(GlobalParams::BodyPLidarQuat(), GlobalParams::BodyPLidarVec(),
                                                     GlobalParams::LoamWorldFrame(), GlobalParams::LoamSensorFrame());
 
+  auto loam_degeneracy_sub =
+      nh.subscribe(GlobalParams::LoamDegeneracySubTopic(), 1000, &TF2BetweenTransformProvider::AddDegeneracyMessage,
+                   &*between_transform_provider);
+
   std::mutex mu;
   FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu);
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);

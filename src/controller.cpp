@@ -57,15 +57,15 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   auto new_frame = frontend_.lkCallback(msg);
   auto time_after = std::chrono::system_clock::now();
 
-  if (i++ % GlobalParams::FrameInterval() != 0)
-  {
-    return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
-  }
-
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;
   DebugValuePublisher::PublishFrontendDuration(millis);
   std::cout << "Frontend frame " << new_frame->id << " (took: " << millis << " ms)" << std::endl;
+
+  if (i++ % GlobalParams::FrameInterval() != 0)
+  {
+    return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
+  }
 
   SetLatestFrameForBackend(new_frame);  // Will block if backend is still processing the previous frame.
 }

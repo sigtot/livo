@@ -196,6 +196,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/keyframe_between_factors", GetInstance().keyframe_between_factors_);
   ReadVariable(nh, "/orb_test_node/loam_world_frame", GetInstance().loam_world_frame_);
   ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
+  ReadVariable(nh, "/orb_test_node/loam_degeneracy_topic", GetInstance().loam_degeneracy_topic_);
 
   ReadVariable(nh, "/orb_test_node/draw_lidar_lines", GetInstance().draw_lidar_lines_);
 
@@ -696,6 +697,10 @@ std::string GlobalParams::LoamWorldFrame()
 std::string GlobalParams::LoamSensorFrame()
 {
   return GetInstance().loam_sensor_frame_;
+}
+std::string GlobalParams::LoamDegeneracySubTopic()
+{
+  return GetInstance().loam_degeneracy_topic_;
 }
 
 bool GlobalParams::DrawLidarLines()
