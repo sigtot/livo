@@ -33,6 +33,11 @@ klt:
   win_size: 15
   pyramids: 2
 
+feature_extraction:
+  quality_level: 0.3
+  min_distance: 7
+  min_eigen_value: 0.0001
+
 min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15

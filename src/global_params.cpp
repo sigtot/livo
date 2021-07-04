@@ -70,6 +70,11 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/klt/win_size", GetInstance().klt_win_size_);
   ReadVariable(nh, "/orb_test_node/klt/pyramids", GetInstance().klt_pyramids_);
 
+  ReadVariable(nh, "/orb_test_node/feature_extraction/quality_level", GetInstance().feature_extraction_quality_level_);
+  ReadVariable(nh, "/orb_test_node/feature_extraction/min_distance", GetInstance().feature_extraction_min_distance_);
+  ReadVariable(nh, "/orb_test_node/feature_extraction/min_eigen_value",
+               GetInstance().feature_extraction_min_eigen_value_);
+
   ReadVariable(nh, "/orb_test_node/landmark_culling_frame_count", GetInstance().landmark_culling_frame_count_);
   ReadVariable(nh, "/orb_test_node/landmark_culling_observation_percentage",
                GetInstance().landmark_culling_observation_percentage_);
@@ -267,6 +272,19 @@ int GlobalParams::KLTWinSize()
 int GlobalParams::KLTPyramids()
 {
   return GetInstance().klt_pyramids_;
+}
+
+double GlobalParams::FeatureExtractionQualityLevel()
+{
+  return GetInstance().feature_extraction_quality_level_;
+}
+double GlobalParams::FeatureExtractionMinDistance()
+{
+  return GetInstance().feature_extraction_min_distance_;
+}
+double GlobalParams::FeatureExtractionMinEigenValue()
+{
+  return GetInstance().feature_extraction_min_eigen_value_;
 }
 
 int GlobalParams::LandmarkCullingFrameCount()

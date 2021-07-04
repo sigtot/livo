@@ -217,16 +217,31 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
         continue;  // Nothing further to do
       }
 
+      // Do min eigenval check
+      cv::Mat ev;
+      cv::cornerMinEigenVal(roi, ev, 3);
+      std::vector<bool> min_eigval_ok;
+      min_eigval_ok.reserve(corners_in_roi.size());
+      for (const auto& corner : corners_in_roi)
+      {
+        int x = static_cast<int>(corner.x);
+        int y = static_cast<int>(corner.y);
+        float f_lambda = ev.at<float>(y, x);
+        auto d_lambda = static_cast<double>(f_lambda);
+        min_eigval_ok.push_back(d_lambda > GlobalParams::FeatureExtractionMinEigenValue());
+      }
+
+      // Subpix refinement
       Size winSize = Size(5, 5);
       Size zeroZone = Size(-1, -1);
       TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001);
       cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
 
-      for (auto& i : corners_in_roi)
+      for (int i = 0; i < corners_in_roi.size(); ++i)
       {
-        if (PointWasSubPixRefined(i))
+        if (PointWasSubPixRefined(corners_in_roi[i]) && min_eigval_ok[i])
         {
-          corners.push_back(i + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
+          corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
         }
       }
       cells_repopulated++;
@@ -653,17 +668,16 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
     const cv::Mat& img, std::shared_ptr<Frame> new_frame,
     const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
 {
-  // TODO pass this also to ExtractNewCorners... so not to create it twice
   Mat_<int> feature_counts;
   MakeFeatureCountPerCellTable(img.cols, img.rows, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
                                frames.empty() ? std::map<int, std::weak_ptr<Feature>>{} : frames.back()->features,
                                feature_counts);
 
   vector<Point2f> corners;
-  // 30 -> 40ms
   ExtractNewCornersInUnderpopulatedGridCells(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
                                              GlobalParams::MinFeaturesPerCell(), 3 * GlobalParams::MaxFeaturesPerCell(),
-                                             0.3, 7);
+                                             GlobalParams::FeatureExtractionQualityLevel(),
+                                             GlobalParams::FeatureExtractionMinDistance());
 
   std::vector<std::shared_ptr<Feature>> new_features;
   InitNewExtractedFeatures(corners, new_frame, new_features, lidar_frame);
@@ -711,7 +725,8 @@ void FeatureExtractor::DoFeatureExtractionByTotalCount(const cv::Mat& img, std::
   vector<Point2f> corners;
   // 30 -> 40ms
   FindGoodFeaturesToTrackGridded(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
-                                 GlobalParams::MaxFeaturesPerCell(), 0.3, 7);
+                                 GlobalParams::MaxFeaturesPerCell(), GlobalParams::FeatureExtractionQualityLevel(),
+                                 GlobalParams::FeatureExtractionMinDistance());
 
   std::vector<std::shared_ptr<Feature>> features;
   InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);

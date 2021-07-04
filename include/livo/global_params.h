@@ -37,6 +37,10 @@ private:
   int klt_win_size_ = 15;
   int klt_pyramids_ = 2;
 
+  double feature_extraction_quality_level_ = 0.3; // quality_level param for cv::goodFeaturesToTrack
+  double feature_extraction_min_distance_ = 7; // min_distance param for cv::goodFeaturesToTrack
+  double feature_extraction_min_eigen_value_ = 1e-4; // all feature eigen values must be at least larger than this value
+
   int landmark_culling_frame_count_ = 20;
   double landmark_culling_observation_percentage_ = .40;
   int landmark_matching_window_ = 5;
@@ -191,6 +195,10 @@ public:
   static double KLTConvergenceEpsilon();
   static int KLTWinSize();
   static int KLTPyramids();
+
+  static double FeatureExtractionQualityLevel();
+  static double FeatureExtractionMinDistance();
+  static double FeatureExtractionMinEigenValue();
 
   static int LandmarkCullingFrameCount();
   static double LandmarkCullingObservationPercentage();
