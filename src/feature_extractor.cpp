@@ -550,6 +550,22 @@ void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
   std::vector<int> track_indices;
   std::vector<cv::Point2f> points_1;
   std::vector<cv::Point2f> points_2;
+
+  // Check that all frames in RANSAC window are non-stationary
+  if (frames.size() < n_frames + 1)
+  {
+    return;
+  }
+  int last_frame_idx = static_cast<int>(frames.size()) - 1;
+  for (int i = last_frame_idx; i >= 0 && i > last_frame_idx - n_frames; --i)
+  {
+    if (frames[i]->stationary)
+    {
+      std::cout << "Skipping RANSAC with n_frames " << n_frames << " because of stationary frames." << std::endl;
+      return;
+    }
+  }
+
   for (int i = 0; i < active_tracks_.size(); ++i)
   {
     int track_len = static_cast<int>(active_tracks_[i]->features.size());
