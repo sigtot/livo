@@ -11,7 +11,7 @@ init_on_ground_truth: true
 
 timeshift_cam_imu: 0.01379378638037798
 imu_max_messages_retained: 10000
-imu_g: 9.78672
+imu_g: 9.81
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: -1
@@ -38,20 +38,20 @@ imu_init_bias_gyro: [ 0., 0., 0. ]
 #gyrBiasPrior: 0.0
 
 noise_params:
-  prior_X_yaw: 0.00001
-  prior_X_roll_pitch: 0.0001
-  prior_X_translation: 0.00001
-  prior_gyro: 0.00000001
-  prior_accel: 0.00000001
-  prior_velocity: 0.00001
-  between_rotation: 0.03
-  between_translation: 0.01
-  between_rotation_keyframe: 0.001
-  between_translation_keyframe: 0.01
+  prior_X_yaw: 0.01
+  prior_X_roll_pitch: 0.5
+  prior_X_translation: 0.01
+  prior_gyro: 0.2
+  prior_accel: 0.2
+  prior_velocity: 0.01
+  between_rotation: 0.05
+  between_translation: 0.05
+  between_rotation_keyframe: 0.1
+  between_translation_keyframe: 0.1
   feature: 1.0
-  range: 0.5
+  range: 4.0
   robust_feature_k: 1.345
-  robust_range_k: 10
+  robust_range_k: 1.345
 
 use_isam: true
 use_dogleg: false
@@ -78,14 +78,14 @@ klt:
 min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 30
-min_track_length_for_smoothing_depth: 20
+min_track_length_for_smoothing: 40
+min_track_length_for_smoothing_depth: 40
 min_depth_measurements_for_smoothing: 5
 min_active_track_count: 20
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
-temporal_keyframe_interval: 60
+temporal_keyframe_interval: 30
 frame_interval: 2
 second_ransac_n_frames: 19
 
@@ -141,8 +141,8 @@ isam_relin_thresh:
 loam_between_factors_enabled: true
 frame_between_factors: true
 keyframe_between_factors: false
-loam_world_frame: camera_init_CORRECTED
+loam_world_frame: map
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
 
-draw_lidar_lines: true  # Adds about 15ms to image publish
+draw_lidar_lines: false  # Adds about 15ms to image publish

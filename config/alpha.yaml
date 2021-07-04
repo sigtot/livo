@@ -1,5 +1,5 @@
 imu_sub_topic: /vn100/imu
-cam_sub_topic: /camera/image_raw
+cam_sub_topic: /camera/image_mono
 lidar_sub_topic: /velodyne_points
 
 resize_factor: 0.5
@@ -17,13 +17,15 @@ imu_gyro_noise_density: 0.00006108
 imu_accel_random_walk: 0.00554371716
 imu_gyro_random_walk: 0.00068563008
 
+count_features_per_cell: false
+min_features_per_cell: 5
 num_good_keyframes_for_initialization: 2
-track_nms_squared_dist_thresh: 400.
-max_features_per_cell: 7
-max_features: 50
-grid_cells_x: 9
-grid_cells_y: 7
-track_count_lower_thresh: 40
+track_nms_squared_dist_thresh: 600.
+max_features_per_cell: 8
+max_features: 30
+grid_cells_x: 2
+grid_cells_y: 2
+track_count_lower_thresh: 20
 
 klt:
   max_iterations: 10
@@ -34,14 +36,16 @@ klt:
 min_parallax_for_smoothing: 10
 min_parallax_for_smoothing_depth: 0
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 40
-min_track_length_for_smoothing_depth: 7
-min_depth_measurements_for_smoothing: 3
+min_track_length_for_smoothing: 30
+min_track_length_for_smoothing_depth: 20
+min_depth_measurements_for_smoothing: 5
 min_active_track_count: 20
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
 temporal_keyframe_interval: 30
+frame_interval: 2
+second_ransac_n_frames: 19
 
 use_isam: true
 isam_relinearize_thresh: 0.1
@@ -83,7 +87,7 @@ cam_fx: 593.690871957
 cam_fy: 593.74699226
 cam_u0: 388.42480338
 cam_v0: 274.84471313
-color_image: true
+color_image: false
 
 distortion_model:
   coeffs: [ -0.025457951864817117, 0.009902106702461878, -0.043069796963119425, 0.05057305222464838 ]
@@ -91,12 +95,13 @@ distortion_model:
 
 lidar_depth:
   enabled: true
-  calc_mode: 1
-  search_window_width: 15
-  search_window_height: 15
+  calc_mode: 0
+  search_window_width: 45
+  search_window_height: 45
   min_non_zero_neighbors: 4
-  max_allowed_feature_distance: 15
+  max_allowed_feature_distance: 60
   std_dev_tol_factor: 0.1
+  max_messages_retained: 100
 
 lidar_frame_manager_timestamp_thresh: 0.02
 
@@ -106,14 +111,20 @@ proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 
 use_fixed_lag: true
-smoother_lag: 20
+smoother_lag: 5
 enable_smart_factors: false
+isam_relin_thresh:
+  x_rotation: 0.1
+  x_translation: 0.1
+  v: 0.1
+  b: 0.1
+  l: 1.0
 
 loam_between_factors_enabled: true
-frame_between_factors: false
+frame_between_factors: true
 keyframe_between_factors: false
 loam_world_frame: camera_init_CORRECTED
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
 
-draw_lidar_lines: false
+draw_lidar_lines: true

@@ -1,0 +1,7 @@
+# config for the old alpha setup (such as for the san rafael dataset)
+
+cam_sub_topic: /camera/image_mono
+
+resize_factor: 0.5
+
+color_image: false
