@@ -499,6 +499,19 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             frame_id_used_for_init = (*frame_first_seen)->id;
             obs_count++;
             added_landmarks_count++;
+
+            {
+              std::cout << "Range values for l" << track->id << ": ";
+              for (const auto& feat : track->features)
+              {
+                if (feat->depth)
+                {
+                  std::cout << feat->depth->depth << " ";
+                }
+              }
+              std::cout << std::endl;
+            }
+
             break;
           }
         }
@@ -620,6 +633,19 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       }
       graph_manager_.AddRangeObservation(lmk_id, frame->id, timestamp_for_values, feature->depth->depth,
                                          MakeRangeNoise(*feature->depth));
+      {
+        std::cout << "Range values for l" << lmk_id << ": ";
+        auto track = feature->track.lock();
+        assert(track);
+        for (const auto& feat : track->features)
+        {
+          if (feat->depth)
+          {
+            std::cout << feat->depth->depth << " ";
+          }
+        }
+        std::cout << std::endl;
+      }
       range_obs_count++;
     }
     feature_obs_count++;

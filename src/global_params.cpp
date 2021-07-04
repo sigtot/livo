@@ -139,6 +139,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/track_count_lower_thresh", GetInstance().track_count_lower_thresh_);
   ReadVariable(nh, "/orb_test_node/track_nms_squared_dist_thresh", GetInstance().track_nms_squared_dist_thresh_);
   ReadVariable(nh, "/orb_test_node/min_track_length_for_smoothing", GetInstance().min_track_length_for_smoothing_);
+  ReadVariable(nh, "/orb_test_node/min_track_length_for_smoothing_depth",
+               GetInstance().min_track_length_for_smoothing_depth_);
   ReadVariable(nh, "/orb_test_node/image_edge_padding_percent", GetInstance().image_edge_padding_percent_);
   ReadVariable(nh, "/orb_test_node/stationary_thresh", GetInstance().stationary_thresh_);
 
