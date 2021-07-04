@@ -1,0 +1,9 @@
+<launch>
+    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen" launch-prefix="taskset -c 2-7">
+        <rosparam file="$(find orb_test)/config/common.yaml"/>
+        <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="world_broadcaster"
+          args="-0.0550308 0.00226642 0.0657462 0.0122215786 -0.00410931992 0.923332909 0.383784 world map 100"/>
+</launch>
