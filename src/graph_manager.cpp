@@ -118,7 +118,7 @@ gtsam::ISAM2Result GraphManager::Update()
       auto out_of_lag = ts_diff > lag_;
       std::cout << "Current: " << last_timestamp_ << " (diff " << ts_diff << (out_of_lag ? " out of" : " in") << " lag)"
                 << std::endl;
-      if (remove_high_delta_landmarks_)
+      if (remove_high_delta_landmarks_ && !out_of_lag)
       {
         std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;
         RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));

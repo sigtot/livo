@@ -207,3 +207,67 @@ TEST(GraphManagerFixedLagTests, ProjectionFactor)
   EXPECT_TRUE(graph_manager.CanAddObservationsForFrame(4, 3 * delta_t));
   EXPECT_TRUE(graph_manager.CanAddObservationsForFrame(5, 4 * delta_t));
 }
+
+/**
+ * We cannot remove a landmark if it has gone outside the lag, as we do not know the factor index of
+ * the marginal factor added to the landmark.
+ */
+TEST(GraphManagerFixedLagTests, CanNotRemoveProjectionLandmarkOutsideLag)
+{
+  double lag = 2.5;
+  gtsam::ISAM2Params isam2_params;
+  isam2_params.findUnusedFactorSlots = true;
+  GraphManager graph_manager(std::make_shared<IncrementalFixedLagSolver>(lag, isam2_params),
+                             (gtsam::SmartProjectionParams()), lag);
+  auto noise_x = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
+  auto noise_v = gtsam::noiseModel::Isotropic::Sigma(3, 1.);
+  auto noise_b = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << gtsam::Vector3::Constant(1.), gtsam::Vector3::Constant(1.)).finished());
+  auto feature_noise = gtsam::noiseModel::Isotropic::Sigma(2, 0.2);
+  auto range_noise = gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
+  gtsam::NavState init_nav_state(gtsam::Rot3(), gtsam::Point3::Zero(), gtsam::Vector3(1.0, 0.0, 0.0));
+  gtsam::imuBias::ConstantBias bias;
+
+  gtsam::PreintegratedCombinedMeasurements pim(PimParams());
+
+  gtsam::Vector3 measured_acc(0.0, 0.0, 9.81);
+  gtsam::Vector3 measured_omega(0.0, 0.0, 0.0);
+  double delta_t = 1.0;
+  pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
+
+  gtsam::Point3 landmark(10, 3, -1);
+  auto body_p_cam = gtsam::Pose3(gtsam::Rot3::Ypr(-M_PI_2, 0., -M_PI_2), gtsam::Point3::Zero());
+  auto K = gtsam::make_shared<gtsam::Cal3_S2>(650., 650., 0., 200., 200.);
+
+  graph_manager.SetInitNavstate(1, 0., init_nav_state, bias, noise_x, noise_v, noise_b);
+
+  auto init_feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(init_nav_state.pose() * body_p_cam, *K).project(landmark);
+  graph_manager.InitProjectionLandmark(1, 1, 0., init_feature, landmark, K, body_p_cam, feature_noise);
+  graph_manager.AddRangeObservation(1, 1, 0., init_nav_state.pose().range(landmark), range_noise);
+
+  graph_manager.Update();
+
+  std::vector<gtsam::NavState> nav_states = { init_nav_state };
+  int n_obs = 3;
+  int added_obs = 0;
+  for (int i = 2; i < 7; ++i)
+  {
+    auto t = (i - 1) * delta_t;
+    auto pred_nav_state = pim.predict(nav_states.back(), bias);
+    graph_manager.AddFrame(i, t, pim, pred_nav_state, bias);
+    nav_states.push_back(pred_nav_state);
+
+    if (added_obs < n_obs)
+    {
+      auto feature = gtsam::PinholeCamera<gtsam::Cal3_S2>(pred_nav_state.pose() * body_p_cam, *K).project(landmark);
+      graph_manager.AddLandmarkObservation(1, i, t, feature, K, body_p_cam);
+    }
+
+    graph_manager.Update();
+  }
+
+  graph_manager.RemoveLandmark(1);
+  graph_manager.Update();
+  EXPECT_TRUE(graph_manager.IsLandmarkTracked(1));
+}
