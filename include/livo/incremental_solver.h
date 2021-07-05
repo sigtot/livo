@@ -55,6 +55,7 @@ public:
   virtual gtsam::Point3 CalculateEstimatePoint3(gtsam::Key key) = 0;
   virtual gtsam::Vector3 CalculateEstimateVector3(gtsam::Key key) = 0;
   virtual gtsam::imuBias::ConstantBias CalculateEstimateBias(gtsam::Key key) = 0;
+  virtual Eigen::MatrixXd MarginalCovariance(gtsam::Key key) = 0;
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_INCREMENTAL_SOLVER_H_

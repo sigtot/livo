@@ -69,3 +69,8 @@ gtsam::imuBias::ConstantBias IncrementalFixedLagSolver::CalculateEstimateBias(gt
 {
   return fixed_lag_smoother_->calculateEstimate<gtsam::imuBias::ConstantBias>(key);
 }
+
+Eigen::MatrixXd IncrementalFixedLagSolver::MarginalCovariance(gtsam::Key key)
+{
+  return fixed_lag_smoother_->marginalCovariance(key);
+}

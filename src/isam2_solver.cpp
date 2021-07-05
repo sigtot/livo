@@ -70,3 +70,8 @@ gtsam::imuBias::ConstantBias ISAM2Solver::CalculateEstimateBias(gtsam::Key key)
 {
   return isam2_->calculateEstimate<gtsam::imuBias::ConstantBias>(key);
 }
+
+Eigen::MatrixXd ISAM2Solver::MarginalCovariance(gtsam::Key key)
+{
+  return isam2_->marginalCovariance(key);
+}

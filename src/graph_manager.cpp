@@ -109,6 +109,15 @@ gtsam::ISAM2Result GraphManager::Update()
       std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is dangerously high! ===" << std::endl;
       std::cout << "delta = " << delta.second << std::endl;
       std::cout << "norm(delta) = " << delta.second.norm() << " > " << delta_danger_thresh << std::endl;
+      std::cout << "covariance: " << std::endl;
+      std::cout << incremental_solver_->MarginalCovariance(delta.first) << std::endl;
+      auto lmk_idx = static_cast<int>(gtsam::Symbol(delta.first).index());
+      auto ts_added = added_landmarks_[lmk_idx].init_timestamp;
+      std::cout << std::setprecision(17) << "Added in ts: " << ts_added << std::endl;
+      auto ts_diff = last_timestamp_ - ts_added;
+      auto out_of_lag = ts_diff > lag_;
+      std::cout << "Current: " << last_timestamp_ << " (diff " << ts_diff << (out_of_lag ? " out of" : " in") << " lag)"
+                << std::endl;
       if (remove_high_delta_landmarks_)
       {
         std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;

@@ -33,6 +33,7 @@ public:
   gtsam::Point3 CalculateEstimatePoint3(gtsam::Key key) override;
   gtsam::Vector3 CalculateEstimateVector3(gtsam::Key key) override;
   gtsam::imuBias::ConstantBias CalculateEstimateBias(gtsam::Key key) override;
+  Eigen::MatrixXd MarginalCovariance(gtsam::Key key) override;
 };
 
 #endif  // ORB_TEST_SRC_ISAM2_SOLVER_H_
