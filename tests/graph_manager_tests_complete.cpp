@@ -208,7 +208,7 @@ TEST_F(GraphManagerTestComplete, RegularISAM2)
 
   for (int i = 0; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
     EXPECT_TRUE(
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
   }
@@ -253,7 +253,7 @@ TEST_F(GraphManagerTestComplete, FixedLag)
 
   for (int i = 1; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 0.1));
+    EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 0.1));
     EXPECT_TRUE(
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 0.1));
   }

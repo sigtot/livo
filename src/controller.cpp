@@ -157,7 +157,11 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
   PublishPoses(pose_estimates_vector);
   if (!pose_estimates.empty())
   {
-    PublishLatestLidarTransform(new_backend_.GetLatestLidarPose());
+    auto latest_lidar_pose = new_backend_.GetLatestLidarPose();
+    if (latest_lidar_pose)
+    {
+      PublishLatestLidarTransform(*latest_lidar_pose);
+    }
   }
 
   std::map<int, LandmarkResult> landmark_estimates;

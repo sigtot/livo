@@ -117,8 +117,8 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
   , range_noise_(
         gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(GlobalParams::RobustRangeK()),
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
-  , graph_manager_(GraphManager(GetIncrementalSolver(), MakeSmartFactorParams(), GlobalParams::SmootherLag(),
-                                GlobalParams::LandmarkRemovalHighDelta()))
+  , graph_manager_(GetIncrementalSolver(), MakeSmartFactorParams(), GlobalParams::SmootherLag(),
+                                GlobalParams::LandmarkRemovalHighDelta())
   , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , between_transform_provider_(between_transform_provider)
@@ -175,8 +175,14 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   }
 
   // Obtain the rotation between the two frames
-  auto R1 = graph_manager_.GetPose((*first_feature)->frame->id).rotation();
-  auto R2 = graph_manager_.GetPose((*second_feature)->frame->id).rotation();
+  auto pose1 = graph_manager_.GetPose((*first_feature)->frame->id);
+  auto pose2 = graph_manager_.GetPose((*second_feature)->frame->id);
+  if (!pose1 || !pose2)
+  {
+    return -1;
+  }
+  auto R1 = pose1->rotation();
+  auto R2 = pose2->rotation();
   auto R12 = R1.between(R2);
   auto pt1 = FromCvPoint((*first_feature)->pt);
   auto pt2 = FromCvPoint((*second_feature)->pt);
@@ -202,9 +208,10 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
   gtsam::Point2 pt_for_first_factor;
   for (const auto& feature : track->features)
   {
-    if (graph_manager_.IsFrameTracked(feature->frame->id))
+    auto pose = graph_manager_.GetPose(feature->frame->id);
+    if (pose)
     {
-      cameras.emplace_back(graph_manager_.GetPose(feature->frame->id) * *body_p_cam_, *K_);
+      cameras.emplace_back(*pose * *body_p_cam_, *K_);
       measurements.emplace_back(feature->pt.x, feature->pt.y);
     }
     if (feature->frame->id == frame_id)
@@ -236,7 +243,13 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
     return false;
   }
 
-  auto range = graph_manager_.GetPose(last_frame_id_).range(*triangulation_result);
+  auto newest_pose = graph_manager_.GetPose(last_frame_id_);
+  if (!newest_pose)
+  {
+    std::cout << "Warn: Could not get pose for last frame id " << last_frame_id_ << std::endl;
+    return false;
+  }
+  auto range = newest_pose->range(*triangulation_result);
   if (range > GlobalParams::ProjLandmarkInitDistanceThresh())
   {
     std::cout << "Proj lmk at range " << range << " rejected" << std::endl;
@@ -471,9 +484,13 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             std::cout << "Initializing lmk " << track->id << " with depth " << std::endl;
             auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                      graph_manager_.GetPose(feature->frame->id);
+            if (!pose_for_init)
+            {
+              continue;
+            }
             gtsam::Point2 pt_for_init(feature->pt.x, feature->pt.y);
-            // The initial point3 estimate can be obtained from any frame, so we used the first available with depth
-            auto init_point_estimate = CalculatePointEstimate(pose_for_init, pt_for_init, feature->depth->depth);
+            // The initial point3 estimate can be obtained from any frame, so we use the first available with depth
+            auto init_point_estimate = CalculatePointEstimate(*pose_for_init, pt_for_init, feature->depth->depth);
 
             // We do however need to use the first seen feature in the call to InitProjectionLandmark,
             // as we can only add observations that come after this frame.
@@ -525,7 +542,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             {
               auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
                                                                        graph_manager_.GetPose(feature->frame->id);
-              auto init_point = CalculatePointEstimate(pose_for_init, gtsam_pt, feature->depth->depth);
+              if (!pose_for_init)
+              {
+                continue;
+              }
+              auto init_point = CalculatePointEstimate(*pose_for_init, gtsam_pt, feature->depth->depth);
               graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, timestamp_for_values, init_point);
             }
             graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values,
@@ -707,9 +728,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   if (!GlobalParams::GroundTruthFile().empty())
   {
     auto ts_offset = lidar_time_offset_provider_->GetOffset(frame->timestamp);
-    auto abs_gt_error =
-        ToGtsamPose(GroundTruth::At(frame->timestamp - ts_offset)).range(graph_manager_.GetPose(frame->id));
-    DebugValuePublisher::PublishAbsoluteGroundTruthError(abs_gt_error);
+    auto pose_estimate = graph_manager_.GetPose(frame->id);
+    if (pose_estimate)
+    {
+      auto abs_gt_error = ToGtsamPose(GroundTruth::At(frame->timestamp - ts_offset)).range(*pose_estimate);
+      DebugValuePublisher::PublishAbsoluteGroundTruthError(abs_gt_error);
+    }
   }
 
   added_frames_[frame->id] = frame;
@@ -737,27 +761,32 @@ void NewSmoother::GetPoses(std::map<int, Pose3Stamped>& poses) const
 {
   for (const auto& frame : added_frames_)
   {
+    auto pose = graph_manager_.GetPose(frame.first);
     if (graph_manager_.IsFrameTracked(frame.first))
     {
-      poses[frame.first] = Pose3Stamped{ ToPose(graph_manager_.GetPose(frame.first)), frame.second->timestamp };
+      poses[frame.first] = Pose3Stamped{ ToPose(*pose), frame.second->timestamp };
     }
   }
 }
 
-Pose3Stamped NewSmoother::GetLatestLidarPose()
+boost::optional<Pose3Stamped> NewSmoother::GetLatestLidarPose()
 {
   auto latest_world_T_body = graph_manager_.GetPose(last_frame_id_);
+  if (!latest_world_T_body)
+  {
+    return boost::none;
+  }
   // TODO move to member variable
   gtsam::Pose3 body_p_lidar(
       gtsam::Rot3::Quaternion(GlobalParams::BodyPLidarQuat()[3], GlobalParams::BodyPLidarQuat()[0],
                               GlobalParams::BodyPLidarQuat()[1], GlobalParams::BodyPLidarQuat()[2]),
       gtsam::Point3(GlobalParams::BodyPLidarVec()[0], GlobalParams::BodyPLidarVec()[1],
                     GlobalParams::BodyPLidarVec()[2]));
-  auto latest_world_T_lidar = latest_world_T_body * body_p_lidar;
+  auto latest_world_T_lidar = *latest_world_T_body * body_p_lidar;
   auto ts_cam = added_frames_[last_frame_id_]->timestamp;
   auto ts_offset = lidar_time_offset_provider_->GetOffset(ts_cam);
   auto ts_lidar = ts_cam - ts_offset;
-  return { ToPose(latest_world_T_lidar), ts_lidar };
+  return Pose3Stamped { ToPose(latest_world_T_lidar), ts_lidar };
 }
 
 void NewSmoother::GetLandmarks(std::map<int, LandmarkResult>& landmarks) const

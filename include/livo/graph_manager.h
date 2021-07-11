@@ -5,6 +5,7 @@
 #include "incremental_solver.h"
 
 #include <map>
+#include <mutex>
 #include <boost/shared_ptr.hpp>
 #include <boost/optional.hpp>
 #include <Eigen/Core>
@@ -89,6 +90,9 @@ private:
   int last_frame_id_ = -1;
   double last_timestamp_ = -1;
 
+  std::shared_ptr<gtsam::Values> newest_estimate_;
+  std::mutex newest_estimate_mu_;
+
   void SetLandmarkFactorInSmootherIndices(const gtsam::FactorIndices& new_indices_in_smoother);
   void SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result);
 
@@ -137,7 +141,7 @@ public:
   void RemoveLandmark(int lmk_id);
   gtsam::ISAM2Result Update();
 
-  gtsam::Pose3 GetPose(int frame_id) const;
+  boost::optional<gtsam::Pose3> GetPose(int frame_id) const;
   gtsam::Vector3 GetVelocity(int frame_id) const;
   gtsam::NavState GetNavState(int frame_id) const;
   gtsam::imuBias::ConstantBias GetBias(int frame_id) const;

@@ -93,7 +93,7 @@ public:
 
   void GetPoses(std::map<int, Pose3Stamped>& poses) const;
   void GetLandmarks(std::map<int, LandmarkResult>& landmarks) const;
-  Pose3Stamped GetLatestLidarPose();
+  boost::optional<Pose3Stamped> GetLatestLidarPose();
 
   bool IsInitialized() const;
 };

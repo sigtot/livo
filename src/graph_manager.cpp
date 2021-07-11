@@ -39,6 +39,7 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
   , lag_(lag)
   , remove_high_delta_landmarks_(remove_high_delta_landmarks)
+  , newest_estimate_(std::make_shared<gtsam::Values>())
 {
 }
 
@@ -125,6 +126,11 @@ gtsam::ISAM2Result GraphManager::Update()
       }
       std::cout << "=========================================" << std::endl;
     }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+    newest_estimate_ = std::make_shared<gtsam::Values>(incremental_solver_->CalculateEstimate());
   }
 
   return result;
@@ -311,9 +317,16 @@ void GraphManager::SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result)
   }
 }
 
-gtsam::Pose3 GraphManager::GetPose(int frame_id) const
+boost::optional<gtsam::Pose3> GraphManager::GetPose(int frame_id) const
 {
-  return incremental_solver_->CalculateEstimatePose3(X(frame_id));
+  try
+  {
+    return newest_estimate_->at<gtsam::Pose3>(X(frame_id));
+  }
+  catch (gtsam::ValuesKeyDoesNotExist& e)
+  {
+    return boost::none;
+  }
 }
 
 gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
@@ -323,7 +336,13 @@ gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
 
 gtsam::NavState GraphManager::GetNavState(int frame_id) const
 {
-  return gtsam::NavState(GetPose(frame_id), GetVelocity(frame_id));
+  auto pose = GetPose(frame_id);
+  auto velocity = GetVelocity(frame_id);
+  if (!pose /* || !velocity */)
+  {
+    // return boost::none;
+  }
+  return gtsam::NavState(*pose, velocity);
 }
 
 gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const

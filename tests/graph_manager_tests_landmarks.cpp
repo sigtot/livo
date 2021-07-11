@@ -125,7 +125,7 @@ TEST_F(GraphManagerTest, SmartFactors)
   // Assert
   for (int i = 0; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
     EXPECT_TRUE(
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
   }
@@ -150,7 +150,7 @@ TEST_F(GraphManagerTest, GetDegenerateSmartFactor)
 
   auto isam_result = graph_manager->Update();
 
-  EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(1), gt_nav_states[0].pose(), 1e-2));
+  EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(1), gt_nav_states[0].pose(), 1e-2));
   EXPECT_EQ(graph_manager->GetLandmark(1), boost::none);
 }
 
@@ -204,7 +204,7 @@ TEST_F(GraphManagerTest, ProjectionLandmarks)
   // Assert
   for (int i = 0; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
     EXPECT_TRUE(
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
   }
@@ -265,7 +265,7 @@ TEST_F(GraphManagerTest, SmartFactorsDogLeg)
   // Assert
   for (int i = 0; i < gt_nav_states.size(); ++i)
   {
-    EXPECT_TRUE(gtsam::assert_equal(graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
+    EXPECT_TRUE(gtsam::assert_equal(*graph_manager->GetPose(i + 1), gt_nav_states[i].pose(), 1e-2));
     EXPECT_TRUE(
         gtsam::assert_equal(graph_manager->GetValues().at<gtsam::Pose3>(X(i + 1)), gt_nav_states[i].pose(), 1e-2));
   }
