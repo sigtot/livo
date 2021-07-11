@@ -91,7 +91,7 @@ private:
   double last_timestamp_ = -1;
 
   std::shared_ptr<gtsam::Values> newest_estimate_;
-  std::mutex newest_estimate_mu_;
+  mutable std::mutex newest_estimate_mu_;
 
   void SetLandmarkFactorInSmootherIndices(const gtsam::FactorIndices& new_indices_in_smoother);
   void SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result);
@@ -142,12 +142,13 @@ public:
   gtsam::ISAM2Result Update();
 
   boost::optional<gtsam::Pose3> GetPose(int frame_id) const;
-  gtsam::Vector3 GetVelocity(int frame_id) const;
-  gtsam::NavState GetNavState(int frame_id) const;
-  gtsam::imuBias::ConstantBias GetBias(int frame_id) const;
-  gtsam::Values GetValues() const;
+  boost::optional<gtsam::Vector3> GetVelocity(int frame_id) const;
+  boost::optional<gtsam::NavState> GetNavState(int frame_id) const;
+  boost::optional<gtsam::imuBias::ConstantBias> GetBias(int frame_id) const;
   boost::optional<LandmarkResultGtsam> GetLandmark(int lmk_id) const;
   std::map<int, boost::optional<LandmarkResultGtsam>> GetLandmarks() const;
+  gtsam::Values GetValues() const;
+
   bool IsLandmarkTracked(int lmk_id) const;
   bool IsFrameTracked(int frame_id) const;
   bool CanAddObservation(int lmk_id, int frame_id) const;

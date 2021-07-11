@@ -319,6 +319,7 @@ void GraphManager::SetSmartFactorIdxInIsam(const gtsam::ISAM2Result& result)
 
 boost::optional<gtsam::Pose3> GraphManager::GetPose(int frame_id) const
 {
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
   try
   {
     return newest_estimate_->at<gtsam::Pose3>(X(frame_id));
@@ -329,25 +330,40 @@ boost::optional<gtsam::Pose3> GraphManager::GetPose(int frame_id) const
   }
 }
 
-gtsam::Vector3 GraphManager::GetVelocity(int frame_id) const
+boost::optional<gtsam::Vector3> GraphManager::GetVelocity(int frame_id) const
 {
-  return incremental_solver_->CalculateEstimateVector3(V(frame_id));
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  try {
+    return newest_estimate_->at<gtsam::Vector3>(V(frame_id));
+  }
+  catch (gtsam::ValuesKeyDoesNotExist& e)
+  {
+    return boost::none;
+  }
 }
 
-gtsam::NavState GraphManager::GetNavState(int frame_id) const
+boost::optional<gtsam::NavState> GraphManager::GetNavState(int frame_id) const
 {
   auto pose = GetPose(frame_id);
   auto velocity = GetVelocity(frame_id);
-  if (!pose /* || !velocity */)
+  if (!pose  || !velocity)
   {
-    // return boost::none;
+    return boost::none;
   }
-  return gtsam::NavState(*pose, velocity);
+  return gtsam::NavState(*pose, *velocity);
 }
 
-gtsam::imuBias::ConstantBias GraphManager::GetBias(int frame_id) const
+boost::optional<gtsam::imuBias::ConstantBias> GraphManager::GetBias(int frame_id) const
 {
-  return incremental_solver_->CalculateEstimateBias(B(frame_id));
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  try
+  {
+    return newest_estimate_->at<gtsam::imuBias::ConstantBias>(B(frame_id));
+  }
+  catch (gtsam::ValuesKeyDoesNotExist& e)
+  {
+    return boost::none;
+  }
 }
 
 boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
@@ -368,6 +384,9 @@ boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
     return LandmarkResultGtsam{ *(landmark_in_smoother->second.smart_factor_in_smoother->smart_factor->point()),
                                 SmartFactorType, active };
   }
+
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  auto point = newest_estimate_->at<gtsam::Point3>(L(lmk_id));
   return LandmarkResultGtsam{ incremental_solver_->CalculateEstimatePoint3(L(lmk_id)), ProjectionFactorType, active };
 }
 
@@ -391,7 +410,8 @@ bool GraphManager::ExistsInSolverOrValues(gtsam::Key key) const
 
 gtsam::Values GraphManager::GetValues() const
 {
-  return incremental_solver_->CalculateEstimate();
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  return *newest_estimate_;
 }
 
 bool GraphManager::IsLandmarkTracked(int lmk_id) const

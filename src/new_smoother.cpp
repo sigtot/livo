@@ -413,9 +413,14 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_]->timestamp, frame->timestamp);
   auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
   auto prev_bias = graph_manager_.GetBias(last_frame_id_);
-  auto predicted_nav_state = imu_integrator_.PredictNavState(prev_nav_state, prev_bias);
+  if (!prev_nav_state || !prev_bias)
+  {
+    std::cout << "Fatal: Did not find nav state and bias for prev frame " << last_frame_id_ << std::endl;
+    exit(1);
+  }
+  auto predicted_nav_state = imu_integrator_.PredictNavState(*prev_nav_state, *prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frame->id, timestamp_for_values, pim, predicted_nav_state, prev_bias);
+  graph_manager_.AddFrame(frame->id, timestamp_for_values, pim, predicted_nav_state, *prev_bias);
   imu_integrator_.ResetIntegration();
 
   std::map<int, std::weak_ptr<Feature>> existing_features;
@@ -684,9 +689,12 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
 
   auto bias = graph_manager_.GetBias(frame->id);
-  std::vector<double> bias_acc = { bias.accelerometer().x(), bias.accelerometer().y(), bias.accelerometer().z() };
-  std::vector<double> bias_gyro = { bias.gyroscope().x(), bias.gyroscope().y(), bias.gyroscope().z() };
-  DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
+  if (bias)
+  {
+    std::vector<double> bias_acc = { bias->accelerometer().x(), bias->accelerometer().y(), bias->accelerometer().z() };
+    std::vector<double> bias_gyro = { bias->gyroscope().x(), bias->gyroscope().y(), bias->gyroscope().z() };
+    DebugValuePublisher::PublishBias(bias_acc, bias_gyro);
+  }
 
   if (isam_result.errorAfter)
   {
