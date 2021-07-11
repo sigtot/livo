@@ -77,8 +77,6 @@ private:
                                const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
   void DoExtraUpdateSteps(int steps);
 
-  double CalculateParallax(const std::shared_ptr<Track>& track) const;
-
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
               const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
@@ -90,6 +88,8 @@ public:
   void AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe);
 
   void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);
+
+  double CalculateParallax(const std::shared_ptr<Track>& track) const;
 
   void GetPoses(std::map<int, Pose3Stamped>& poses) const;
   void GetLandmarks(std::map<int, LandmarkResult>& landmarks) const;

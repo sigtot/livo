@@ -16,11 +16,13 @@
 #include <memory>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                                   std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu)
+                                   std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu,
+                                   const NewSmoother& smoother)
   : tracks_pub_(tracks_pub)
   , lidar_frame_manager_(lidar_frame_manager)
   , image_undistorter_(std::move(image_undistorter))
   , mu_(mu)
+  , smoother_(smoother)
 {
 }
 
@@ -172,6 +174,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   {
     frames.pop_front();
   }
+
+  UpdateTrackParallaxes();
 
   auto time_before_publish = std::chrono::system_clock::now();
   PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
@@ -745,4 +749,20 @@ void FeatureExtractor::DoFeatureExtractionByTotalCount(const cv::Mat& img, std::
   }
   NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
   KeepOnlyNTracks(GlobalParams::MaxFeatures());
+}
+
+void FeatureExtractor::UpdateTrackParallaxes()
+{
+  int count = 0;
+  for (const auto& track : active_tracks_)
+  {
+    if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+    {
+      auto parallax = smoother_.CalculateParallax(track);
+      std::lock_guard<std::mutex> lk(mu_);
+      track->max_parallax = std::max(parallax, track->max_parallax);
+      count++;
+    }
+  }
+  std::cout << "Calculated parallaxes for " << count << " tracks" << std::endl;
 }

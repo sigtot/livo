@@ -7,6 +7,7 @@
 #include "keyframe_tracker.h"
 #include "lidar_frame_manager.h"
 #include "image_undistorter.h"
+#include "new_smoother.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -27,6 +28,7 @@ private:
   std::deque<shared_ptr<Frame>> frames;
   int frame_count_ = 0;  // Number of frames we have added. The current number of frames in memory may be lower.
   const LidarFrameManager& lidar_frame_manager_;
+  const NewSmoother& smoother_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
 
@@ -109,9 +111,12 @@ private:
 
   void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const;
 
+  void UpdateTrackParallaxes();
+
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                            std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu);
+                            std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu,
+                            const NewSmoother& smoother);
 
   shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 

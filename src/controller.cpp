@@ -114,7 +114,6 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
   auto time_before = std::chrono::system_clock::now();
   if (new_backend_.IsInitialized())
   {
-    new_backend_.UpdateTrackParallaxes(frame);
     new_backend_.AddKeyframe(frame, frame->is_keyframe);
   }
 

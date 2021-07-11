@@ -113,8 +113,8 @@ int main(int argc, char** argv)
                    &*between_transform_provider);
 
   std::mutex mu;
-  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu);
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);
+  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu, new_smoother);
   IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother,
                         between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);
