@@ -98,8 +98,6 @@ private:
   void DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
                                        const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
-  void RemoveRejectedTracks();
-
   void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
                              const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const;
 

@@ -567,10 +567,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
           {
             if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
             {
-              if (!frame->stationary)
-              {
-                // track->rejected = true;
-              }
               goto for_tracks;
             }
             auto ts_for_init =
@@ -578,7 +574,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id, ts_for_init, track);
             if (!success)
             {
-              track->rejected = true;
               goto for_tracks;  // Continue to the next track. We'll try to initialize the lmk again next KF.
             }
           }
@@ -594,7 +589,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       else
       {
         std::cout << "Failed to initialize for some reason" << std::endl;
-        track->rejected = true;
       }
     }
   for_tracks:;

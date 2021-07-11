@@ -26,8 +26,6 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const Lidar
 
 shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
-  RemoveRejectedTracks();
-
   auto encoding =
       GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
 
@@ -356,19 +354,6 @@ void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Featur
       {
         features.erase(features.begin() + j);
       }
-    }
-  }
-}
-
-void FeatureExtractor::RemoveRejectedTracks()
-{
-  std::lock_guard<std::mutex> lk(mu_);
-  for (int i = static_cast<int>(active_tracks_.size()) - 1; i > 0; --i)
-  {
-    if (active_tracks_[i]->rejected)
-    {
-      std::cout << "Removing rejected track " << i << std::endl;
-      active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
 }

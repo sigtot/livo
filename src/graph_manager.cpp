@@ -66,6 +66,7 @@ void GraphManager::SetInitNavstate(int first_frame_id, double timestamp, const g
 
 void GraphManager::RemoveLandmark(int lmk_id)
 {
+  std::cout << "Removing lmk " << lmk_id << std::endl;
   if (std::find_if(new_factor_indices_to_lmk_.begin(), new_factor_indices_to_lmk_.end(),
                    [lmk_id](const std::pair<gtsam::FactorIndex, int>& v) { return v.second == lmk_id; }) !=
       new_factor_indices_to_lmk_.end())
@@ -120,7 +121,6 @@ gtsam::ISAM2Result GraphManager::Update()
                 << std::endl;
       if (remove_high_delta_landmarks_ && !out_of_lag)
       {
-        std::cout << "Removing lmk " << gtsam::Symbol(delta.first).index() << std::endl;
         RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));
       }
       std::cout << "=========================================" << std::endl;
