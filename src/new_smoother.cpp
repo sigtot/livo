@@ -409,16 +409,6 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   std::map<int, std::weak_ptr<Feature>> new_track_features;
   for (const auto& feature_pair : frame->features)
   {
-    auto feature = feature_pair.second.lock();
-    if (feature)
-    {
-      auto track = feature->track.lock();
-      if (ComputeMaxTrackDepthDifference(track) > GlobalParams::MaxDepthDifferenceBeforeRemoval())
-      {
-        track->rejected = true;
-        continue;
-      }
-    }
     if (graph_manager_.IsLandmarkTracked(feature_pair.first))
     {
       existing_features[feature_pair.first] = feature_pair.second;

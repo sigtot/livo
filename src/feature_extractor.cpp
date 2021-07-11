@@ -96,6 +96,9 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
     RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames() / 2);
     RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames());
 
+    std::cout << "Discarding tracks with too high change between consecutive features" << std::endl;
+    RemoveBadDepthTracks();
+
     if (!IsStationary(prev_points, new_points, GlobalParams::StationaryThresh()))
     {
       std::lock_guard<std::mutex> lk(mu_);
@@ -557,6 +560,22 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());
   std::cout << "track count: " << active_tracks_.size() << std::endl;
+}
+
+void FeatureExtractor::RemoveBadDepthTracks()
+{
+  std::lock_guard<std::mutex> lk(mu_);  // Lock for the whole method so that indexes are not changed
+  // iterate backwards to not mess up vector when erasing
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
+  {
+    auto max_change = ComputeMaxTrackDepthChange(active_tracks_[i]);
+    if (max_change > GlobalParams::MaxDepthDifferenceBeforeRemoval())
+    {
+      std::cout << "Removing track " << active_tracks_[i]->id << " because max depth change is " << max_change << " > "
+                << GlobalParams::MaxDepthDifferenceBeforeRemoval() << std::endl;
+      active_tracks_.erase(active_tracks_.begin() + i);
+    }
+  }
 }
 
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)

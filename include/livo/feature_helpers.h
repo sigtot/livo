@@ -28,6 +28,13 @@ cv::Point2i GetCellIndex(const cv::Point2f& pt, int cell_w, int cell_h);
 void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int cell_count_y,
                                   const std::map<int, std::weak_ptr<Feature>>& features, cv::Mat_<int>& feature_counts);
 
+/**
+ * Compute maximum change between consecutive lidar depth measurements.
+ * @param track
+ * @return max change in depth or -1 in case the track has none or only a single depth measurement
+ */
+double ComputeMaxTrackDepthChange(const std::shared_ptr<Track>& track);
+
 double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track);
 
 bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,

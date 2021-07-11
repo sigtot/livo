@@ -48,6 +48,8 @@ private:
   static void NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features, double squared_dist_thresh,
                                      int min_j = 1);
 
+  void RemoveBadDepthTracks();
+
   void RANSACRemoveOutlierTracks(int n_frames);
 
   /**

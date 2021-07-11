@@ -103,4 +103,4 @@ draw_lidar_lines: false
 landmark_removal:
   high_delta: false
   high_depth_difference: false
-  max_depth_difference: 10.
+  max_depth_difference: 5

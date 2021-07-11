@@ -80,6 +80,24 @@ double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track)
   return have_depth ? max_depth - min_depth : -1.;
 }
 
+double ComputeMaxTrackDepthChange(const std::shared_ptr<Track>& track)
+{
+  double max_change = -1.;
+  double prev_depth = -1.;
+  for (const auto& feature : track->features)
+  {
+    if (feature->depth)
+    {
+      if (prev_depth > 0)
+      {
+        max_change = std::max(max_change, std::abs(prev_depth - feature->depth->depth));
+      }
+      prev_depth = feature->depth->depth;
+    }
+  }
+  return max_change;
+}
+
 bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,
                   double thresh)
 {
