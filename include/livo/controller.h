@@ -11,6 +11,7 @@
 #include "lidar_frame_manager.h"
 #include "landmark_result.h"
 #include "between_transform_provider.h"
+#include "full_trajectory_manager.h"
 
 #include <mutex>
 #include <condition_variable>
@@ -29,6 +30,7 @@ private:
   ros::Publisher pose_arr_publisher_;
   std::shared_ptr<BetweenTransformProvider> between_transform_provider_;
   std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider_;
+  FullTrajectoryManager full_trajectory_manager_;
 
   std::mutex back_cv_m_;
   std::condition_variable back_cv_;
@@ -49,6 +51,7 @@ public:
   void ProcessWithBackend(const std::shared_ptr<Frame>& frame);
 
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
+  void UpdateAndPublishFullTrajectory(const std::map<int, Pose3Stamped>& new_poses);
   void PublishLatestLidarTransform(const Pose3Stamped& pose_stamped);
   void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);

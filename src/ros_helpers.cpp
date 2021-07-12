@@ -12,29 +12,51 @@
 
 namespace ros_helpers
 {
-void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher, const ros::Publisher& pa_pub)
+void PublishPathAndPoseArray(const std::vector<Pose3Stamped>& poses, const ros::Publisher& path_publisher,
+                             const ros::Publisher& pose_array_publisher)
+{
+  PublishPath(poses, path_publisher);
+  PublishPoseArray(poses, pose_array_publisher);
+}
+
+void PublishPoseArray(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher)
 {
   if (poses.empty())
   {
     return;  // Nothing to publish
   }
-  nav_msgs::Path pathMsg;
-  geometry_msgs::PoseArray pose_arr;
-  for (auto& pose_stamped : poses)
+  geometry_msgs::PoseArray pose_array_msg;
+  for (const auto& pose_stamped : poses)
   {
-    geometry_msgs::PoseStamped stampedPoseMsg;
-    stampedPoseMsg.pose = ToPoseMsg(pose_stamped.pose);
-    stampedPoseMsg.header.stamp = ros::Time(pose_stamped.stamp);
-    stampedPoseMsg.header.frame_id = "world";
-    pathMsg.poses.push_back(stampedPoseMsg);
-    pose_arr.poses.push_back(stampedPoseMsg.pose);
+    geometry_msgs::PoseStamped stamped_pose_msg;
+    stamped_pose_msg.pose = ToPoseMsg(pose_stamped.pose);
+    stamped_pose_msg.header.stamp = ros::Time(pose_stamped.stamp);
+    stamped_pose_msg.header.frame_id = "world";
+    pose_array_msg.poses.push_back(stamped_pose_msg.pose);
   }
-  pathMsg.header.frame_id = "world";
-  pathMsg.header.stamp = ros::Time(poses.back().stamp);
-  pose_arr.header.frame_id = "world";
-  pose_arr.header.stamp = pathMsg.header.stamp;
-  publisher.publish(pathMsg);
-  pa_pub.publish(pose_arr);
+  pose_array_msg.header.frame_id = "world";
+  pose_array_msg.header.stamp = ros::Time(poses.back().stamp);
+  publisher.publish(pose_array_msg);
+}
+
+void PublishPath(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher)
+{
+  if (poses.empty())
+  {
+    return;  // Nothing to publish
+  }
+  nav_msgs::Path path_msg;
+  for (const auto& pose_stamped : poses)
+  {
+    geometry_msgs::PoseStamped stamped_pose_msg;
+    stamped_pose_msg.pose = ToPoseMsg(pose_stamped.pose);
+    stamped_pose_msg.header.stamp = ros::Time(pose_stamped.stamp);
+    stamped_pose_msg.header.frame_id = "world";
+    path_msg.poses.push_back(stamped_pose_msg);
+  }
+  path_msg.header.frame_id = "world";
+  path_msg.header.stamp = ros::Time(poses.back().stamp);
+  publisher.publish(path_msg);
 }
 
 void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp, const ros::Publisher& publisher)

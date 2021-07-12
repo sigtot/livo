@@ -12,8 +12,12 @@
 
 namespace ros_helpers
 {
-void PublishPoses(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher,
-                  const ros::Publisher& pose_pub);
+void PublishPathAndPoseArray(const std::vector<Pose3Stamped>& poses, const ros::Publisher& path_publisher,
+                             const ros::Publisher& pose_array_publisher);
+
+void PublishPoseArray(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher);
+
+void PublishPath(const std::vector<Pose3Stamped>& poses, const ros::Publisher& publisher);
 
 void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp,
                       const ros::Publisher& publisher);

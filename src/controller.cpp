@@ -29,6 +29,7 @@ Controller::Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameMan
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
   , landmark_publisher_(landmark_publisher)
+  , full_trajectory_manager_(FullTrajectoryManager())
 {
   backend_thread_ = std::thread(&Controller::BackendSpinner, this);
 }
@@ -70,7 +71,13 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
 {
-  ros_helpers::PublishPoses(poses, path_publisher_, pose_arr_publisher_);
+  ros_helpers::PublishPoseArray(poses, pose_arr_publisher_);
+}
+
+void Controller::UpdateAndPublishFullTrajectory(const std::map<int, Pose3Stamped>& new_poses)
+{
+  full_trajectory_manager_.UpdatePoses(new_poses);
+  ros_helpers::PublishPath(full_trajectory_manager_.GetTrajectoryAsVector(), path_publisher_);
 }
 
 void Controller::PublishLatestLidarTransform(const Pose3Stamped& pose_stamped)
@@ -160,6 +167,7 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
       PublishLatestLidarTransform(*latest_lidar_pose);
     }
   }
+  UpdateAndPublishFullTrajectory(pose_estimates);
 
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);

@@ -80,7 +80,7 @@ int main(int argc, char** argv)
   auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
 
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
-  auto path_pub = nh.advertise<nav_msgs::Path>("/pose", 1000);
+  auto path_pub = nh.advertise<nav_msgs::Path>("/full_trajectory", 1000);
   auto posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_array", 1000);
   auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
   auto gt_pub = nh.advertise<nav_msgs::Path>("/ground_truth", 1000, true);
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
       }
       i++;
     }
-    ros_helpers::PublishPoses(gt_poses_vec, gt_pub, gt_posearr_pub);
+    ros_helpers::PublishPathAndPoseArray(gt_poses_vec, gt_pub, gt_posearr_pub);
   }
 
   ROS_INFO("Ready and spinning");
