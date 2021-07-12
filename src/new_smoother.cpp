@@ -10,6 +10,7 @@
 #include "debug_value_publisher.h"
 #include "isam2_solver.h"
 #include "incremental_fixed_lag_solver.h"
+#include "feature_extractor.h"
 
 #include <algorithm>
 #include <gtsam/nonlinear/ISAM2Params.h>
@@ -132,6 +133,11 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
   K_ = gtsam::make_shared<gtsam::Cal3_S2>(K_cv.at<double>(0, 0), K_cv.at<double>(1, 1), 0.0, K_cv.at<double>(0, 2),
                                           K_cv.at<double>(1, 2));
   K_->print();
+}
+
+void NewSmoother::SetFrontend(std::shared_ptr<FeatureExtractor> frontend)
+{
+  feature_extractor_ = std::move(frontend);
 }
 
 gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const

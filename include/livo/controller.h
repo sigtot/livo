@@ -21,10 +21,9 @@
 class Controller
 {
 private:
-  FeatureExtractor& frontend_;
+  std::shared_ptr<FeatureExtractor> frontend_;
   LidarFrameManager& lidar_frame_manager_;
   NewSmoother& new_backend_;
-  IMUGroundTruthSmoother& imu_ground_truth_smoother_;
   ros::Publisher path_publisher_;
   ros::Publisher landmark_publisher_;
   ros::Publisher pose_arr_publisher_;
@@ -37,8 +36,7 @@ private:
   std::thread backend_thread_;                            // Thread for backend. Frontend thread is the current thread.
 
 public:
-  explicit Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
-                      IMUGroundTruthSmoother& imu_ground_truth_smoother,
+  explicit Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                       std::shared_ptr<BetweenTransformProvider> between_transform_provider,
                       std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
                       ros::Publisher& path_publisher, ros::Publisher& pose_arr_publisher,

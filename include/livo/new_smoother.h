@@ -43,6 +43,8 @@ class ConstantBias;
 }
 }  // namespace gtsam
 
+class FeatureExtractor;
+
 class NewSmoother
 {
 private:
@@ -66,6 +68,7 @@ private:
   KeyframeTimestamps keyframe_timestamps_;
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
+  std::shared_ptr<FeatureExtractor> feature_extractor_ = nullptr;
 
   gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
   void InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
@@ -82,6 +85,8 @@ public:
               const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
               const std::shared_ptr<BetweenTransformProvider>& between_transform_provider,
               std::mutex& mu);
+
+  void SetFrontend(std::shared_ptr<FeatureExtractor> frontend);
 
   void Initialize(const std::shared_ptr<Frame>& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);

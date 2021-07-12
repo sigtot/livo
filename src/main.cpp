@@ -114,9 +114,10 @@ int main(int argc, char** argv)
 
   std::mutex mu;
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);
-  FeatureExtractor feature_extractor(tracks_pub, lidar_frame_manager, image_undistorter, mu, new_smoother);
-  IMUGroundTruthSmoother imu_ground_truth_smoother(imu_queue);
-  Controller controller(feature_extractor, lidar_frame_manager, new_smoother, imu_ground_truth_smoother,
+  auto feature_extractor =
+      std::make_shared<FeatureExtractor>(tracks_pub, lidar_frame_manager, image_undistorter, mu, new_smoother);
+  new_smoother.SetFrontend(feature_extractor);
+  Controller controller(feature_extractor, lidar_frame_manager, new_smoother,
                         between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(

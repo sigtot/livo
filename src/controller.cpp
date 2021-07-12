@@ -17,15 +17,13 @@
 #include <chrono>
 #include <utility>
 
-Controller::Controller(FeatureExtractor& frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
-                       IMUGroundTruthSmoother& imu_ground_truth_smoother,
+Controller::Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                        std::shared_ptr<BetweenTransformProvider> between_transform_provider,
                        std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider, ros::Publisher& path_publisher,
                        ros::Publisher& pose_arr_publisher, ros::Publisher& landmark_publisher)
-  : frontend_(frontend)
+  : frontend_(std::move(frontend))
   , lidar_frame_manager_(lidar_frame_manager)
   , new_backend_(new_backend)
-  , imu_ground_truth_smoother_(imu_ground_truth_smoother)
   , between_transform_provider_(std::move(between_transform_provider))
   , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , path_publisher_(path_publisher)
@@ -54,7 +52,7 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   static int i = 0;
   auto time_before = std::chrono::system_clock::now();
-  auto new_frame = frontend_.lkCallback(msg);
+  auto new_frame = frontend_->lkCallback(msg);
   auto time_after = std::chrono::system_clock::now();
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
@@ -125,9 +123,9 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
   {
     if (GlobalParams::DoInitialGravityAlignment() && frame->stationary)
     {
-      if (frontend_.GetFramesForIMUAttitudeInitialization(frame->id))
+      if (frontend_->GetFramesForIMUAttitudeInitialization(frame->id))
       {
-        auto imu_init_frames = frontend_.GetFramesForIMUAttitudeInitialization(frame->id);
+        auto imu_init_frames = frontend_->GetFramesForIMUAttitudeInitialization(frame->id);
         // We wait until we have > 1.0 seconds of imu integration before using it for gravity alignment
         if (imu_init_frames && std::abs(imu_init_frames->first->timestamp - imu_init_frames->second->timestamp) > 1.0)
         {
