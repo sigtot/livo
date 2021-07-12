@@ -16,6 +16,7 @@
 #include <global_params.h>
 #include <chrono>
 #include <utility>
+#include <boost/date_time.hpp>
 
 Controller::Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                        std::shared_ptr<BetweenTransformProvider> between_transform_provider,
@@ -29,7 +30,10 @@ Controller::Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameMan
   , path_publisher_(path_publisher)
   , pose_arr_publisher_(pose_arr_publisher)
   , landmark_publisher_(landmark_publisher)
-  , full_trajectory_manager_(FullTrajectoryManager())
+  , full_trajectory_manager_(FullTrajectoryManager(GlobalParams::FullPathExportFilePrefix() +
+                                                   boost::posix_time::to_iso_string(boost::posix_time::from_time_t(
+                                                       chrono::system_clock::to_time_t(chrono::system_clock::now()))) +
+                                                   ".txt"))
 {
   backend_thread_ = std::thread(&Controller::BackendSpinner, this);
 }
@@ -74,10 +78,11 @@ void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
   ros_helpers::PublishPoseArray(poses, pose_arr_publisher_);
 }
 
-void Controller::UpdateAndPublishFullTrajectory(const std::map<int, Pose3Stamped>& new_poses)
+void Controller::UpdatePublishAndWriteFullTrajectory(const std::map<int, Pose3Stamped>& new_poses)
 {
   full_trajectory_manager_.UpdatePoses(new_poses);
   ros_helpers::PublishPath(full_trajectory_manager_.GetTrajectoryAsVector(), path_publisher_);
+  full_trajectory_manager_.WriteToFile();
 }
 
 void Controller::PublishLatestLidarTransform(const Pose3Stamped& pose_stamped)
@@ -167,7 +172,7 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
       PublishLatestLidarTransform(*latest_lidar_pose);
     }
   }
-  UpdateAndPublishFullTrajectory(pose_estimates);
+  UpdatePublishAndWriteFullTrajectory(pose_estimates);
 
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);

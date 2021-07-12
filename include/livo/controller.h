@@ -51,7 +51,7 @@ public:
   void ProcessWithBackend(const std::shared_ptr<Frame>& frame);
 
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
-  void UpdateAndPublishFullTrajectory(const std::map<int, Pose3Stamped>& new_poses);
+  void UpdatePublishAndWriteFullTrajectory(const std::map<int, Pose3Stamped>& new_poses);
   void PublishLatestLidarTransform(const Pose3Stamped& pose_stamped);
   void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);

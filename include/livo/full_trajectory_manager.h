@@ -5,11 +5,21 @@
 
 #include <map>
 #include <vector>
+#include <string>
 
 class FullTrajectoryManager
 {
 private:
+public:
+  explicit FullTrajectoryManager(std::string export_filename);
+
+private:
   std::map<int, Pose3Stamped> trajectory_;
+  std::string export_filename_;
+
+  // Bookkeeping
+  int last_pose_id_written_ = -1;
+  int oldest_pose_updated_ = -1;
 
 public:
   /**
@@ -23,6 +33,8 @@ public:
   std::map<int, Pose3Stamped> GetTrajectoryAsMap() const;
 
   std::vector<Pose3Stamped> GetTrajectoryAsVector() const;
+
+  void WriteToFile();
 };
 
 #endif  // ORB_TEST_SRC_FULL_TRAJECTORY_MANAGER_H_

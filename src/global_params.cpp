@@ -57,6 +57,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/cam_sub_topic", GetInstance().cam_sub_topic_);
   ReadVariable(nh, "/orb_test_node/lidar_sub_topic", GetInstance().lidar_sub_topic_);
 
+  ReadVariable(nh, "/orb_test_node/full_path_export_file_prefix", GetInstance().full_path_export_file_prefix_);
+
   ReadVariable(nh, "/orb_test_node/count_features_per_cell", GetInstance().count_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/min_features_per_cell", GetInstance().min_features_per_cell_);
   ReadVariable(nh, "/orb_test_node/max_features_per_cell", GetInstance().max_features_per_cell_);
@@ -747,4 +749,8 @@ std::vector<double> GlobalParams::IMUInitBiasAccel()
 std::vector<double> GlobalParams::IMUInitBiasGyro()
 {
   return GetInstance().imu_init_bias_gyro_;
+}
+std::string GlobalParams::FullPathExportFilePrefix()
+{
+  return GetInstance().full_path_export_file_prefix_;
 }

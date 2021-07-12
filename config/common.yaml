@@ -1,3 +1,5 @@
+full_path_export_file_prefix: /tmp/livo_full_path_
+
 count_features_per_cell: false
 min_features_per_cell: 3
 max_features_per_cell: 10

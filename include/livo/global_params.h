@@ -19,6 +19,8 @@ private:
   std::string cam_sub_topic_ = "/camera";
   std::string lidar_sub_topic_ = "/os1_cloud_node/points";
 
+  std::string full_path_export_file_prefix_ = "/tmp/livo_full_path_";  // Will be concatenated with current ISO-time
+
   // If true, will extract new features per cell when the per-cell count falls below min_features_per_cell_
   // If false, will instead extract new features when the total count falls below track_count_lower_thresh_
   bool count_features_per_cell_ = false;
@@ -182,6 +184,8 @@ public:
   static std::string IMUSubTopic();
   static std::string CameraSubTopic();
   static std::string LidarSubTopic();
+
+  static std::string FullPathExportFilePrefix();
 
   static bool CountFeaturesPerCell();
   static int MinFeaturesPerCell();
