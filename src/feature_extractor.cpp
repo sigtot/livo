@@ -172,6 +172,8 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   if (frames.front()->timestamp < new_frame->timestamp - GlobalParams::SmootherLag() - 10.)
   {
+    frames.front()->image.release();
+    //std::cout << "frame use count" << frames.front().use_count() << std::endl;
     frames.pop_front();
   }
 
