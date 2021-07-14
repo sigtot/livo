@@ -152,8 +152,8 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   boost::optional<std::shared_ptr<Feature>> first_feature;
   for (auto& feature : track->features)
   {
-    if (graph_manager_.IsFrameTracked(feature->frame->id) &&
-        graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+    if (graph_manager_.IsFrameTracked(feature->frame_id) &&
+        graph_manager_.CanAddObservationsForFrame(feature->frame_id, feature->timestamp))
     {
       first_feature = feature;
       break;
@@ -168,21 +168,21 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   boost::optional<std::shared_ptr<Feature>> second_feature;
   for (auto feature_it = track->features.rbegin(); feature_it != track->features.rend(); ++feature_it)
   {
-    if (graph_manager_.IsFrameTracked((*feature_it)->frame->id) &&
-        graph_manager_.CanAddObservationsForFrame((*feature_it)->frame->id, (*feature_it)->frame->timestamp))
+    if (graph_manager_.IsFrameTracked((*feature_it)->frame_id) &&
+        graph_manager_.CanAddObservationsForFrame((*feature_it)->frame_id, (*feature_it)->timestamp))
     {
       second_feature = *feature_it;
       break;
     }
   }
-  if (!second_feature || (*first_feature)->frame->id >= (*second_feature)->frame->id)
+  if (!second_feature || (*first_feature)->frame_id >= (*second_feature)->frame_id)
   {
     return -1;
   }
 
   // Obtain the rotation between the two frames
-  auto pose1 = graph_manager_.GetPose((*first_feature)->frame->id);
-  auto pose2 = graph_manager_.GetPose((*second_feature)->frame->id);
+  auto pose1 = graph_manager_.GetPose((*first_feature)->frame_id);
+  auto pose2 = graph_manager_.GetPose((*second_feature)->frame_id);
   if (!pose1 || !pose2)
   {
     return -1;
@@ -214,13 +214,13 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
   gtsam::Point2 pt_for_first_factor;
   for (const auto& feature : track->features)
   {
-    auto pose = graph_manager_.GetPose(feature->frame->id);
+    auto pose = graph_manager_.GetPose(feature->frame_id);
     if (pose)
     {
       cameras.emplace_back(*pose * *body_p_cam_, *K_);
       measurements.emplace_back(feature->pt.x, feature->pt.y);
     }
-    if (feature->frame->id == frame_id)
+    if (feature->frame_id == frame_id)
     {
       pt_for_first_factor = gtsam::Point2(feature->pt.x, feature->pt.y);
     }
@@ -471,18 +471,18 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       {
         // If we have depth, find the first feature with depth, and use it to initialize the landmark
         // First, we need to get frame we first observed the features from, because this will be used
-        boost::optional<std::shared_ptr<Frame>> frame_first_seen;
+        int frame_id_first_seen = -1;
         boost::optional<std::shared_ptr<Feature>> first_feature;
         for (const auto& feature : track->features)
         {
-          if (graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+          if (graph_manager_.CanAddObservationsForFrame(feature->frame_id, feature->timestamp))
           {
-            frame_first_seen = feature->frame;
+            frame_id_first_seen = feature->frame_id;
             first_feature = feature;
             break;
           }
         }
-        if (!frame_first_seen)
+        if (frame_id_first_seen == -1)
         {
           continue;
         }
@@ -490,11 +490,11 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
         for (const auto& feature : track->features)
         {
           if (feature->depth &&
-              graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+              graph_manager_.CanAddObservationsForFrame(feature->frame_id, feature->timestamp))
           {
             std::cout << "Initializing lmk " << track->id << " with depth " << std::endl;
-            auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
-                                                                     graph_manager_.GetPose(feature->frame->id);
+            auto pose_for_init = (feature->frame_id == frame->id) ? predicted_nav_state.pose() :
+                                                                     graph_manager_.GetPose(feature->frame_id);
             if (!pose_for_init)
             {
               continue;
@@ -508,13 +508,13 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
             auto first_feature_pt = gtsam::Point2((*first_feature)->pt.x, (*first_feature)->pt.y);
             // Careful with this. May be something weird going on with the timestamp
             auto ts_for_init =
-                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->frame->timestamp);
-            graph_manager_.InitProjectionLandmark(track->id, (*frame_first_seen)->id, ts_for_init, first_feature_pt,
+                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->timestamp);
+            graph_manager_.InitProjectionLandmark(track->id, frame_id_first_seen, ts_for_init, first_feature_pt,
                                                   init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                   feature_m_estimator_);
-            graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values,
+            graph_manager_.AddRangeObservation(track->id, feature->frame_id, timestamp_for_values,
                                                feature->depth->depth, MakeRangeNoise(*feature->depth));
-            frame_id_used_for_init = (*frame_first_seen)->id;
+            frame_id_used_for_init = frame_id_first_seen;
             obs_count++;
             added_landmarks_count++;
 
@@ -541,18 +541,18 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
         // After initialization, add observations for all other features in the track
         for (auto& feature : track->features)
         {
-          if (feature->frame->id == frame_id_used_for_init ||
-              !graph_manager_.CanAddObservation(track->id, feature->frame->id))
+          if (feature->frame_id == frame_id_used_for_init ||
+              !graph_manager_.CanAddObservation(track->id, feature->frame_id))
           {
             continue;
           }
           gtsam::Point2 gtsam_pt = gtsam::Point2(feature->pt.x, feature->pt.y);
           if (feature->depth)
           {
-            if (!graph_manager_.CanAddRangeObservation(track->id, feature->frame->id))
+            if (!graph_manager_.CanAddRangeObservation(track->id, feature->frame_id))
             {
-              auto pose_for_init = (feature->frame->id == frame->id) ? predicted_nav_state.pose() :
-                                                                       graph_manager_.GetPose(feature->frame->id);
+              auto pose_for_init = (feature->frame_id == frame->id) ? predicted_nav_state.pose() :
+                                                                       graph_manager_.GetPose(feature->frame_id);
               if (!pose_for_init)
               {
                 continue;
@@ -560,10 +560,10 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
               auto init_point = CalculatePointEstimate(*pose_for_init, gtsam_pt, feature->depth->depth);
               graph_manager_.ConvertSmartFactorToProjectionFactor(track->id, timestamp_for_values, init_point);
             }
-            graph_manager_.AddRangeObservation(track->id, feature->frame->id, timestamp_for_values,
+            graph_manager_.AddRangeObservation(track->id, feature->frame_id, timestamp_for_values,
                                                feature->depth->depth, MakeRangeNoise(*feature->depth));
           }
-          graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values, gtsam_pt, K_,
+          graph_manager_.AddLandmarkObservation(track->id, feature->frame_id, timestamp_for_values, gtsam_pt, K_,
                                                 *body_p_cam_);
           obs_count++;
         }
@@ -575,15 +575,15 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
       auto lmk_initialized = false;
       for (const auto& feature : track->features)
       {
-        if (!graph_manager_.CanAddObservationsForFrame(feature->frame->id, feature->frame->timestamp))
+        if (!graph_manager_.CanAddObservationsForFrame(feature->frame_id, feature->timestamp))
         {
           continue;
         }
         if (lmk_initialized)
         {
-          if (graph_manager_.CanAddObservation(track->id, feature->frame->id))
+          if (graph_manager_.CanAddObservation(track->id, feature->frame_id))
           {
-            graph_manager_.AddLandmarkObservation(track->id, feature->frame->id, timestamp_for_values,
+            graph_manager_.AddLandmarkObservation(track->id, feature->frame_id, timestamp_for_values,
                                                   gtsam::Point2(feature->pt.x, feature->pt.y), K_, *body_p_cam_);
             obs_count++;
           }
@@ -592,7 +592,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
         {
           if (GlobalParams::EnableSmartFactors())
           {
-            InitializeStructurelessLandmark(track->id, feature->frame->id, feature->frame->timestamp,
+            InitializeStructurelessLandmark(track->id, feature->frame_id, feature->timestamp,
                                             gtsam::Point2(feature->pt.x, feature->pt.y));
           }
           else
@@ -602,8 +602,8 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
               goto for_tracks;
             }
             auto ts_for_init =
-                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->frame->timestamp);
-            auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame->id, ts_for_init, track);
+                keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track->features.back()->timestamp);
+            auto success = TryInitializeProjLandmarkByTriangulation(track->id, feature->frame_id, ts_for_init, track);
             if (!success)
             {
               goto for_tracks;  // Continue to the next track. We'll try to initialize the lmk again next KF.
@@ -633,7 +633,7 @@ void NewSmoother::AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyfr
   {
     auto lmk_id = feature_pair.first;
     auto feature = feature_pair.second.lock();
-    if (!feature || !graph_manager_.CanAddObservation(lmk_id, feature->frame->id))
+    if (!feature || !graph_manager_.CanAddObservation(lmk_id, feature->frame_id))
     {
       continue;
     }

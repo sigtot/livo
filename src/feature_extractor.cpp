@@ -258,93 +258,9 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
   DebugValuePublisher::PublishNCellsRepopulated(cells_repopulated);
 }
 
-void FeatureExtractor::FindGoodFeaturesToTrackGridded(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
-                                                      int cell_count_y, int max_features_per_cell, double quality_level,
-                                                      double min_distance)
-{
-  int cell_w = img.cols / cell_count_x;
-  int cell_h = img.rows / cell_count_y;
-
-  Mat_<int> feature_counts;
-  MakeFeatureCountPerCellTable(img.cols, img.rows, cell_count_x, cell_count_y,
-                               frames.empty() ? std::map<int, std::weak_ptr<Feature>>{} : frames.back()->features,
-                               feature_counts);
-
-  std::vector<std::vector<cv::Point2f>> best_corners_vectors;  // One vector for each cell
-  size_t most_corners_in_cell = 0;
-  for (int cell_x = 0; cell_x < cell_count_x; ++cell_x)
-  {
-    for (int cell_y = 0; cell_y < cell_count_y; ++cell_y)
-    {
-      auto max_features_in_this_cell = max_features_per_cell - feature_counts.at<int>(cell_y, cell_x);
-      if (max_features_in_this_cell <= 0)
-      {
-        continue;
-      }
-
-      cv::Rect mask(cell_x * cell_w, cell_y * cell_h, cell_w, cell_h);
-      cv::Mat roi = img(mask);
-      vector<cv::Point2f> corners_in_roi;
-      // Try to extract 3 times the max number, as we will remove some we do not consider strong enough
-      goodFeaturesToTrack(roi, corners_in_roi, 3 * max_features_in_this_cell, quality_level, min_distance);
-
-      Size winSize = Size(5, 5);
-      Size zeroZone = Size(-1, -1);
-      TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 40, 0.001);
-      if (corners_in_roi.empty())
-      {
-        continue;  // Nothing further to do
-      }
-      cv::cornerSubPix(roi, corners_in_roi, winSize, zeroZone, criteria);
-
-      vector<cv::Point2f> best_corners;
-      for (int i = 0; i < std::min(static_cast<int>(corners_in_roi.size()), max_features_in_this_cell); ++i)
-      {
-        if (PointWasSubPixRefined(corners_in_roi[i]))
-        {
-          best_corners.push_back(corners_in_roi[i] + cv::Point2f(cell_x * cell_w, cell_y * cell_h));
-        }
-      }
-      most_corners_in_cell = std::max(most_corners_in_cell, best_corners.size());
-      best_corners_vectors.push_back(best_corners);
-    }
-  }
-  for (size_t i = 0; i < most_corners_in_cell; ++i)
-  {
-    for (auto& best_corners_vector : best_corners_vectors)
-    {
-      if (i >= best_corners_vector.size())
-      {
-        continue;
-      }
-      corners.push_back(best_corners_vector[i]);
-    }
-  }
-}
-
 bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh)
 {
   return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
-}
-
-void FeatureExtractor::NonMaxSuppressTracks(double squared_dist_thresh)
-{
-  for (int i = 0; i < active_tracks_.size(); ++i)
-  {
-    for (int j = static_cast<int>(active_tracks_.size()) - 1; j > i; --j)
-    {
-      auto d_vec = (active_tracks_[i]->features.back()->pt - active_tracks_[j]->features.back()->pt);
-      double d2 = d_vec.dot(d_vec);
-      if (d2 < squared_dist_thresh)
-      {
-        for (const auto& feature : active_tracks_[j]->features)
-        {
-          feature->frame->features.erase(active_tracks_[j]->id);
-        }
-        active_tracks_.erase(active_tracks_.begin() + j);
-      }
-    }
-  }
 }
 
 void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features,
@@ -362,23 +278,6 @@ void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Featur
       }
     }
   }
-}
-
-void FeatureExtractor::KeepOnlyNTracks(size_t n)
-{
-  assert(n > 0);
-  if (n >= active_tracks_.size())
-  {
-    return;
-  }
-  for (size_t i = n - 1; i < active_tracks_.size(); ++i)
-  {
-    for (const auto& feature : active_tracks_[i]->features)
-    {
-      feature->frame->features.erase(active_tracks_[i]->id);
-    }
-  }
-  active_tracks_.resize(n);
 }
 
 bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
@@ -648,7 +547,7 @@ void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_po
   std::lock_guard<std::mutex> lk(mu_);
   for (int i = 0; i < new_points.size(); ++i)
   {
-    auto new_feature = std::make_shared<Feature>(new_frame, new_points[i], active_tracks_[i]);
+    auto new_feature = std::make_shared<Feature>(new_points[i], new_frame->id, new_frame->timestamp, active_tracks_[i]);
     if (lidar_frame)
     {
       new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
@@ -665,7 +564,7 @@ void FeatureExtractor::InitNewExtractedFeatures(const std::vector<cv::Point2f>& 
 {
   for (const auto& corner : corners)
   {
-    auto new_feature = std::make_shared<Feature>(new_frame, corner);
+    auto new_feature = std::make_shared<Feature>(corner, new_frame->id, new_frame->timestamp);
     if (lidar_frame)
     {
       new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
@@ -732,25 +631,8 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
 void FeatureExtractor::DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
                                                        const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
 {
-  vector<Point2f> corners;
-  // 30 -> 40ms
-  FindGoodFeaturesToTrackGridded(img, corners, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
-                                 GlobalParams::MaxFeaturesPerCell(), GlobalParams::FeatureExtractionQualityLevel(),
-                                 GlobalParams::FeatureExtractionMinDistance());
-
-  std::vector<std::shared_ptr<Feature>> features;
-  InitNewExtractedFeatures(corners, new_frame, features, lidar_frame);
-
-  SortFeaturesByDepthInPlace(features);
-  for (const auto& feature : features)
-  {
-    auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ feature });
-    new_frame->features[new_track->id] = feature;
-    feature->track = new_track;
-    active_tracks_.push_back(std::move(new_track));
-  }
-  NonMaxSuppressTracks(GlobalParams::TrackNMSSquaredDistThresh());
-  KeepOnlyNTracks(GlobalParams::MaxFeatures());
+  std::cout << "Feature extraction by total count not implemented" << std::endl;
+  exit(1);
 }
 
 void FeatureExtractor::UpdateTrackParallaxes()

@@ -12,12 +12,13 @@ struct Track;
 
 struct Feature
 {
-  Feature(std::shared_ptr<Frame> frame, const cv::Point2f& pt, const std::shared_ptr<Track>& track = nullptr)
-    : frame(std::move(frame)), pt(pt), track(track)
+  Feature(const cv::Point2f& pt, int frame_id, double timestamp, const std::shared_ptr<Track>& track = nullptr)
+    : pt(pt), frame_id(frame_id), timestamp(timestamp), track(track)
   {
   }
   std::weak_ptr<Track> track;
-  std::shared_ptr<Frame> frame;
+  int frame_id;
+  double timestamp;
   cv::Point2f pt;
   boost::optional<LidarDepthResult> depth;
   bool in_smoother = false; // CURRENTLY NOT USED. BUT MIGHT USE AGAIN FOR DRAWING PURPOSES?
