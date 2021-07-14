@@ -16,17 +16,16 @@
 #include <memory>
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                                   std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu,
+                                   std::shared_ptr<ImageUndistorter> image_undistorter,
                                    const NewSmoother& smoother)
   : tracks_pub_(tracks_pub)
   , lidar_frame_manager_(lidar_frame_manager)
   , image_undistorter_(std::move(image_undistorter))
-  , mu_(mu)
   , smoother_(smoother)
 {
 }
 
-shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
+backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   auto encoding =
       GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
@@ -101,7 +100,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
     if (!IsStationary(prev_points, new_points, GlobalParams::StationaryThresh()))
     {
-      std::lock_guard<std::mutex> lk(mu_);
       new_frame->stationary = false;
       frames.back()->stationary = false;  // When movement is registered between two frames, both are non-stationary
     }
@@ -126,7 +124,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   DebugValuePublisher::PublishFeatureExtractionDuration(millis_extraction);
 
   {
-    std::lock_guard<std::mutex> lk(mu_);
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
       if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_undistorted.cols, img_undistorted.rows,
@@ -143,7 +140,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   {
-    std::lock_guard<std::mutex> lk(mu_);
     frames.push_back(new_frame);
   }
 
@@ -160,7 +156,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   }
 
   {
-    std::lock_guard<std::mutex> lk(mu_);
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
       if (active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
@@ -172,8 +167,6 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
 
   if (frames.front()->timestamp < new_frame->timestamp - GlobalParams::SmootherLag() - 10.)
   {
-    frames.front()->image.release();
-    //std::cout << "frame use count" << frames.front().use_count() << std::endl;
     frames.pop_front();
   }
 
@@ -186,7 +179,37 @@ shared_ptr<Frame> FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPt
   double millis_publish = static_cast<double>(micros_publish.count()) / 1000.;
   DebugValuePublisher::PublishImagePublishDuration(millis_publish);
 
-  return new_frame;
+  return backend::FrontendResult{ .frame_id = new_frame->id,
+                                  .timestamp = new_frame->timestamp,
+                                  .stationary = new_frame->stationary,
+                                  .is_keyframe = new_frame->is_keyframe,
+                                  .has_depth = new_frame->HasDepth(),
+                                  .active_tracks = GetActiveTracksForBackend() };
+}
+
+std::vector<backend::Track> FeatureExtractor::GetActiveTracksForBackend() const
+{
+
+  std::vector<backend::Track> tracks;
+  tracks.reserve(active_tracks_.size());
+  for (const auto& track : active_tracks_)
+  {
+    std::vector<backend::Feature> features;
+    features.reserve(track->features.size());
+    for (const auto& feature : track->features)
+    {
+      features.push_back(backend::Feature{ .track_id = track->id,
+                                           .frame_id = feature->frame_id,
+                                           .timestamp = feature->timestamp,
+                                           .pt = feature->pt,
+                                           .depth = feature->depth });
+    }
+    tracks.push_back(backend::Track{ .id = track->id,
+                                     .max_parallax = track->max_parallax,
+                                     .depth_feature_count = track->DepthFeatureCount(),
+                                     .features = std::move(features) });
+  }
+  return tracks;
 }
 
 void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners,
@@ -454,7 +477,6 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
 void FeatureExtractor::RemoveBadDepthTracks()
 {
-  std::lock_guard<std::mutex> lk(mu_);  // Lock for the whole method so that indexes are not changed
   // iterate backwards to not mess up vector when erasing
   for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
   {
@@ -470,7 +492,6 @@ void FeatureExtractor::RemoveBadDepthTracks()
 
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
 {
-  std::lock_guard<std::mutex> lk(mu_);  // Lock for the whole method so that indexes are not changed
   std::vector<int> track_indices;
   std::vector<cv::Point2f> points_1;
   std::vector<cv::Point2f> points_2;
@@ -528,7 +549,6 @@ void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std
                                            std::vector<cv::Point2f>& new_points)
 
 {
-  std::lock_guard<std::mutex> lk(mu_);
   // iterate backwards to not mess up vector when erasing
   for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i)
   {
@@ -544,7 +564,6 @@ void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std
 void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_points, std::shared_ptr<Frame>& new_frame,
                                           const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
 {
-  std::lock_guard<std::mutex> lk(mu_);
   for (int i = 0; i < new_points.size(); ++i)
   {
     auto new_feature = std::make_shared<Feature>(new_points[i], new_frame->id, new_frame->timestamp, active_tracks_[i]);
@@ -553,7 +572,7 @@ void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_po
       new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
     }
     new_frame->features[active_tracks_[i]->id] = new_feature;
-    active_tracks_[i]->features.push_back(std::move(new_feature));
+    active_tracks_[i]->AddFeature(std::move(new_feature));
   }
 }
 
@@ -610,7 +629,6 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
     int cell_w = img.cols / GlobalParams::GridCellsX();
     int cell_h = img.rows / GlobalParams::GridCellsY();
 
-    std::lock_guard<std::mutex> lk(mu_);
     for (int i = static_cast<int>(active_tracks_.size()); i < new_and_old_features.size(); ++i)
     {
       auto feat_cell_idx = GetCellIndex(new_and_old_features[i]->pt, cell_w, cell_h);
@@ -619,7 +637,7 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
       {
         continue;
       }
-      auto new_track = std::make_shared<Track>(std::vector<std::shared_ptr<Feature>>{ new_and_old_features[i] });
+      auto new_track = std::make_shared<Track>(new_and_old_features[i]);
       new_frame->features[new_track->id] = new_and_old_features[i];
       new_and_old_features[i]->track = new_track;
       active_tracks_.push_back(std::move(new_track));
@@ -643,7 +661,6 @@ void FeatureExtractor::UpdateTrackParallaxes()
     if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
     {
       auto parallax = smoother_.CalculateParallax(track);
-      std::lock_guard<std::mutex> lk(mu_);
       track->max_parallax = std::max(parallax, track->max_parallax);
       count++;
     }

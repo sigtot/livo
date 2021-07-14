@@ -9,6 +9,10 @@
 #include "image_undistorter.h"
 #include "new_smoother.h"
 
+#include "backend/frontend_result.h"
+#include "backend/feature.h"
+#include "backend/track.h"
+
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <opencv2/core/core.hpp>
@@ -34,8 +38,6 @@ private:
 
   shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
   std::shared_ptr<ImageUndistorter> image_undistorter_;
-
-  std::mutex& mu_;
 
   void ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
                                                   int cell_count_y, int min_features_per_cell,
@@ -103,12 +105,13 @@ private:
 
   void UpdateTrackParallaxes();
 
+  std::vector<backend::Track> GetActiveTracksForBackend() const;
+
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                            std::shared_ptr<ImageUndistorter> image_undistorter, std::mutex& mu,
-                            const NewSmoother& smoother);
+                            std::shared_ptr<ImageUndistorter> image_undistorter, const NewSmoother& smoother);
 
-  shared_ptr<Frame> lkCallback(const sensor_msgs::Image::ConstPtr& msg);
+  backend::FrontendResult lkCallback(const sensor_msgs::Image::ConstPtr& msg);
 
   bool ReadyForInitialization() const;
   vector<KeyframeTransform> GetKeyframeTransforms() const;

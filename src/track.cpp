@@ -1,6 +1,6 @@
 #include "track.h"
 
-Track::Track(std::vector<std::shared_ptr<Feature>> features) : features(std::move(features))
+Track::Track(std::shared_ptr<Feature> feature) : features(std::deque<std::shared_ptr<Feature>>{ std::move(feature) })
 {
   static int counter = 0;
   id = counter++;
@@ -20,7 +20,16 @@ bool Track::HasDepth() const
 
 size_t Track::DepthFeatureCount() const
 {
-  return std::count_if(features.begin(), features.end(), [](const std::shared_ptr<Feature>& feature) {
-    return feature->depth.is_initialized();
-  });
+  return std::count_if(features.begin(), features.end(),
+                       [](const std::shared_ptr<Feature>& feature) { return feature->depth.is_initialized(); });
+}
+
+void Track::AddFeature(std::shared_ptr<Feature> feature)
+{
+  int max_track_length = 100;
+  if (features.size() >= max_track_length)
+  {
+    features.pop_front();
+  }
+  features.push_back(std::move(feature));
 }

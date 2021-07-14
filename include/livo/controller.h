@@ -34,7 +34,7 @@ private:
 
   std::mutex back_cv_m_;
   std::condition_variable back_cv_;
-  boost::optional<std::shared_ptr<Frame>> latest_frame_;  // Protected by back_cv_m_
+  boost::optional<backend::FrontendResult> latest_frontend_result_;  // Protected by back_cv_m_
   std::thread backend_thread_;                            // Thread for backend. Frontend thread is the current thread.
 
 public:
@@ -46,9 +46,9 @@ public:
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
 
-  void SetLatestFrameForBackend(std::shared_ptr<Frame> frame);
+  void SetLatestFrameForBackend(const backend::FrontendResult& frame);
   void BackendSpinner();
-  void ProcessWithBackend(const std::shared_ptr<Frame>& frame);
+  void ProcessWithBackend(const backend::FrontendResult& frontend_result);
 
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
   void UpdatePublishAndWriteFullTrajectory(const std::map<int, Pose3Stamped>& new_poses);

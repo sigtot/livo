@@ -112,10 +112,9 @@ int main(int argc, char** argv)
       nh.subscribe(GlobalParams::LoamDegeneracySubTopic(), 1000, &TF2BetweenTransformProvider::AddDegeneracyMessage,
                    &*between_transform_provider);
 
-  std::mutex mu;
-  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider, mu);
+  NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider);
   auto feature_extractor =
-      std::make_shared<FeatureExtractor>(tracks_pub, lidar_frame_manager, image_undistorter, mu, new_smoother);
+      std::make_shared<FeatureExtractor>(tracks_pub, lidar_frame_manager, image_undistorter, new_smoother);
   new_smoother.SetFrontend(feature_extractor);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother,
                         between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);

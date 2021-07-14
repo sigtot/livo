@@ -4,11 +4,11 @@
 #include "feature.h"
 
 #include <utility>
-#include <vector>
+#include <deque>
 
 struct Track
 {
-  std::vector<std::shared_ptr<Feature>> features;
+  std::deque<std::shared_ptr<Feature>> features;
   int id;
 
   int inlier_count = 0;
@@ -16,13 +16,15 @@ struct Track
 
   double max_parallax = 0.;
 
-  explicit Track(std::vector<std::shared_ptr<Feature>> features);
+  explicit Track(std::shared_ptr<Feature> feature);
 
   double InlierRatio() const;
 
   bool HasDepth() const;
 
   size_t DepthFeatureCount() const;
+
+  void AddFeature(std::shared_ptr<Feature> feature);
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_

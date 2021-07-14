@@ -57,20 +57,20 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   static int i = 0;
   auto time_before = std::chrono::system_clock::now();
-  auto new_frame = frontend_->lkCallback(msg);
+  auto frontend_result = frontend_->lkCallback(msg);
   auto time_after = std::chrono::system_clock::now();
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;
   DebugValuePublisher::PublishFrontendDuration(millis);
-  std::cout << "Frontend frame " << new_frame->id << " (took: " << millis << " ms)" << std::endl;
+  std::cout << "Frontend frame " << frontend_result.frame_id << " (took: " << millis << " ms)" << std::endl;
 
   if (i++ % GlobalParams::FrameInterval() != 0)
   {
     return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
   }
 
-  SetLatestFrameForBackend(new_frame);  // Will block if backend is still processing the previous frame.
+  SetLatestFrameForBackend(frontend_result);  // Will block if backend is still processing the previous frame.
 }
 
 void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
@@ -96,10 +96,10 @@ void Controller::PublishLandmarks(const std::map<int, LandmarkResult>& landmarks
   ros_helpers::PublishLandmarks(landmarks, timestamp, landmark_publisher_);
 }
 
-void Controller::SetLatestFrameForBackend(std::shared_ptr<Frame> frame)
+void Controller::SetLatestFrameForBackend(const backend::FrontendResult& frontend_result)
 {
   std::lock_guard<std::mutex> lock(back_cv_m_);  // Blocks execution until backend is done with its latest frame
-  latest_frame_ = std::move(frame);
+  latest_frontend_result_ = frontend_result;
   back_cv_.notify_one();  // Notifies backend of the new frame to process
 }
 
@@ -112,37 +112,38 @@ void Controller::BackendSpinner()
     // We wait on the condition variable for a new latest frame to be provided.
     // When it is, the back_cv_m_ lock will be acquired atomically which blocks the frontend from processing
     // any further than the n+1th frame.
-    back_cv_.wait(lk, [this] { return latest_frame_.is_initialized() || ros::isShuttingDown(); });
+    back_cv_.wait(lk, [this] { return latest_frontend_result_.is_initialized() || ros::isShuttingDown(); });
 
-    ProcessWithBackend(*latest_frame_);
-    latest_frame_ = boost::none;  // Set latest frame to none since we have processed it
+    ProcessWithBackend(*latest_frontend_result_);
+    latest_frontend_result_ = boost::none;  // Set latest frame to none since we have processed it
   }
 }
 
-void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
+void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_result)
 {
   auto time_before = std::chrono::system_clock::now();
   if (new_backend_.IsInitialized())
   {
-    new_backend_.AddKeyframe(frame, frame->is_keyframe);
+    new_backend_.AddKeyframe(frontend_result, frontend_result.is_keyframe);
   }
 
-  bool must_wait_for_transform = GlobalParams::LoamBetweenFactorsEnabled() &&
-                                 !between_transform_provider_->CanTransform(
-                                     frame->timestamp - lidar_time_offset_provider_->GetOffset(frame->timestamp));
+  bool must_wait_for_transform =
+      GlobalParams::LoamBetweenFactorsEnabled() &&
+      !between_transform_provider_->CanTransform(frontend_result.timestamp -
+                                                 lidar_time_offset_provider_->GetOffset(frontend_result.timestamp));
 
-  if (!new_backend_.IsInitialized() && frame->HasDepth() && !must_wait_for_transform)
+  if (!new_backend_.IsInitialized() && frontend_result.has_depth && !must_wait_for_transform)
   {
-    if (GlobalParams::DoInitialGravityAlignment() && frame->stationary)
+    if (GlobalParams::DoInitialGravityAlignment() && frontend_result.stationary)
     {
-      if (frontend_->GetFramesForIMUAttitudeInitialization(frame->id))
+      if (frontend_->GetFramesForIMUAttitudeInitialization(frontend_result.frame_id))
       {
-        auto imu_init_frames = frontend_->GetFramesForIMUAttitudeInitialization(frame->id);
+        auto imu_init_frames = frontend_->GetFramesForIMUAttitudeInitialization(frontend_result.frame_id);
         // We wait until we have > 1.0 seconds of imu integration before using it for gravity alignment
         if (imu_init_frames && std::abs(imu_init_frames->first->timestamp - imu_init_frames->second->timestamp) > 1.0)
         {
           std::cout << "Initializing with gravity alignment" << std::endl;
-          new_backend_.Initialize(frame, std::pair<double, double>{ imu_init_frames->first->timestamp,
+          new_backend_.Initialize(frontend_result, std::pair<double, double>{ imu_init_frames->first->timestamp,
                                                                     imu_init_frames->second->timestamp });
         }
       }
@@ -151,7 +152,7 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
     {
       // Not stationary, or not aligning, no point in waiting for more stationary imu messages. Initialize immediately.
       std::cout << "Initializing without gravity alignment" << std::endl;
-      new_backend_.Initialize(frame);
+      new_backend_.Initialize(frontend_result);
     }
   }
   auto time_after_backend = std::chrono::system_clock::now();
@@ -176,7 +177,7 @@ void Controller::ProcessWithBackend(const shared_ptr<Frame>& frame)
 
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);
-  PublishLandmarks(landmark_estimates, frame->timestamp);
+  PublishLandmarks(landmark_estimates, frontend_result.timestamp);
 
   auto time_final = std::chrono::system_clock::now();
 

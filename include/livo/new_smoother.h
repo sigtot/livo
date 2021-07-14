@@ -21,6 +21,9 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/optional.hpp>
 #include <Eigen/Core>
+#include <backend/frontend_result.h>
+#include <backend/feature.h>
+#include <backend/track.h>
 
 namespace gtsam
 {
@@ -52,8 +55,7 @@ private:
   boost::shared_ptr<gtsam::Cal3_S2> K_;
   int last_frame_id_ = -1;
   int last_keyframe_id_ = -1;
-  std::map<int, std::shared_ptr<Frame>> added_frames_;
-  std::mutex& mu_;
+  std::map<int, backend::FrontendResult> added_frames_;
 
   boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_;
   boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_keyframe_;
@@ -74,23 +76,23 @@ private:
   void InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,
                                        LidarDepthResult depth_result, const gtsam::Pose3& init_pose);
   bool TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
-                                                const std::shared_ptr<Track>& track);
+                                                const backend::Track& track);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
   void TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
                                const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
   void DoExtraUpdateSteps(int steps);
+  void RemoveUntrackedFramesFromBookkeeping();
 
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
               const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
-              const std::shared_ptr<BetweenTransformProvider>& between_transform_provider,
-              std::mutex& mu);
+              const std::shared_ptr<BetweenTransformProvider>& between_transform_provider);
 
   void SetFrontend(std::shared_ptr<FeatureExtractor> frontend);
 
-  void Initialize(const std::shared_ptr<Frame>& frame,
+  void Initialize(const backend::FrontendResult& frame,
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
-  void AddKeyframe(const std::shared_ptr<Frame>& frame, bool is_keyframe);
+  void AddKeyframe(const backend::FrontendResult& frontend_result, bool is_keyframe);
 
   void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);
 
