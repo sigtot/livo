@@ -204,10 +204,8 @@ void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, doub
   graph_manager_.AddRangeObservation(lmk_id, frame_id, timestamp, depth_result.depth, MakeRangeNoise(depth_result));
 }
 
-bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
-                                                           const backend::Track& track)
+gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& track) const
 {
-  std::cout << "Trying to initialize lmk " << lmk_id << " by triangulation" << std::endl;
   std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>> cameras;
   std::vector<gtsam::Point2> measurements;
   gtsam::Point2 pt_for_first_factor;
@@ -219,15 +217,11 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
       cameras.emplace_back(*pose * *body_p_cam_, *K_);
       measurements.emplace_back(feature.pt.x, feature.pt.y);
     }
-    if (feature.frame_id == frame_id)
-    {
-      pt_for_first_factor = gtsam::Point2(feature.pt.x, feature.pt.y);
-    }
   }
 
   if (measurements.size() < 2)
   {
-    return false;
+    return gtsam::TriangulationResult::Degenerate();
   }
 
   gtsam::TriangulationResult triangulation_result;
@@ -242,6 +236,25 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
     std::cout << "Caught exception during Triangulate" << std::endl;
     std::cout << e.what() << std::endl;
   }
+
+  return triangulation_result;
+}
+
+bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
+                                                           const backend::Track& track)
+{
+  std::cout << "Trying to initialize lmk " << lmk_id << " by triangulation" << std::endl;
+  gtsam::Point2 pt_for_first_factor;
+  for (const auto& feature : track.features)
+  {
+    if (feature.frame_id == frame_id)
+    {
+      pt_for_first_factor = gtsam::Point2(feature.pt.x, feature.pt.y);
+      break;
+    }
+  }
+
+  auto triangulation_result = TriangulateTrack(track);
 
   if (!triangulation_result)
   {
@@ -260,6 +273,7 @@ bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame
     std::cout << "Proj lmk at range " << range << " rejected" << std::endl;
     return false;
   }
+  std::cout << "Initialized l" << lmk_id << " at range " << range << std::endl;
 
   graph_manager_.InitProjectionLandmark(lmk_id, frame_id, timestamp, pt_for_first_factor, *triangulation_result, K_,
                                         *body_p_cam_, feature_noise_, feature_m_estimator_);
@@ -334,7 +348,6 @@ void NewSmoother::Initialize(const backend::FrontendResult& frame,
 
   graph_manager_.SetInitNavstate(frame.frame_id, frame.timestamp, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  // TODO
   for (auto& track : frame.active_tracks)
   {
     auto lmk_id = track.id;
@@ -487,6 +500,24 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
             // Careful with this. May be something weird going on with the timestamp
             auto ts_for_init =
                 keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track.features.back().timestamp);
+            if (graph_manager_.IsFrameTracked(feature.frame_id))
+            {
+              auto triangulation_result = TriangulateTrack(track);
+              if (triangulation_result)
+              {
+                auto range_from_triangulation = graph_manager_.GetPose(feature.frame_id)->range(*triangulation_result);
+                std::cout << "Range from triangulation is " << range_from_triangulation << " while range from lidar is "
+                          << feature.depth->depth << std::endl;
+                if (std::abs(range_from_triangulation - feature.depth->depth) > 1.5) {
+                  std::cout << "Rejecting because range from triangulation too off (> 1.5)!" << std::endl;
+                  break;
+                }
+              }
+              else {
+                std::cout << "Triangulation of l" << track.id << " failed, but we have range, so it's fine?"
+                          << std::endl;
+              }
+            }
             graph_manager_.InitProjectionLandmark(track.id, frame_id_first_seen, ts_for_init, first_feature_pt,
                                                   init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                   feature_m_estimator_);

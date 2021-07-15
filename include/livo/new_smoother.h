@@ -29,6 +29,7 @@ namespace gtsam
 {
 class Cal3_S2;
 class Pose3;
+class TriangulationResult;
 
 namespace noiseModel
 {
@@ -82,6 +83,7 @@ private:
                                const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
   void DoExtraUpdateSteps(int steps);
   void RemoveUntrackedFramesFromBookkeeping();
+  gtsam::TriangulationResult TriangulateTrack(const backend::Track& track) const;
 
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
