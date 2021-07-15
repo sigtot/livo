@@ -186,12 +186,19 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   {
     return -1;
   }
-  auto R1 = pose1->rotation();
-  auto R2 = pose2->rotation();
-  auto R12 = R1.between(R2);
   auto pt1 = FromCvPoint((*first_feature)->pt);
   auto pt2 = FromCvPoint((*second_feature)->pt);
-  return ComputeParallaxWithOpenCV(pt1, pt2, R12, K_, body_p_cam_->rotation());
+  if (GlobalParams::UseAngleParallax())
+  {
+    return ComputeParallaxAngle(pt1, pt2, *pose1, *pose2, K_, *body_p_cam_);
+  }
+  else
+  {
+    auto R1 = pose1->rotation();
+    auto R2 = pose2->rotation();
+    auto R12 = R1.between(R2);
+    return ComputeParallaxWithOpenCV(pt1, pt2, R12, K_, body_p_cam_->rotation());
+  }
 }
 
 void NewSmoother::InitializeProjLandmarkWithDepth(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt,

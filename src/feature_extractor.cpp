@@ -10,6 +10,7 @@
 #include "lidar-depth.h"
 #include "feature_helpers.h"
 #include "debug_value_publisher.h"
+#include "Initializer.h"
 
 #include <algorithm>
 #include <utility>
@@ -91,9 +92,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
     // Discard RANSAC outliers
     std::cout << "Discarding RANSAC outliers" << std::endl;
-    RANSACRemoveOutlierTracks(1);
-    RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames() / 2);
-    RANSACRemoveOutlierTracks(GlobalParams::SecondRANSACNFrames());
+    RANSACRemoveOutlierTracks();
 
     std::cout << "Discarding tracks with too high change between consecutive features" << std::endl;
     RemoveBadDepthTracks();
@@ -437,9 +436,26 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
     }
     cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
     cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
-                cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+                cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
+
+    // Draw parallax string
+    std::stringstream stream1;
+    stream1 << std::fixed << std::setprecision(2) << track->max_parallax;
+    std::string parallax_str = stream1.str();
+
+    cv::putText(tracks_out_img.image, parallax_str, track->features.back()->pt + cv::Point2f(7., 20.),
+                cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
+
+    // Draw track length string
+    std::stringstream stream2;
+    stream2 << track->features.size();
+    std::string len_str = stream2.str();
+
+    cv::putText(tracks_out_img.image, len_str, track->features.back()->pt + cv::Point2f(7., 36.),
+                cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
     if (track->HasDepth())
     {
+      // Draw depth string
       auto depth = (*std::find_if(track->features.rbegin(), track->features.rend(),
                                   [](const std::shared_ptr<Feature>& feature) -> bool {
                                     return feature->depth.is_initialized();
@@ -448,26 +464,8 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       std::stringstream stream;
       stream << std::fixed << std::setprecision(2) << depth->depth;
       std::string depth_str = stream.str();
-      cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 20.),
-                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
-    }
-    else
-    {
-      // Draw parallax string
-      std::stringstream stream1;
-      stream1 << std::fixed << std::setprecision(2) << track->max_parallax << std::endl;
-      std::string parallax_str = stream1.str();
-
-      cv::putText(tracks_out_img.image, parallax_str, track->features.back()->pt + cv::Point2f(7., 20.),
-                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
-
-      // Draw track length string
-      std::stringstream stream2;
-      stream2 << track->features.size() << std::endl;
-      std::string len_str = stream2.str();
-
-      cv::putText(tracks_out_img.image, len_str, track->features.back()->pt + cv::Point2f(7., 40.),
-                  cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 200));
+      cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 52.),
+                  cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
     }
   }
 
@@ -532,7 +530,20 @@ void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
 
   std::vector<uchar> inliers;
 
-  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3., 0.99, inliers);
+  std::vector<bool> H_check_inliers;
+  double S_H = ORB_SLAM::CheckHomography(H, H.inv(), H_check_inliers, points_1, points_2);
+
+  double R_H = S_H / (S_H + S_F);
+
+  std::cout << "R_H = " << R_H << std::endl;
+
+  auto inliers = F_inliers;
+
+  if (R_H > 0.45)
+  {
+    std::cout << "Skipping this RANSAC because R_H < 0.45 (R_H = " << R_H << ")" << std::endl;
+    return;
+  }
 
   // iterate backwards to not mess up vector when erasing
   for (int i = static_cast<int>(track_indices.size()) - 1; i >= 0; --i)

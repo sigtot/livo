@@ -7,6 +7,8 @@
 #include <gtsam/nonlinear/ISAM2Result.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Point2.h>
 #include <opencv2/core/core.hpp>
 
 void SaveGraphToFile(const std::string& filename, const gtsam::NonlinearFactorGraph& graph,
@@ -16,5 +18,9 @@ void PrintVariableStatus(const gtsam::ISAM2Result::DetailedResults::VariableStat
 double ComputeParallaxWithOpenCV(const gtsam::Point2& point1, const gtsam::Point2& point2,
                                  const gtsam::Rot3& body1_R_body2, const boost::shared_ptr<gtsam::Cal3_S2>& K,
                                  const gtsam::Rot3& body_R_cam);
+
+double ComputeParallaxAngle(const gtsam::Point2& point1, const gtsam::Point2& point2, const gtsam::Pose3& pose1,
+                            const gtsam::Pose3& pose2, const boost::shared_ptr<gtsam::Cal3_S2>& K,
+                            const gtsam::Pose3& body_p_cam);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_GTSAM_HELPERS_H_
