@@ -26,7 +26,7 @@ imu_gyro_noise_density: 0.00005398 # rad / s
 imu_accel_random_walk: 0.0001 # Couldn't find in datasheet
 imu_gyro_random_walk: 0.00000933 # Couldn't find in datasheet
 
-imu_init_bias_accel: [ -0.1, 0., 0.14 ]
+imu_init_bias_accel: [ -0.1, 0.015, 0.14 ]
 imu_init_bias_gyro: [ 0., 0., 0. ]
 
 # Nikhil's params
@@ -144,6 +144,7 @@ isam_relin_thresh:
   l: 1.0
 
 loam_between_factors_enabled: true
+loam_imu_only: false
 frame_between_factors: true
 keyframe_between_factors: false
 loam_world_frame: map

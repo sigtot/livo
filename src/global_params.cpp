@@ -201,6 +201,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/lidar_depth/max_messages_retained", GetInstance().lidar_max_messages_retained_);
 
   ReadVariable(nh, "/orb_test_node/loam_between_factors_enabled", GetInstance().loam_between_factors_enabled_);
+  ReadVariable(nh, "/orb_test_node/loam_imu_only", GetInstance().loam_imu_only_);
   ReadVariable(nh, "/orb_test_node/frame_between_factors", GetInstance().frame_between_factors_);
   ReadVariable(nh, "/orb_test_node/keyframe_between_factors", GetInstance().keyframe_between_factors_);
   ReadVariable(nh, "/orb_test_node/loam_world_frame", GetInstance().loam_world_frame_);
@@ -703,6 +704,10 @@ int GlobalParams::IsamRelinearizeSkip()
 bool GlobalParams::LoamBetweenFactorsEnabled()
 {
   return GetInstance().loam_between_factors_enabled_;
+}
+bool GlobalParams::LoamIMUOnly()
+{
+  return GetInstance().loam_imu_only_;
 }
 bool GlobalParams::FrameBetweenFactors()
 {

@@ -165,6 +165,7 @@ private:
   std::string distortion_model_ = "radtan";
 
   bool loam_between_factors_enabled_ = true;
+  bool loam_imu_only_ = false;  // Turns off landmarks leaving only LOAM and IMU
   bool frame_between_factors_ = true;
   bool keyframe_between_factors_ = true;
   std::string loam_world_frame_ = "unknown";
@@ -324,6 +325,7 @@ public:
   static std::string LoamSensorFrame();
   static std::string LoamDegeneracySubTopic();
   static bool LoamBetweenFactorsEnabled();
+  static bool LoamIMUOnly();
   static bool FrameBetweenFactors();
   static bool KeyframeBetweenFactors();
 

@@ -348,25 +348,27 @@ void NewSmoother::Initialize(const backend::FrontendResult& frame,
 
   graph_manager_.SetInitNavstate(frame.frame_id, frame.timestamp, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  for (auto& track : frame.active_tracks)
+  if (!GlobalParams::LoamIMUOnly())
   {
-    auto lmk_id = track.id;
-    auto feature = track.features.back();
-    gtsam::Point2 gtsam_pt(feature.pt.x, feature.pt.y);
-    if (feature.depth)
+    for (auto& track : frame.active_tracks)
     {
-      InitializeProjLandmarkWithDepth(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt, *feature.depth,
-                                      refined_init_pose);
-    }
-    else
-    {
-      if (GlobalParams::EnableSmartFactors())
+      auto lmk_id = track.id;
+      auto feature = track.features.back();
+      gtsam::Point2 gtsam_pt(feature.pt.x, feature.pt.y);
+      if (feature.depth)
       {
-        InitializeStructurelessLandmark(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt);
+        InitializeProjLandmarkWithDepth(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt, *feature.depth,
+                                        refined_init_pose);
+      }
+      else
+      {
+        if (GlobalParams::EnableSmartFactors())
+        {
+          InitializeStructurelessLandmark(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt);
+        }
       }
     }
   }
-
   graph_manager_.Update();
   DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
   added_frames_[frame.frame_id] = frame;
@@ -402,54 +404,9 @@ void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
   }
 }
 
-void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bool is_keyframe)
+void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_tracks, int frame_id,
+                                         const gtsam::Pose3& pred_pose, double timestamp_for_values)
 {
-  if (frontend_result.is_keyframe)
-  {
-    keyframe_timestamps_.AddKeyframeTimestamp(frontend_result.timestamp);
-  }
-  auto timestamp_for_values = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(frontend_result.timestamp);
-  if (!timestamp_for_values)
-  {
-    std::cout << "Got boost::none from keyframe_timestamps_. Maybe we received out of order frames?" << std::endl;
-    exit(1);
-  }
-
-  if (is_keyframe)
-  {
-    std::cout << "Adding kf " << last_keyframe_id_ << " -> " << frontend_result.frame_id << std::endl;
-  }
-  else
-  {
-    std::cout << "Adding regular frame " << frontend_result.frame_id << std::endl;
-  }
-  imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_].timestamp, frontend_result.timestamp);
-  auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
-  auto prev_bias = graph_manager_.GetBias(last_frame_id_);
-  if (!prev_nav_state || !prev_bias)
-  {
-    std::cout << "Fatal: Did not find nav state and bias for prev frame " << last_frame_id_ << std::endl;
-    exit(1);
-  }
-  auto predicted_nav_state = imu_integrator_.PredictNavState(*prev_nav_state, *prev_bias);
-  auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
-  graph_manager_.AddFrame(frontend_result.frame_id, timestamp_for_values, pim, predicted_nav_state, *prev_bias);
-  imu_integrator_.ResetIntegration();
-
-  std::vector<backend::Track> new_tracks;
-  std::vector<backend::Track> existing_tracks;
-  for (auto& track : frontend_result.active_tracks)
-  {
-    if (graph_manager_.IsLandmarkTracked(track.id))
-    {
-      existing_tracks.push_back(track);
-    }
-    else
-    {
-      new_tracks.push_back(track);
-    }
-  }
-
   auto added_landmarks_count = 0;
   for (const auto& track : new_tracks)
   {
@@ -484,8 +441,7 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
               graph_manager_.CanAddObservationsForFrame(feature.frame_id, feature.timestamp))
           {
             std::cout << "Initializing lmk " << track.id << " with depth " << std::endl;
-            auto pose_for_init = (feature.frame_id == frontend_result.frame_id) ? predicted_nav_state.pose() :
-                                                                     graph_manager_.GetPose(feature.frame_id);
+            auto pose_for_init = (feature.frame_id == frame_id) ? pred_pose : graph_manager_.GetPose(feature.frame_id);
             if (!pose_for_init)
             {
               continue;
@@ -560,8 +516,8 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
           {
             if (!graph_manager_.CanAddRangeObservation(track.id, feature.frame_id))
             {
-              auto pose_for_init = (feature.frame_id == frontend_result.frame_id) ? predicted_nav_state.pose() :
-                                                                       graph_manager_.GetPose(feature.frame_id);
+              auto pose_for_init =
+                  (feature.frame_id == frame_id) ? pred_pose : graph_manager_.GetPose(feature.frame_id);
               if (!pose_for_init)
               {
                 continue;
@@ -632,10 +588,14 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
         std::cout << "Failed to initialize for some reason" << std::endl;
       }
     }
-  for_tracks:;
+    for_tracks:;
   }
   std::cout << "Initialized " << added_landmarks_count << " landmarks" << std::endl;
+}
 
+void NewSmoother::AddLandmarkObservations(const std::vector<backend::Track>& existing_tracks, int frame_id,
+                                          const gtsam::Pose3& pred_pose, double timestamp_for_values)
+{
   auto feature_obs_count = 0;
   auto range_obs_count = 0;
   for (const auto& track : existing_tracks)
@@ -651,10 +611,10 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
     {
       if (graph_manager_.IsSmartFactorLandmark(lmk_id))
       {
-        auto init_point = CalculatePointEstimate(predicted_nav_state.pose(), gtsam_pt, feature.depth->depth);
+        auto init_point = CalculatePointEstimate(pred_pose, gtsam_pt, feature.depth->depth);
         graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, timestamp_for_values, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frontend_result.frame_id, timestamp_for_values, feature.depth->depth,
+      graph_manager_.AddRangeObservation(lmk_id, frame_id, timestamp_for_values, feature.depth->depth,
                                          MakeRangeNoise(*feature.depth));
       {
         std::cout << "Range values for l" << lmk_id << ": ";
@@ -670,10 +630,66 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
       range_obs_count++;
     }
     feature_obs_count++;
-    graph_manager_.AddLandmarkObservation(lmk_id, frontend_result.frame_id, timestamp_for_values, gtsam_pt, K_, *body_p_cam_);
+    graph_manager_.AddLandmarkObservation(lmk_id, frame_id, timestamp_for_values, gtsam_pt, K_, *body_p_cam_);
   }
 
   std::cout << "Added " << feature_obs_count << " observations (" << range_obs_count << " range obs.)" << std::endl;
+}
+
+void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bool is_keyframe)
+{
+  if (frontend_result.is_keyframe)
+  {
+    keyframe_timestamps_.AddKeyframeTimestamp(frontend_result.timestamp);
+  }
+  auto timestamp_for_values = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(frontend_result.timestamp);
+  if (!timestamp_for_values)
+  {
+    std::cout << "Got boost::none from keyframe_timestamps_. Maybe we received out of order frames?" << std::endl;
+    exit(1);
+  }
+
+  if (is_keyframe)
+  {
+    std::cout << "Adding kf " << last_keyframe_id_ << " -> " << frontend_result.frame_id << std::endl;
+  }
+  else
+  {
+    std::cout << "Adding regular frame " << frontend_result.frame_id << std::endl;
+  }
+  imu_integrator_.WaitAndIntegrate(added_frames_[last_frame_id_].timestamp, frontend_result.timestamp);
+  auto prev_nav_state = graph_manager_.GetNavState(last_frame_id_);
+  auto prev_bias = graph_manager_.GetBias(last_frame_id_);
+  if (!prev_nav_state || !prev_bias)
+  {
+    std::cout << "Fatal: Did not find nav state and bias for prev frame " << last_frame_id_ << std::endl;
+    exit(1);
+  }
+  auto predicted_nav_state = imu_integrator_.PredictNavState(*prev_nav_state, *prev_bias);
+  auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
+  graph_manager_.AddFrame(frontend_result.frame_id, timestamp_for_values, pim, predicted_nav_state, *prev_bias);
+  imu_integrator_.ResetIntegration();
+
+  std::vector<backend::Track> new_tracks;
+  std::vector<backend::Track> existing_tracks;
+  for (auto& track : frontend_result.active_tracks)
+  {
+    if (graph_manager_.IsLandmarkTracked(track.id))
+    {
+      existing_tracks.push_back(track);
+    }
+    else
+    {
+      new_tracks.push_back(track);
+    }
+  }
+
+  if (!GlobalParams::LoamIMUOnly())
+  {
+    InitializeNewLandmarks(new_tracks, frontend_result.frame_id, predicted_nav_state.pose(), timestamp_for_values);
+    AddLandmarkObservations(existing_tracks, frontend_result.frame_id, predicted_nav_state.pose(),
+                            timestamp_for_values);
+  }
 
   if (GlobalParams::FrameBetweenFactors())
   {
