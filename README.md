@@ -22,3 +22,11 @@ when running the node with `rosrun`.
 
 The yaml file with params can also be specified in a launch file and
 will then be loaded into the param server on launch.
+
+## Rosservice usage
+To toggle the `force_degeneracy` service, use
+```bash
+rosservice call /force_degeneracy
+```
+
+Enabled means LOAM is forced degenerate. Disabled means it is nominal.

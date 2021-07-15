@@ -2,6 +2,7 @@
 #define ORB_TEST_SRC_TF2_BETWEEN_TRANSFORM_PROVIDER_H_
 
 #include "between_transform_provider.h"
+#include <orb_test/ForceDegeneracy.h>
 
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@ private:
   tf2_ros::TransformListener tf_listener;
   std::map<double, unsigned int> degeneracy_buffer_;
   std::mutex degeneracy_buffer_mu_;
+  bool force_degenerate_ = false;
 
   bool IsDegenerate(double timestamp);
 
@@ -42,6 +44,8 @@ public:
   TF2BetweenTransformProvider(const std::vector<double>& body_p_sensor_quat,
                               const std::vector<double>& body_p_sensor_vector, std::string world_frame,
                               std::string sensor_frame);
+
+  bool ForceDegeneracy(orb_test::ForceDegeneracy::Request& req, orb_test::ForceDegeneracy::Response& res);
 
   boost::optional<gtsam::Pose3> GetBetweenTransform(double timestamp1, double timestamp2) override;
   bool CanTransform(double timestamp) override;

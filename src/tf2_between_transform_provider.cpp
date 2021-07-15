@@ -29,6 +29,15 @@ TF2BetweenTransformProvider::TF2BetweenTransformProvider(const gtsam::Pose3& bod
 {
 }
 
+bool TF2BetweenTransformProvider::ForceDegeneracy(orb_test::ForceDegeneracy::Request& req,
+                                                  orb_test::ForceDegeneracy::Response& res)
+{
+  force_degenerate_ = !force_degenerate_;
+  std::cout << "Forced between factor degeneracy is now " << (force_degenerate_ ? "on" : "off") << std::endl;
+  res.enabled = force_degenerate_;
+  return true;
+}
+
 boost::optional<gtsam::Pose3> TF2BetweenTransformProvider::GetBetweenTransform(double timestamp1, double timestamp2)
 {
   if (IsDegenerate(timestamp1) || IsDegenerate(timestamp2)) {
@@ -76,6 +85,10 @@ void TF2BetweenTransformProvider::AddDegeneracyMessage(const std_msgs::Header& m
 
 bool TF2BetweenTransformProvider::IsDegenerate(double timestamp)
 {
+  if (force_degenerate_)
+  {
+    return true;
+  }
   std::lock_guard<std::mutex> lock(degeneracy_buffer_mu_);
   int n_to_check = 5;
   auto it = degeneracy_buffer_.lower_bound(timestamp);

@@ -107,6 +107,9 @@ int main(int argc, char** argv)
       std::make_shared<TF2BetweenTransformProvider>(GlobalParams::BodyPLidarQuat(), GlobalParams::BodyPLidarVec(),
                                                     GlobalParams::LoamWorldFrame(), GlobalParams::LoamSensorFrame());
 
+  auto toggle_force_degeneracy_srv =
+      nh.advertiseService("force_degeneracy", &TF2BetweenTransformProvider::ForceDegeneracy, &(*between_transform_provider));
+
   auto loam_degeneracy_sub =
       nh.subscribe(GlobalParams::LoamDegeneracySubTopic(), 1000, &TF2BetweenTransformProvider::AddDegeneracyMessage,
                    &*between_transform_provider);
