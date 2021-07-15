@@ -24,8 +24,8 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
   GetInstance().img_queue_size_pub_ = nh.advertise<std_msgs::Int32>("/img_queue_size", 1000);
   GetInstance().abs_gt_error_pub_ = nh.advertise<std_msgs::Float64>("/abs_gt_error", 1000);
 
-
   GetInstance().n_cells_repopulated_ = nh.advertise<std_msgs::Int32>("/n_cells_repopulated", 1000);
+  GetInstance().n_landmarks_pub_ = nh.advertise<std_msgs::Int32>("/n_landmarks", 1000);
 
   GetInstance().bias_acc_x_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_x", 1000);
   GetInstance().bias_acc_y_pub_ = nh.advertise<std_msgs::Float64>("/bias/acc_y", 1000);
@@ -96,6 +96,11 @@ void DebugValuePublisher::PublishAbsoluteGroundTruthError(double err)
 void DebugValuePublisher::PublishNCellsRepopulated(int n)
 {
   DebugValuePublisher::PublishIntValue(n, GetInstance().n_cells_repopulated_);
+}
+
+void DebugValuePublisher::PublishNLandmarks(int n)
+{
+  DebugValuePublisher::PublishIntValue(n, GetInstance().n_landmarks_pub_);
 }
 
 void DebugValuePublisher::PublishDoubleValue(double value, ros::Publisher& publisher)

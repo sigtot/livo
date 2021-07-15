@@ -20,6 +20,7 @@ private:
   ros::Publisher abs_gt_error_pub_;
 
   ros::Publisher n_cells_repopulated_;
+  ros::Publisher n_landmarks_pub_;
 
   ros::Publisher bias_acc_x_pub_;
   ros::Publisher bias_acc_y_pub_;
@@ -59,6 +60,8 @@ public:
   static void PublishAbsoluteGroundTruthError(double err);
 
   static void PublishNCellsRepopulated(int n);
+  static void PublishNLandmarks(int n);
+
 
   static void PublishBias(const std::vector<double>& acc_bias, const std::vector<double>& gyro_bias);
   static void PublishVelocityNormAverage(double velocity_norm_average);

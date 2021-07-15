@@ -178,6 +178,7 @@ void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_resu
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);
   PublishLandmarks(landmark_estimates, frontend_result.timestamp);
+  DebugValuePublisher::PublishNLandmarks(landmark_estimates.size());
 
   auto time_final = std::chrono::system_clock::now();
 
