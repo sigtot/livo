@@ -7,7 +7,6 @@
 #include "new_smoother.h"
 #include "point3.h"
 #include "pose3_stamped.h"
-#include "imu_ground_truth_smoother.h"
 #include "lidar_frame_manager.h"
 #include "landmark_result.h"
 #include "between_transform_provider.h"

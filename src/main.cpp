@@ -15,7 +15,6 @@
 #include "ros_helpers.h"
 #include "debug_image_publisher.h"
 #include "debug_value_publisher.h"
-#include "imu_ground_truth_smoother.h"
 #include "newer_college_lidar_time_offset_provider.h"
 #include "zero_time_offset_provider.h"
 #include "radtan_undistorter.h"
