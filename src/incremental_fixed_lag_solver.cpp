@@ -2,6 +2,7 @@
 #include "incremental_fixed_lag_smoother_patched.h"
 
 #include <gtsam/nonlinear/ISAM2Result.h>
+#include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/geometry/Pose3.h>
@@ -18,15 +19,14 @@ gtsam::ISAM2Result IncrementalFixedLagSolver::Update(const gtsam::NonlinearFacto
                                                      const gtsam::Values& values,
                                                      const gtsam::KeyTimestampMap& timestamps)
 {
-  return Update(graph, values, timestamps, boost::none, gtsam::FactorIndices{});
+  return Update(graph, values, timestamps, gtsam::ISAM2UpdateParams());
 }
 
 gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
     const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& new_affected_keys,
-    const gtsam::FactorIndices& factors_to_remove)
+    const gtsam::ISAM2UpdateParams& params)
 {
-  fixed_lag_smoother_->update(graph, values, timestamps, new_affected_keys, factors_to_remove);
+  fixed_lag_smoother_->update(graph, values, timestamps, params);
   return fixed_lag_smoother_->getISAM2Result();
 }
 

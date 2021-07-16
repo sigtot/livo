@@ -17,18 +17,14 @@ ISAM2Solver::ISAM2Solver(const gtsam::ISAM2Params& isam2_params) : isam2_(std::m
 gtsam::ISAM2Result ISAM2Solver::Update(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
                                        const gtsam::KeyTimestampMap& _)
 {
-  return Update(graph, values, _, boost::none, gtsam::FactorIndices{});
+  return Update(graph, values, _, gtsam::ISAM2UpdateParams());
 }
 
 gtsam::ISAM2Result ISAM2Solver::Update(
     const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& new_affected_keys,
-    const gtsam::FactorIndices& factors_to_remove)
+    const gtsam::ISAM2UpdateParams& params)
 {
-  gtsam::ISAM2UpdateParams update_params;
-  update_params.newAffectedKeys = new_affected_keys;
-  update_params.removeFactorIndices = factors_to_remove;
-  return isam2_->update(graph, values, update_params);
+  return isam2_->update(graph, values, params);
 }
 
 gtsam::Values ISAM2Solver::CalculateEstimate()

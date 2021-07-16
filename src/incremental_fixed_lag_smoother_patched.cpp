@@ -33,8 +33,7 @@ void recursiveMarkAffectedKeys(const gtsam::Key& key, const gtsam::ISAM2Clique::
 
 gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
     const gtsam::NonlinearFactorGraph& newFactors, const gtsam::Values& newTheta, const KeyTimestampMap& timestamps,
-    const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys,
-    const gtsam::FactorIndices& factorsToRemove)
+    const gtsam::ISAM2UpdateParams& params)
 {
   const bool debug = ISDEBUG("IncrementalFixedLagSmoother update");
 
@@ -93,14 +92,11 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
   gtsam::KeyList additionalMarkedKeys(additionalKeys.begin(), additionalKeys.end());
 
   // Update iSAM2
-  gtsam::ISAM2UpdateParams params;
-  params.constrainedKeys = constrainedKeys;
-  params.removeFactorIndices = factorsToRemove;
-  params.constrainedKeys = constrainedKeys;
-  params.extraReelimKeys = additionalMarkedKeys;
-  params.newAffectedKeys = newAffectedKeys;
+  gtsam::ISAM2UpdateParams new_params = params;
+  new_params.constrainedKeys = constrainedKeys;
+  new_params.extraReelimKeys = additionalMarkedKeys;
   try {
-    isamResult_ = isam_.update(newFactors, newTheta, params);
+    isamResult_ = isam_.update(newFactors, newTheta, new_params);
   }
   catch (gtsam::IndeterminantLinearSystemException& e)
   {

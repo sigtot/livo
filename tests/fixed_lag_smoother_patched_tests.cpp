@@ -107,7 +107,9 @@ TEST(IFLPatchedTest, CanMarginalizeSmartFactor)
       smart_factor->add(gtsam::PinholePose<gtsam::Cal3_S2>(pred_nav_state.pose(), K).project(landmark), X(i));
       smart_factor_new_affected_keys[smart_factor_idx_isam].insert(X(i));
     }
-    smoother.update(graph, values, timestamps, smart_factor_new_affected_keys);
+    gtsam::ISAM2UpdateParams params;
+    params.newAffectedKeys = smart_factor_new_affected_keys;
+    smoother.update(graph, values, timestamps, params);
     graph.resize(0);
     values.clear();
     timestamps.clear();

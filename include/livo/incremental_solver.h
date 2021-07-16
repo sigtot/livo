@@ -12,6 +12,7 @@ namespace gtsam
 class NonlinearFactorGraph;
 class Values;
 class ISAM2Result;
+class ISAM2UpdateParams;
 class VectorValues;
 
 class Pose3;
@@ -41,8 +42,7 @@ public:
 
   virtual gtsam::ISAM2Result Update(
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& newAffectedKeys,
-      const gtsam::FactorIndices& factorsToRemove) = 0;
+      const gtsam::ISAM2UpdateParams& params) = 0;
 
   virtual gtsam::Values CalculateEstimate() = 0;
   virtual gtsam::NonlinearFactorGraph GetFactorsUnsafe() = 0;

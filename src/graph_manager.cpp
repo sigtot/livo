@@ -36,6 +36,7 @@ GraphManager::GraphManager(std::shared_ptr<IncrementalSolver> incremental_solver
   , timestamps_(std::make_shared<gtsam::KeyTimestampMap>())
   , new_affected_keys_(std::make_shared<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>())
   , factors_to_remove_(std::make_shared<gtsam::FactorIndices>())
+  , extra_reelim_keys_(std::make_shared<gtsam::FastList<gtsam::Key>>())
   , smart_factor_params_(std::make_shared<gtsam::SmartProjectionParams>(smart_factor_params))
   , lag_(lag)
   , remove_high_delta_landmarks_(remove_high_delta_landmarks)
@@ -92,12 +93,17 @@ void GraphManager::RemoveLandmark(int lmk_id)
 
 gtsam::ISAM2Result GraphManager::Update()
 {
-  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, *new_affected_keys_, *factors_to_remove_);
+  gtsam::ISAM2UpdateParams params;
+  params.newAffectedKeys = *new_affected_keys_;
+  params.removeFactorIndices = *factors_to_remove_;
+  params.extraReelimKeys = *extra_reelim_keys_;
+  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, params);
   graph_->resize(0);
   values_->clear();
   timestamps_->clear();
   new_affected_keys_->clear();
   factors_to_remove_->clear();
+  extra_reelim_keys_->clear();
 
   SetSmartFactorIdxInIsam(result);
   SetLandmarkFactorInSmootherIndices(result.newFactorsIndices);
@@ -105,7 +111,7 @@ gtsam::ISAM2Result GraphManager::Update()
 
   for (const auto& delta : incremental_solver_->GetDelta())
   {
-    int delta_danger_thresh = 30;
+    int delta_danger_thresh = 10;
     if (delta.second.norm() > delta_danger_thresh)
     {
       std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is dangerously high! ===" << std::endl;
@@ -120,6 +126,10 @@ gtsam::ISAM2Result GraphManager::Update()
       auto out_of_lag = ts_diff > lag_;
       std::cout << "Current: " << last_timestamp_ << " (diff " << ts_diff << (out_of_lag ? " out of" : " in") << " lag)"
                 << std::endl;
+
+      // By re-eliminating it next update, it will also be relinearized and so hopefully the delta will go down.
+      std::cout << "Re-eliminating " << gtsam::_defaultKeyFormatter(delta.first) << std::endl;
+      extra_reelim_keys_->push_back(delta.first);
       if (remove_high_delta_landmarks_ && !out_of_lag)
       {
         RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));

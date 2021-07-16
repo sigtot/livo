@@ -79,6 +79,7 @@ private:
   std::shared_ptr<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>> new_affected_keys_;
   std::shared_ptr<gtsam::FactorIndices> factors_to_remove_;
   std::map<gtsam::FactorIndex, int> new_factor_indices_to_lmk_;
+  std::shared_ptr<gtsam::FastList<gtsam::Key>> extra_reelim_keys_;
 
   // Configuration
   std::shared_ptr<gtsam::SmartProjectionParams> smart_factor_params_;

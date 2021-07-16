@@ -35,8 +35,7 @@ public:
                             const gtsam::KeyTimestampMap& timestamps) override;
   gtsam::ISAM2Result Update(
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
-      const boost::optional<gtsam::FastMap<gtsam::FactorIndex, gtsam::FastSet<gtsam::Key>>>& new_affected_keys,
-      const gtsam::FactorIndices& factors_to_remove) override;
+      const gtsam::ISAM2UpdateParams& params) override;
   gtsam::Values CalculateEstimate() override;
   gtsam::NonlinearFactorGraph GetFactorsUnsafe() override;
   gtsam::VectorValues GetDelta() override;
