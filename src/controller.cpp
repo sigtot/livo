@@ -132,7 +132,7 @@ void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_resu
       !between_transform_provider_->CanTransform(frontend_result.timestamp -
                                                  lidar_time_offset_provider_->GetOffset(frontend_result.timestamp));
 
-  if (!new_backend_.IsInitialized() && frontend_result.has_depth && !must_wait_for_transform)
+  if (!new_backend_.IsInitialized() && !must_wait_for_transform)
   {
     if (GlobalParams::DoInitialGravityAlignment() && frontend_result.stationary)
     {

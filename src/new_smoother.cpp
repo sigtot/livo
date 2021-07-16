@@ -355,27 +355,8 @@ void NewSmoother::Initialize(const backend::FrontendResult& frame,
 
   graph_manager_.SetInitNavstate(frame.frame_id, frame.timestamp, init_nav_state, init_bias, noise_x, noise_v, noise_b);
 
-  if (!GlobalParams::LoamIMUOnly())
-  {
-    for (auto& track : frame.active_tracks)
-    {
-      auto lmk_id = track.id;
-      auto feature = track.features.back();
-      gtsam::Point2 gtsam_pt(feature.pt.x, feature.pt.y);
-      if (feature.depth)
-      {
-        InitializeProjLandmarkWithDepth(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt, *feature.depth,
-                                        refined_init_pose);
-      }
-      else
-      {
-        if (GlobalParams::EnableSmartFactors())
-        {
-          InitializeStructurelessLandmark(lmk_id, frame.frame_id, frame.timestamp, gtsam_pt);
-        }
-      }
-    }
-  }
+  // We skip any landmark initialization for the first frame and instead rely on between factors
+
   graph_manager_.Update();
   DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
   added_frames_[frame.frame_id] = frame;
