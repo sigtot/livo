@@ -51,7 +51,9 @@ private:
 
   void RemoveBadDepthTracks();
 
+  void RANSACRemoveOutlierTracks();
   void RANSACRemoveOutlierTracks(int n_frames);
+  double RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices);
 
   /**
    *

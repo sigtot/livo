@@ -488,8 +488,110 @@ void FeatureExtractor::RemoveBadDepthTracks()
   }
 }
 
+double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices)
+{
+  std::cout << "RANSAC run with n=" << n_frames << std::endl;
+  std::vector<int> track_indices;
+  std::vector<cv::Point2f> points_1;
+  std::vector<cv::Point2f> points_2;
+
+  // Check that all frames in RANSAC window are non-stationary
+  if (frames.size() < n_frames + 1)
+  {
+    return 1;
+  }
+  int last_frame_idx = static_cast<int>(frames.size()) - 1;
+  for (int i = last_frame_idx; i >= 0 && i > last_frame_idx - n_frames; --i)
+  {
+    if (frames[i]->stationary)
+    {
+      std::cout << "Skipping RANSAC with n_frames " << n_frames << " because of stationary frames." << std::endl;
+      return 1;
+    }
+  }
+
+  for (int i = 0; i < active_tracks_.size(); ++i)
+  {
+    int track_len = static_cast<int>(active_tracks_[i]->features.size());
+    if (track_len <= n_frames)
+    {
+      // We need features from the n_frames-th previous frame, but the track length is not long enough for it
+      continue;
+    }
+
+    track_indices.push_back(i);
+    points_1.push_back(active_tracks_[i]->features.back()->pt);
+    points_2.push_back(active_tracks_[i]->features[track_len - n_frames - 1]->pt);
+  }
+
+  if (track_indices.size() < 8)
+  {
+    return 1;
+  }
+
+  std::cout << "Have " << track_indices.size() << " points for RANSAC" << std::endl;
+
+  std::vector<uchar> inliers;
+  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3, 0.99, inliers);
+
+  auto H = findHomography(points_1, points_2, cv::RANSAC, 3);
+
+  std::vector<bool> F_check_inliers;
+  double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points_1, points_2);
+
+  std::vector<bool> H_check_inliers;
+  double S_H = ORB_SLAM::CheckHomography(H, H.inv(), H_check_inliers, points_1, points_2);
+
+  double R_H = S_H / (S_H + S_F);
+
+  std::cout << "R_H = " << R_H << std::endl;
+
+  for (int i = 0; i < track_indices.size(); ++i)
+  {
+    if (!inliers[i])
+    {
+      outlier_indices.push_back(track_indices[i]);
+    }
+  }
+  return R_H;
+}
+
+void FeatureExtractor::RANSACRemoveOutlierTracks()
+{
+  std::vector<std::vector<int>> outlier_indices_table;
+  std::vector<double> R_H_vec;
+  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
+  for (int i = 0; i < n_frames_vec.size(); ++i)
+  {
+    std::vector<int> outlier_indices;
+    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
+    R_H_vec.push_back(R_H);
+    outlier_indices_table.push_back(outlier_indices);
+  }
+
+  int min_i = 0;
+  double min_R_H = R_H_vec[0];
+  for (int i = 1; i < n_frames_vec.size(); ++i)
+  {
+    if (R_H_vec[i] > min_R_H)
+    {
+      min_R_H = R_H_vec[i];
+      min_i = i;
+    }
+  }
+
+  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
+  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
+  {
+    int idx_to_remove = outlier_indices_table[min_i][i];
+    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
+    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
+  }
+}
+
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
 {
+  std::cout << "RANSAC run with n=" << n_frames << std::endl;
   std::vector<int> track_indices;
   std::vector<cv::Point2f> points_1;
   std::vector<cv::Point2f> points_2;
@@ -528,7 +630,16 @@ void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
     return;
   }
 
-  std::vector<uchar> inliers;
+  std::cout << "Have " << track_indices.size() << " points for RANSAC" << std::endl;
+
+  std::vector<uchar> F_inliers;
+  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 5, 0.99, F_inliers);
+
+  std::vector<uchar> H_inliers;
+  auto H = findHomography(points_1, points_2, cv::RANSAC, 5, H_inliers);
+
+  std::vector<bool> F_check_inliers;
+  double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points_1, points_2);
 
   std::vector<bool> H_check_inliers;
   double S_H = ORB_SLAM::CheckHomography(H, H.inv(), H_check_inliers, points_1, points_2);
@@ -560,7 +671,7 @@ void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std
                                            std::vector<cv::Point2f>& new_points)
 
 {
-  // iterate backwards to not mess up vector when erasing
+  // iterate backwards to not mess up active_tracks_ when erasing
   for (int i = static_cast<int>(prev_points.size()) - 1; i >= 0; --i)
   {
     if (status[i] != 1)
