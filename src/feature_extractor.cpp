@@ -16,10 +16,11 @@
 #include <utility>
 #include <memory>
 
-FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const LidarFrameManager& lidar_frame_manager,
-                                   std::shared_ptr<ImageUndistorter> image_undistorter,
-                                   const NewSmoother& smoother)
+FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,
+                                   const LidarFrameManager& lidar_frame_manager,
+                                   std::shared_ptr<ImageUndistorter> image_undistorter, const NewSmoother& smoother)
   : tracks_pub_(tracks_pub)
+  , high_delta_tracks_pub_(high_delta_tracks_pub)
   , lidar_frame_manager_(lidar_frame_manager)
   , image_undistorter_(std::move(image_undistorter))
   , smoother_(smoother)
@@ -188,7 +189,6 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
 std::vector<backend::Track> FeatureExtractor::GetActiveTracksForBackend() const
 {
-
   std::vector<backend::Track> tracks;
   tracks.reserve(active_tracks_.size());
   for (const auto& track : active_tracks_)
@@ -677,4 +677,27 @@ void FeatureExtractor::UpdateTrackParallaxes()
     }
   }
   std::cout << "Calculated parallaxes for " << count << " tracks" << std::endl;
+}
+
+void FeatureExtractor::PublishSingleTrackImage(const backend::Track& track)
+{
+  std::cout << "Publishing single track image" << std::endl;
+  auto frame_id = track.features.back().frame_id;
+  // Search backwards because last features is likely in one of the most recent frames
+  auto frame = std::find_if(frames.rbegin(), frames.rend(),
+                            [frame_id](const std::shared_ptr<Frame>& frame) -> bool { return frame->id == frame_id; });
+  cv_bridge::CvImage out_img;
+  out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+  out_img.header.stamp = ros::Time(frames.back()->timestamp);
+  out_img.header.seq = frames.back()->id;
+  cvtColor((*frame)->image, out_img.image, CV_GRAY2RGB);
+
+  cv::Scalar color(0, 0, 255);
+  std::cout << "This track has a length of " << track.features.size() << std::endl;
+  for (int i = static_cast<int>(track.features.size()) - 1; i >= 1; --i)
+  {
+    cv::line(out_img.image, track.features[i - 1].pt, track.features[i].pt, color, 1);
+  }
+  cv::circle(out_img.image, track.features.back().pt, 5, color, 1);
+  high_delta_tracks_pub_.publish(out_img.toImageMsg());
 }

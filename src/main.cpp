@@ -79,6 +79,7 @@ int main(int argc, char** argv)
   auto imu_sub = nh.subscribe(GlobalParams::IMUSubTopic(), 1000, &IMUQueue::addMeasurement, &*imu_queue);
 
   auto tracks_pub = nh.advertise<sensor_msgs::Image>("/tracks_image", 1000);
+  auto high_delta_tracks_pub = nh.advertise<sensor_msgs::Image>("/high_delta_tracks_image", 1000);
   auto path_pub = nh.advertise<nav_msgs::Path>("/full_trajectory", 1000);
   auto posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_array", 1000);
   auto gt_posearr_pub = nh.advertise<geometry_msgs::PoseArray>("/gt_pose_array", 1000, true);
@@ -115,8 +116,8 @@ int main(int argc, char** argv)
                    &*between_transform_provider);
 
   NewSmoother new_smoother(imu_queue, lidar_time_offset_provider, image_undistorter, between_transform_provider);
-  auto feature_extractor =
-      std::make_shared<FeatureExtractor>(tracks_pub, lidar_frame_manager, image_undistorter, new_smoother);
+  auto feature_extractor = std::make_shared<FeatureExtractor>(tracks_pub, high_delta_tracks_pub, lidar_frame_manager,
+                                                              image_undistorter, new_smoother);
   new_smoother.SetFrontend(feature_extractor);
   Controller controller(feature_extractor, lidar_frame_manager, new_smoother,
                         between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);

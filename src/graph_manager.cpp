@@ -414,6 +414,11 @@ gtsam::Values GraphManager::GetValues() const
   return *newest_estimate_;
 }
 
+gtsam::VectorValues GraphManager::GetDelta()
+{
+  return incremental_solver_->GetDelta();
+}
+
 bool GraphManager::IsLandmarkTracked(int lmk_id) const
 {
   auto lmk_in_smoother = added_landmarks_.find(lmk_id);

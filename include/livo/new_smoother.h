@@ -88,6 +88,7 @@ private:
                               const gtsam::Pose3& pred_pose, double timestamp_for_values);
   void AddLandmarkObservations(const std::vector<backend::Track>& existing_tracks, int frame_id,
                                const gtsam::Pose3& pred_pose, double timestamp_for_values);
+  void PublishHighDeltaTrackImage();
 
 public:
   NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,

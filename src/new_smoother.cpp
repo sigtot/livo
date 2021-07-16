@@ -786,7 +786,36 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
     last_keyframe_id_ = frontend_result.frame_id;
   }
 
+  PublishHighDeltaTrackImage();
+
   RemoveUntrackedFramesFromBookkeeping();
+}
+
+void NewSmoother::PublishHighDeltaTrackImage()
+{
+  for (const auto& delta : graph_manager_.GetDelta())
+  {
+    int delta_danger_thresh = 5;
+    if (delta.second.norm() > delta_danger_thresh)
+    {
+      std::cout << "=== " << gtsam::_defaultKeyFormatter(delta.first) << " delta is quite high! ===" << std::endl;
+      std::cout << "delta = " << delta.second << std::endl;
+      std::cout << "norm(delta) = " << delta.second.norm() << " > " << delta_danger_thresh << std::endl;
+      auto track_id = static_cast<int>(gtsam::Symbol(delta.first).index());
+
+      for (auto it = added_frames_.rbegin(); it != added_frames_.rend(); ++it)
+      {
+        for (const auto& track : it->second.active_tracks)
+        {
+          if (track.id == track_id)
+          {
+            feature_extractor_->PublishSingleTrackImage(track);
+            return;
+          }
+        }
+      }
+    }
+  }
 }
 
 void NewSmoother::DoExtraUpdateSteps(int steps)
@@ -817,7 +846,7 @@ void NewSmoother::RemoveUntrackedFramesFromBookkeeping()
 {
   for (auto it = added_frames_.cbegin(); it != added_frames_.cend(); /* no increment */)
   {
-    if (!graph_manager_.IsFrameTracked(it->first))
+    if (!graph_manager_.IsFrameTracked(it->second.frame_id))
     {
       added_frames_.erase(it++);
     }

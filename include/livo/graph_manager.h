@@ -148,6 +148,7 @@ public:
   boost::optional<LandmarkResultGtsam> GetLandmark(int lmk_id) const;
   std::map<int, boost::optional<LandmarkResultGtsam>> GetLandmarks() const;
   gtsam::Values GetValues() const;
+  gtsam::VectorValues GetDelta();
 
   bool IsLandmarkTracked(int lmk_id) const;
   bool IsFrameTracked(int frame_id) const;
