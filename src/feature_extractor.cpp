@@ -488,7 +488,8 @@ void FeatureExtractor::RemoveBadDepthTracks()
   }
 }
 
-double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices)
+double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices,
+                                                      bool allow_H_inliers)
 {
   std::cout << "RANSAC run with n=" << n_frames << std::endl;
   std::vector<int> track_indices;
@@ -532,9 +533,11 @@ double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<
   std::cout << "Have " << track_indices.size() << " points for RANSAC" << std::endl;
 
   std::vector<uchar> inliers;
-  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3, 0.99, inliers);
+  std::vector<uchar> F_inliers;
+  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3, 0.99, F_inliers);
 
-  auto H = findHomography(points_1, points_2, cv::RANSAC, 3);
+  std::vector<uchar> H_inliers;
+  auto H = findHomography(points_1, points_2, cv::RANSAC, 3, H_inliers);
 
   std::vector<bool> F_check_inliers;
   double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points_1, points_2);
@@ -546,6 +549,15 @@ double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<
 
   std::cout << "R_H = " << R_H << std::endl;
 
+  if (R_H > 0.45 && allow_H_inliers)
+  {
+    inliers = H_inliers;
+  }
+  else
+  {
+    inliers = F_inliers;
+  }
+
   for (int i = 0; i < track_indices.size(); ++i)
   {
     if (!inliers[i])
@@ -556,36 +568,35 @@ double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<
   return R_H;
 }
 
+void FeatureExtractor::RemoveTracksByIndices(const std::vector<int>& indices)
+{
+  for (int i = static_cast<int>(indices.size()) - 1; i >= 0; --i)
+  {
+    int idx_to_remove = indices[i];
+    std::cout << "Removing track " << active_tracks_[idx_to_remove]->id << std::endl;
+    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
+  }
+}
+
 void FeatureExtractor::RANSACRemoveOutlierTracks()
 {
-  std::vector<std::vector<int>> outlier_indices_table;
-  std::vector<double> R_H_vec;
-  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
-  for (int i = 0; i < n_frames_vec.size(); ++i)
-  {
-    std::vector<int> outlier_indices;
-    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
-    R_H_vec.push_back(R_H);
-    outlier_indices_table.push_back(outlier_indices);
-  }
+  // Always do a 1-frame RANSAC to catch possible sudden track jumps
+  std::vector<int> outlier_indices;
+  RANSACGetOutlierTrackIndices(1, outlier_indices, true);
+  RemoveTracksByIndices(outlier_indices);
 
-  int min_i = 0;
-  double min_R_H = R_H_vec[0];
-  for (int i = 1; i < n_frames_vec.size(); ++i)
+  // Then, find outlier indices with n/2 and n frames, and use whichever one has the best (lowest) R_H score
+  std::vector<int> outlier_indices_1;
+  std::vector<int> outlier_indices_2;
+  auto R_H_1 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames() / 2, outlier_indices_1);
+  auto R_H_2 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames(), outlier_indices_2);
+  if (R_H_1 < R_H_2)
   {
-    if (R_H_vec[i] > min_R_H)
-    {
-      min_R_H = R_H_vec[i];
-      min_i = i;
-    }
+    RemoveTracksByIndices(outlier_indices_1);
   }
-
-  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
-  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
+  else
   {
-    int idx_to_remove = outlier_indices_table[min_i][i];
-    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
-    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
+    RemoveTracksByIndices(outlier_indices_2);
   }
 }
 

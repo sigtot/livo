@@ -53,7 +53,8 @@ private:
 
   void RANSACRemoveOutlierTracks();
   void RANSACRemoveOutlierTracks(int n_frames);
-  double RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices);
+  double RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices, bool allow_H_inliers = false);
+  void RemoveTracksByIndices(const std::vector<int>& indices);
 
   /**
    *
