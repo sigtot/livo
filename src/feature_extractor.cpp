@@ -580,23 +580,34 @@ void FeatureExtractor::RemoveTracksByIndices(const std::vector<int>& indices)
 
 void FeatureExtractor::RANSACRemoveOutlierTracks()
 {
-  // Always do a 1-frame RANSAC to catch possible sudden track jumps
-  std::vector<int> outlier_indices;
-  RANSACGetOutlierTrackIndices(1, outlier_indices, true);
-  RemoveTracksByIndices(outlier_indices);
-
-  // Then, find outlier indices with n/2 and n frames, and use whichever one has the best (lowest) R_H score
-  std::vector<int> outlier_indices_1;
-  std::vector<int> outlier_indices_2;
-  auto R_H_1 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames() / 2, outlier_indices_1);
-  auto R_H_2 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames(), outlier_indices_2);
-  if (R_H_1 < R_H_2)
+  std::vector<std::vector<int>> outlier_indices_table;
+  std::vector<double> R_H_vec;
+  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
+  for (int i = 0; i < n_frames_vec.size(); ++i)
   {
-    RemoveTracksByIndices(outlier_indices_1);
+    std::vector<int> outlier_indices;
+    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
+    R_H_vec.push_back(R_H);
+    outlier_indices_table.push_back(outlier_indices);
   }
-  else
+
+  int min_i = 0;
+  double min_R_H = R_H_vec[0];
+  for (int i = 1; i < n_frames_vec.size(); ++i)
   {
-    RemoveTracksByIndices(outlier_indices_2);
+    if (R_H_vec[i] > min_R_H)
+    {
+      min_R_H = R_H_vec[i];
+      min_i = i;
+    }
+  }
+
+  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
+  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
+  {
+    int idx_to_remove = outlier_indices_table[min_i][i];
+    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
+    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
   }
 }
 
@@ -791,7 +802,7 @@ void FeatureExtractor::UpdateTrackParallaxes()
   int count = 0;
   for (const auto& track : active_tracks_)
   {
-    if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+    if (true || track->max_parallax < GlobalParams::MinParallaxForSmoothing())
     {
       auto parallax = smoother_.CalculateParallax(track);
       track->max_parallax = std::max(parallax, track->max_parallax);
