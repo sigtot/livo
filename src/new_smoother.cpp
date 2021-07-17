@@ -147,29 +147,23 @@ gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, cons
 
 double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
 {
-  // Obtain first observable feature by iterating from the beginning of the track
+  // The frontend is probably ahead of the backend, so we iterate backwards to find the latest feature we can get
+  // pose estimates for
   boost::optional<std::shared_ptr<Feature>> first_feature;
-  for (auto& feature : track->features)
-  {
-    if (graph_manager_.IsFrameTracked(feature->frame_id))
-    {
-      first_feature = feature;
-      break;
-    }
-  }
-  if (!first_feature)
-  {
-    return -1;
-  }
-
-  // Obtain last observable feature by iterating backwards from the end of the track
   boost::optional<std::shared_ptr<Feature>> second_feature;
+  int frame_delta_between_features = 0;
   for (auto feature_it = track->features.rbegin(); feature_it != track->features.rend(); ++feature_it)
   {
-    if (graph_manager_.IsFrameTracked((*feature_it)->frame_id))
+    if (!second_feature && graph_manager_.IsFrameTracked((*feature_it)->frame_id))
     {
       second_feature = *feature_it;
-      break;
+    }
+    // We want the features to be maximally MinTrackLengthForSmoothing apart
+    if (second_feature && frame_delta_between_features < GlobalParams::MinTrackLengthForSmoothing() &&
+        graph_manager_.IsFrameTracked((*feature_it)->frame_id))
+    {
+      first_feature = *feature_it;
+      ++frame_delta_between_features;
     }
   }
   if (!second_feature || (*first_feature)->frame_id >= (*second_feature)->frame_id)
@@ -177,7 +171,7 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
     return -1;
   }
 
-  // Obtain the rotation between the two frames
+  // Obtain poses from the backend for the two frames
   auto pose1 = graph_manager_.GetPose((*first_feature)->frame_id);
   auto pose2 = graph_manager_.GetPose((*second_feature)->frame_id);
   if (!pose1 || !pose2)
