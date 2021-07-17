@@ -56,6 +56,12 @@ void Controller::LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   static int i = 0;
+
+  if (i++ % GlobalParams::FrameInterval() != 0)
+  {
+    // Skip every other frontend frame also!
+    return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
+  }
   auto time_before = std::chrono::system_clock::now();
   auto frontend_result = frontend_->lkCallback(msg);
   auto time_after = std::chrono::system_clock::now();
@@ -64,11 +70,6 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
   double millis = static_cast<double>(micros.count()) / 1000.;
   DebugValuePublisher::PublishFrontendDuration(millis);
   std::cout << "Frontend frame " << frontend_result.frame_id << " (took: " << millis << " ms)" << std::endl;
-
-  if (i++ % GlobalParams::FrameInterval() != 0)
-  {
-    return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
-  }
 
   SetLatestFrameForBackend(frontend_result);  // Will block if backend is still processing the previous frame.
 }
