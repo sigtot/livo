@@ -441,7 +441,8 @@ bool GraphManager::IsLandmarkTracked(int lmk_id) const
 
 bool GraphManager::IsFrameTracked(int frame_id) const
 {
-  return incremental_solver_->ValueExists(X(frame_id));
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  return newest_estimate_->exists(X(frame_id));
 }
 
 bool GraphManager::WithinLag(double timestamp) const
