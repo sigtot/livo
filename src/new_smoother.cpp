@@ -151,8 +151,7 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   boost::optional<std::shared_ptr<Feature>> first_feature;
   for (auto& feature : track->features)
   {
-    if (graph_manager_.IsFrameTracked(feature->frame_id) &&
-        graph_manager_.CanAddObservationsForFrame(feature->frame_id, feature->timestamp))
+    if (graph_manager_.IsFrameTracked(feature->frame_id))
     {
       first_feature = feature;
       break;
@@ -167,8 +166,7 @@ double NewSmoother::CalculateParallax(const std::shared_ptr<Track>& track) const
   boost::optional<std::shared_ptr<Feature>> second_feature;
   for (auto feature_it = track->features.rbegin(); feature_it != track->features.rend(); ++feature_it)
   {
-    if (graph_manager_.IsFrameTracked((*feature_it)->frame_id) &&
-        graph_manager_.CanAddObservationsForFrame((*feature_it)->frame_id, (*feature_it)->timestamp))
+    if (graph_manager_.IsFrameTracked((*feature_it)->frame_id))
     {
       second_feature = *feature_it;
       break;

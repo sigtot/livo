@@ -802,7 +802,7 @@ void FeatureExtractor::UpdateTrackParallaxes()
   int count = 0;
   for (const auto& track : active_tracks_)
   {
-    if (true || track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+    if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
     {
       auto parallax = smoother_.CalculateParallax(track);
       track->max_parallax = std::max(parallax, track->max_parallax);

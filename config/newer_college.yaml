@@ -44,12 +44,12 @@ noise_params:
   prior_gyro: 0.2
   prior_accel: 0.2
   prior_velocity: 0.01
-  between_rotation: 0.05
-  between_translation: 0.05
+  between_rotation: 0.001
+  between_translation: 0.001
   between_rotation_keyframe: 0.1
   between_translation_keyframe: 0.1
-  feature: 1.0
-  range: 4.0
+  feature: 10.
+  range: 10.
   robust_feature_k: 1.345
   robust_range_k: 1.345
 
@@ -60,10 +60,10 @@ isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 count_features_per_cell: true
-min_features_per_cell: 3
+min_features_per_cell: 2
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 4
+max_features_per_cell: 3
 max_features: 40
 grid_cells_x: 5
 grid_cells_y: 5
@@ -80,13 +80,14 @@ feature_extraction:
   min_distance: 7
   min_eigen_value: 0.001
 
-min_parallax_for_smoothing: 10
-min_parallax_for_smoothing_depth: 0
+min_parallax_for_smoothing: 6
+min_parallax_for_smoothing_depth: 4
 num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 40
 min_track_length_for_smoothing_depth: 40
 min_depth_measurements_for_smoothing: 5
 min_active_track_count: 20
+use_angle_parallax: true
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
@@ -110,7 +111,7 @@ cam_fy: 430.24961762
 cam_u0: 427.4407802
 cam_v0: 238.52694868
 color_image: false
-image_edge_padding_percent: .00
+image_edge_padding_percent: .02
 
 distortion_model:
   coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
@@ -119,22 +120,22 @@ distortion_model:
 lidar_depth:
   enabled: true
   calc_mode: 0
-  search_window_width: 45
-  search_window_height: 45
+  search_window_width: 25
+  search_window_height: 25
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 60
-  std_dev_tol_factor: 0.1
+  std_dev_tol_factor: 0.2
   max_messages_retained: 100
 
-lidar_frame_manager_timestamp_thresh: 0.05
+lidar_frame_manager_timestamp_thresh: 0.02
 
 dynamic_outlier_rejection_threshold: 15.0
 landmark_distance_threshold: 25.
 proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 
-use_fixed_lag: true
-smoother_lag: 5
+use_fixed_lag: false
+smoother_lag: 15
 enable_smart_factors: false
 isam_relin_thresh:
   x_rotation: 0.1

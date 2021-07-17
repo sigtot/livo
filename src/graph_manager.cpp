@@ -128,8 +128,8 @@ gtsam::ISAM2Result GraphManager::Update()
                 << std::endl;
 
       // By re-eliminating it next update, it will also be relinearized and so hopefully the delta will go down.
-      std::cout << "Re-eliminating " << gtsam::_defaultKeyFormatter(delta.first) << std::endl;
-      extra_reelim_keys_->push_back(delta.first);
+      // std::cout << "Re-eliminating " << gtsam::_defaultKeyFormatter(delta.first) << std::endl;
+      // extra_reelim_keys_->push_back(delta.first);
       if (remove_high_delta_landmarks_ && !out_of_lag)
       {
         RemoveLandmark(static_cast<int>(gtsam::Symbol(delta.first).index()));
