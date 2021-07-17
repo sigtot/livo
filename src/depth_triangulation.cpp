@@ -32,3 +32,21 @@ gtsam::TriangulationResult DepthTriangulation::Triangulate(
 
   return gtsam::triangulateSafe(camera_set, measurement_vector, params);
 }
+
+bool DepthTriangulation::TriangulationIsOk(const gtsam::Point3& point, const std::vector<gtsam::Point2>& measurements,
+                                           const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
+                                           double mean_reproj_thresh)
+{
+  double reproj_mean = 0;
+  std::cout << "Reproj error: ";
+  for(int i = 0; i < measurements.size(); ++i)
+  {
+    auto reproj_error = (cameras[i].project(point) - measurements[i]).norm();
+    std::cout << reproj_error << ", " << std::endl;
+    reproj_mean += reproj_error;
+  }
+  reproj_mean /= static_cast<double>(measurements.size());
+  std::cout << std::endl;
+  std::cout << "Mean: " << reproj_mean << " (vs thresh " << mean_reproj_thresh << ")" << std::endl;
+  return reproj_mean < mean_reproj_thresh;
+}

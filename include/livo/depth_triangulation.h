@@ -31,8 +31,11 @@ public:
   static gtsam::Point3 PixelAndDepthToPoint3(const gtsam::Point2& pt, double depth,
                                              const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera);
   static gtsam::TriangulationResult Triangulate(const std::vector<gtsam::Point2>& measurements,
-                                   const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
-                                   const gtsam::TriangulationParameters& params);
+                                                const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
+                                                const gtsam::TriangulationParameters& params);
+  static bool TriangulationIsOk(const gtsam::Point3& point, const std::vector<gtsam::Point2>& measurements,
+                                const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
+                                double mean_reproj_thresh);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEPTH_TRIANGULATION_H_
