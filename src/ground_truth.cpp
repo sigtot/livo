@@ -47,8 +47,12 @@ Pose3 GroundTruth::Interpolate(Pose3 from_pose, Pose3 to_pose, double from_ts, d
   gtsam::Pose3 gtsam_to_pose = ToGtsamPose(to_pose);
   double t = (target_ts - from_ts) / (to_ts - from_ts);
 
+  // SO(3) SLERP + linear interpolation in translation
+  return ToPose(gtsam_from_pose.interpolateRt(gtsam_to_pose, t));
+
   // X o Exp(t * Log(between(X, Y)))
-  return ToPose(gtsam::interpolate(gtsam_from_pose, gtsam_to_pose, t));
+  // This interpolation will yield a screw-like motion
+  // return ToPose(gtsam::interpolate(gtsam_from_pose, gtsam_to_pose, t));
 }
 
 void GroundTruth::Load(const GroundTruthProvider& gt_provider)
