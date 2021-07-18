@@ -184,15 +184,34 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .stationary = new_frame->stationary,
                                   .is_keyframe = new_frame->is_keyframe,
                                   .has_depth = new_frame->HasDepth(),
-                                  .active_tracks = GetActiveTracksForBackend() };
+                                  .mature_tracks = GetMatureTracksForBackend() };
 }
 
-std::vector<backend::Track> FeatureExtractor::GetActiveTracksForBackend() const
+bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track)
+{
+  if (track->HasDepth())
+  {
+    return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
+           track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
+           track->max_parallax > GlobalParams::MinParallaxForSmoothingDepth();
+  }
+  else
+  {
+    return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
+           track->max_parallax > GlobalParams::MinParallaxForSmoothing();
+  }
+}
+
+std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
 {
   std::vector<backend::Track> tracks;
   tracks.reserve(active_tracks_.size());
   for (const auto& track : active_tracks_)
   {
+    if (!TrackIsMature(track))
+    {
+      continue;
+    }
     std::vector<backend::Feature> features;
     features.reserve(track->features.size());
     for (const auto& feature : track->features)
