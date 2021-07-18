@@ -93,9 +93,13 @@ boost::optional<LidarDepthResult> getDirectDepthFromPatch(const cv::Mat& depthPa
   float meanDep = 0.0;
   std::vector<bool> in_quadrant = { false, false, false,
                                     false };  // ccw: top right, top left, bottom left, bottom right
+  std::vector<float> depth_values;
+  depth_values.reserve(ROInonZeroLoc.size());
   for (auto& roiPt : ROInonZeroLoc)
   {
-    meanDep += depthPatch.at<float>(roiPt);
+    float depth_value = depthPatch.at<float>(roiPt);
+    meanDep += depth_value;
+    depth_values.push_back(depth_value);
     // Check if point is above or below the center
     auto top = roiPt.y > ctrPt.y;
     auto bottom = !top;
@@ -126,8 +130,8 @@ boost::optional<LidarDepthResult> getDirectDepthFromPatch(const cv::Mat& depthPa
   }
   // Calculate Std.Dev
   float stdDev = 0.0;
-  for (auto& roiPt : ROInonZeroLoc)
-    stdDev += (depthPatch.at<float>(roiPt) - meanDep) * (depthPatch.at<float>(roiPt) - meanDep);
+  for (auto& depth_val : depth_values)
+    stdDev += (depth_val - meanDep) * (depth_val - meanDep);
   stdDev /= (ROInonZeroLoc.size() - 1);
   stdDev = std::sqrt(stdDev);
   // Check if patch has large Std.Dev
@@ -137,7 +141,11 @@ boost::optional<LidarDepthResult> getDirectDepthFromPatch(const cv::Mat& depthPa
     return boost::none;
   }
 
-  return LidarDepthResult{ .depth = meanDep, .std_dev = stdDev, .neighbors = ROInonZeroLoc.size() };
+  // Find median
+  std::sort(depth_values.begin(), depth_values.end());
+  float median = depth_values[depth_values.size() / 2];
+
+  return LidarDepthResult{ .depth = median, .std_dev = stdDev, .neighbors = ROInonZeroLoc.size() };
 }
 
 boost::optional<LidarDepthResult> getDirectDepthFromLine(const cv::Mat& depthPatch,
