@@ -1,7 +1,12 @@
-#include <utility>
-
 #ifndef ORB_TEST_INCLUDE_LIVO_HOMOGRAPHY_DECOMPOSITION_RESULT_H_
 #define ORB_TEST_INCLUDE_LIVO_HOMOGRAPHY_DECOMPOSITION_RESULT_H_
+
+#include <utility>
+
+#include <vector>
+#include <opencv2/core/core.hpp>
+#include <opencv2/calib3d.hpp>
+#include <boost/optional.hpp>
 
 struct HomographyDecompositionResult
 {

@@ -9,6 +9,8 @@
 struct Track
 {
   std::deque<std::shared_ptr<Feature>> features;
+  std::vector<double> parallaxes;
+  boost::optional<cv::Point2f> last_parallax;
   int id;
 
   int inlier_count = 0;
@@ -25,6 +27,18 @@ struct Track
   size_t DepthFeatureCount() const;
 
   void AddFeature(std::shared_ptr<Feature> feature);
+
+  /**
+   * @brief Median filters and then integrates the parallaxes to produce a smoothened sum of the parallaxes
+   * @return
+   */
+  double IntegratedMedianFilteredParallaxes();
+
+  /**
+   * @brief Finds the median parallax of the feature
+   * @return
+   */
+  double MedianParallax() const;
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_

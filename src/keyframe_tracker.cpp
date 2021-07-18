@@ -252,7 +252,8 @@ int KeyframeTracker::ComputePointParallaxes(const std::vector<cv::Point2f>& poin
   cv::Mat K_inv = K.inv();
   for (int i = 0; i < points1.size(); ++i)
   {
-    double dist = ComputePointParallax(points1[i], points2[i], R12, K, K_inv);
+    cv::Point2f _;
+    double dist = ComputePointParallax(points1[i], points2[i], R12, K, K_inv, _);
     parallaxes[i] = dist;
     if (dist > min_parallax_for_keyframe)
     {

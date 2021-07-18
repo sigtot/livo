@@ -91,6 +91,41 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     // Initialize features. We will remove outliers after.
     KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
+    int ival = 5;
+    if (new_frame->id % ival == 0)
+    {
+      std::vector<cv::Point2f> old_matches;
+      std::vector<cv::Point2f> new_matches;
+      std::vector<int> track_indices;
+      for (int i = 0; i < active_tracks_.size(); ++i)
+      {
+        if (active_tracks_[i]->features.size() > ival)
+        {
+          auto old_feature = active_tracks_[i]->features[active_tracks_[i]->features.size() - 1 - ival];
+          auto new_feature = active_tracks_[i]->features.back();
+          assert(old_feature->frame_id == new_frame->id - ival);
+          assert(old_feature->frame_id % 5 == 0);
+          old_matches.push_back(old_feature->pt);
+          new_matches.push_back(new_feature->pt);
+          track_indices.push_back(i);
+        }
+      }
+      std::vector<double> parallaxes;
+      std::vector<cv::Point2f> parallax_proj_points;
+      std::vector<uchar> new_cooler_inlier_mask;
+      auto success = ComputeParallaxesAndInliers(old_matches, new_matches, image_undistorter_->GetRefinedCameraMatrix(),
+                                                 parallaxes, parallax_proj_points, new_cooler_inlier_mask);
+      if (success)
+      {
+        for (int i = 0; i < parallaxes.size(); ++i)
+        {
+          active_tracks_[track_indices[i]]->parallaxes.push_back(parallaxes[i]);
+          active_tracks_[track_indices[i]]->last_parallax = parallax_proj_points[i];
+        }
+      }
+    }
+
+
     // Discard RANSAC outliers
     std::cout << "Discarding RANSAC outliers" << std::endl;
     RANSACRemoveOutlierTracks();
@@ -193,12 +228,12 @@ bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track)
   {
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
            track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
-           track->max_parallax > GlobalParams::MinParallaxForSmoothingDepth();
+           track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth();
   }
   else
   {
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
-           track->max_parallax > GlobalParams::MinParallaxForSmoothing();
+           track->MedianParallax() > GlobalParams::MinParallaxForSmoothing();
   }
 }
 
@@ -444,7 +479,8 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   for (const auto& track : active_tracks_)
   {
-    double intensity = std::min(255., 255 * track->max_parallax / GlobalParams::MinParallaxForSmoothing());
+    auto parallax = track->MedianParallax();
+    double intensity = std::min(255., 255 * parallax / GlobalParams::MinParallaxForSmoothing());
     // double intensity = 255;
     auto non_stationary_color = track->HasDepth() ? cv::Scalar(intensity, 0, 0) : cv::Scalar(0, intensity, 0);
     // auto non_stationary_color = cv::Scalar(0, intensity, 0);
@@ -454,12 +490,16 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
     }
     cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
+    if (track->last_parallax)
+    {
+      cv::circle(tracks_out_img.image, *track->last_parallax, 5, cv::Scalar(0, 255, 255), 1);
+    }
     cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
                 cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
 
     // Draw parallax string
     std::stringstream stream1;
-    stream1 << std::fixed << std::setprecision(2) << track->max_parallax;
+    stream1 << std::fixed << std::setprecision(2) << parallax;
     std::string parallax_str = stream1.str();
 
     cv::putText(tracks_out_img.image, parallax_str, track->features.back()->pt + cv::Point2f(7., 20.),
@@ -599,34 +639,32 @@ void FeatureExtractor::RemoveTracksByIndices(const std::vector<int>& indices)
 
 void FeatureExtractor::RANSACRemoveOutlierTracks()
 {
-  std::vector<std::vector<int>> outlier_indices_table;
-  std::vector<double> R_H_vec;
-  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
-  for (int i = 0; i < n_frames_vec.size(); ++i)
+  // Always do a 1-frame RANSAC to catch possible sudden track jumps
+  std::vector<int> outlier_indices;
+  auto R_H = RANSACGetOutlierTrackIndices(1, outlier_indices);
+  RemoveTracksByIndices(outlier_indices);
+
+  if (R_H < 0.45)
   {
-    std::vector<int> outlier_indices;
-    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
-    R_H_vec.push_back(R_H);
-    outlier_indices_table.push_back(outlier_indices);
+    return;
   }
 
-  int min_i = 0;
-  double min_R_H = R_H_vec[0];
-  for (int i = 1; i < n_frames_vec.size(); ++i)
+  // Then, find outlier indices with n/2 and n frames, and use whichever one has the best (lowest) R_H score
+  std::vector<int> outlier_indices_1;
+  std::vector<int> outlier_indices_2;
+  auto R_H_1 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames() / 2, outlier_indices_1);
+  auto R_H_2 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames(), outlier_indices_2);
+  if (std::min(R_H_1, R_H_2) > 0.45)
   {
-    if (R_H_vec[i] > min_R_H)
-    {
-      min_R_H = R_H_vec[i];
-      min_i = i;
-    }
+    return;
   }
-
-  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
-  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
+  if (R_H_1 < R_H_2)
   {
-    int idx_to_remove = outlier_indices_table[min_i][i];
-    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
-    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
+    RemoveTracksByIndices(outlier_indices_1);
+  }
+  else
+  {
+    RemoveTracksByIndices(outlier_indices_2);
   }
 }
 
@@ -821,7 +859,7 @@ void FeatureExtractor::UpdateTrackParallaxes()
   int count = 0;
   for (const auto& track : active_tracks_)
   {
-    if (track->max_parallax < GlobalParams::MinParallaxForSmoothing())
+    if (true && track->max_parallax < GlobalParams::MinParallaxForSmoothing())
     {
       auto parallax = smoother_.CalculateParallax(track);
       track->max_parallax = std::max(parallax, track->max_parallax);

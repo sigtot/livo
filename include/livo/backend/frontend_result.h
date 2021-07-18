@@ -16,7 +16,7 @@ struct FrontendResult
    * Active tracks in the system at this frame.
    * All tracks were observed in this frame, and the last feature in every track will be that observation.
    */
-  std::vector<backend::Track> active_tracks;
+  std::vector<backend::Track> mature_tracks;
 };
 }  // namespace backend
 

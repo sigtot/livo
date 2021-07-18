@@ -13,7 +13,7 @@
 void SortFeaturesByDepthInPlace(std::vector<std::shared_ptr<Feature>>& features);
 
 double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2, const cv::Mat& R12, const cv::Mat& K,
-                            const cv::Mat& K_inv);
+                            const cv::Mat& K_inv, cv::Point2f& proj_point);
 
 /**
  * Compute a the cell x and y cell indices for a gridded image with given cell width and height.
@@ -39,5 +39,15 @@ double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track);
 
 bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,
                   double thresh);
+
+int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv);
+
+void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
+                            const cv::Mat& R12, const cv::Mat& K, std::vector<double>& parallaxes,
+                            std::vector<cv::Point2f>& parallax_points);
+
+bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
+                                 const cv::Mat& K, std::vector<double>& parallaxes,
+                                 std::vector<cv::Point2f>& parallax_points, std::vector<uchar>& inlier_mask);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_

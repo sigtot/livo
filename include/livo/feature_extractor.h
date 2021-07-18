@@ -110,7 +110,8 @@ private:
 
   void UpdateTrackParallaxes();
 
-  std::vector<backend::Track> GetActiveTracksForBackend() const;
+  std::vector<backend::Track> GetMatureTracksForBackend() const;
+  static bool TrackIsMature(const std::shared_ptr<Track>& track);
 
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,

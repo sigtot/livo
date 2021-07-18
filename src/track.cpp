@@ -33,3 +33,26 @@ void Track::AddFeature(std::shared_ptr<Feature> feature)
   }
   features.push_back(std::move(feature));
 }
+
+double Track::IntegratedMedianFilteredParallaxes()
+{
+  double sum = 0;
+  for (int i = 1; i < static_cast<int>(parallaxes.size()) - 1; ++i)
+  {
+    std::vector<double> sorted {parallaxes[i-1], parallaxes[i], parallaxes[i+1]};
+    std::sort(sorted.begin(), sorted.end());
+    sum += sorted[1];
+  }
+  return sum;
+}
+
+double Track::MedianParallax() const
+{
+  if (parallaxes.size() < 3)
+  {
+    return 0;
+  }
+  std::vector<double> parallaxes_copy(parallaxes);
+  std::sort(parallaxes_copy.begin(), parallaxes_copy.end());
+  return parallaxes_copy[static_cast<int>(parallaxes_copy.size()) / 2];
+}

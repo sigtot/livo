@@ -31,8 +31,9 @@ double ComputeParallaxWithOpenCV(const gtsam::Point2& point1, const gtsam::Point
                                  const gtsam::Rot3& body_R_cam)
 {
   auto cam1_R_cam2 = body_R_cam.inverse() * body1_R_body2 * body_R_cam;
+  cv::Point2f _;
   return ComputePointParallax(ToCvPoint(point1), ToCvPoint(point2), FromMatrix3(cam1_R_cam2.matrix()),
-                              FromMatrix3(K->K()), FromMatrix3(K->inverse()));
+                              FromMatrix3(K->K()), FromMatrix3(K->inverse()), _);
 }
 
 double ComputeParallaxAngle(const gtsam::Point2& point1, const gtsam::Point2& point2, const gtsam::Pose3& pose1,
