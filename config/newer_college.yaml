@@ -129,8 +129,9 @@ lidar_depth:
 
 lidar_frame_manager_timestamp_thresh: 0.02
 
-dynamic_outlier_rejection_threshold: 15.0
-landmark_distance_threshold: 25.
+dynamic_outlier_rejection_threshold: 10.
+triangulation_rank_tol: 50
+landmark_distance_threshold: 15.
 proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 

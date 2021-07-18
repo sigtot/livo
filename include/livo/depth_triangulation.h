@@ -33,9 +33,12 @@ public:
   static gtsam::TriangulationResult Triangulate(const std::vector<gtsam::Point2>& measurements,
                                                 const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
                                                 const gtsam::TriangulationParameters& params);
-  static bool TriangulationIsOk(const gtsam::Point3& point, const std::vector<gtsam::Point2>& measurements,
-                                const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
-                                double mean_reproj_thresh);
+  static bool ReprojectionErrorIsOk(const gtsam::Point3& point, const std::vector<gtsam::Point2>& measurements,
+                                    const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
+                                    double mean_reproj_thresh);
+
+  static bool LandmarkDistanceIsOk(const gtsam::Point3& point, const gtsam::PinholeCamera<gtsam::Cal3_S2>& last_camera,
+                                   double max_dist);
 };
 
 #endif  // ORB_TEST_INCLUDE_LIVO_DEPTH_TRIANGULATION_H_

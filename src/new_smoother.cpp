@@ -86,9 +86,9 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
 gtsam::SmartProjectionParams MakeSmartFactorParams()
 {
   auto smart_factor_params = gtsam::SmartProjectionParams(gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true, 1e-3);
-  smart_factor_params.setDynamicOutlierRejectionThreshold(GlobalParams::DynamicOutlierRejectionThreshold());
   smart_factor_params.setLandmarkDistanceThreshold(GlobalParams::LandmarkDistanceThreshold());
-  smart_factor_params.setRankTolerance(1);
+  smart_factor_params.setRankTolerance(GlobalParams::TriangulationRankTol());
+  smart_factor_params.setEnableEPI(true);
   return smart_factor_params;
 }
 
@@ -208,15 +208,20 @@ gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& t
   std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>> cameras;
   std::vector<gtsam::Point2> measurements;
   gtsam::Point2 pt_for_first_factor;
-  for (const auto& feature : track.features)
+  int n_wanted = 10;
+  int inc = static_cast<int>(track.features.size()) / n_wanted;
+  auto n_collected = 0; // TODO just use measuemrenst.size()
+  for (int i = 0; i < track.features.size(); i += inc)
   {
-    auto pose = graph_manager_.GetPose(feature.frame_id);
+    auto pose = graph_manager_.GetPose(track.features[i].frame_id);
     if (pose)
     {
       cameras.emplace_back(*pose * *body_p_cam_, *K_);
-      measurements.emplace_back(feature.pt.x, feature.pt.y);
+      measurements.emplace_back(track.features[i].pt.x, track.features[i].pt.y);
     }
+    ++n_collected;
   }
+  std::cout << "Wanted " << n_wanted << " measurements for triangulation, got " << n_collected << std::endl;
 
   if (measurements.size() < 2)
   {
@@ -225,16 +230,44 @@ gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& t
 
   gtsam::TriangulationResult triangulation_result;
 
+  gtsam::TriangulationParameters params;
+  params.rankTolerance = GlobalParams::TriangulationRankTol();
+  params.enableEPI = true;
+
+  // Scale rejection thresh by n_collected, because its checked over the cumulative reprojection error
+  //params.dynamicOutlierRejectionThreshold =
+  //    GlobalParams::DynamicOutlierRejectionThreshold() * static_cast<double>(n_collected);
+
   try
   {
-    triangulation_result =
-        DepthTriangulation::Triangulate(measurements, cameras, MakeSmartFactorParams().getTriangulationParameters());
+    triangulation_result = DepthTriangulation::Triangulate(measurements, cameras, params);
   }
   catch (std::exception& e)
   {
     std::cout << "Caught exception during Triangulate" << std::endl;
     std::cout << e.what() << std::endl;
   }
+  std::cout << triangulation_result << std::endl;
+
+  if (triangulation_result)
+  {
+    auto reproj_ok = DepthTriangulation::ReprojectionErrorIsOk(*triangulation_result, measurements, cameras,
+                                              GlobalParams::DynamicOutlierRejectionThreshold());
+    auto dist_ok = DepthTriangulation::LandmarkDistanceIsOk(*triangulation_result, cameras.back(),
+                                                            GlobalParams::LandmarkDistanceThreshold());
+    std::cout << "Reproj ok: " << reproj_ok << std::endl;
+    std::cout << "Dist ok: " << dist_ok << std::endl;
+    if (!reproj_ok)
+    {
+      return gtsam::TriangulationResult::Outlier();
+    }
+    if (!dist_ok)
+    {
+      return gtsam::TriangulationResult::FarPoint();
+    }
+  }
+
+  std::cout << "Triangulation ok" << std::endl;
 
   return triangulation_result;
 }
@@ -295,6 +328,13 @@ void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double
   }
   double offset_1 = lidar_time_offset_provider_->GetOffset(timestamp_1);
   double offset_2 = lidar_time_offset_provider_->GetOffset(timestamp_2);
+
+  auto pose_1 = ToGtsamPose(GroundTruth::At(timestamp_1 - offset_1));
+  auto pose_2 = ToGtsamPose(GroundTruth::At(timestamp_2 - offset_2));
+  graph_manager_.AddBetweenFactor(frame_id_1, frame_id_2, pose_1.between(pose_2), noise);
+
+  return;
+
   auto between_tf = between_transform_provider_->GetBetweenTransform(timestamp_1 - offset_1, timestamp_2 - offset_2);
   if (between_tf)
   {
@@ -391,7 +431,7 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
   for (const auto& track : new_tracks)
   {
     auto obs_count = 0;
-    if (track.depth_feature_count > 0)
+    if (false && track.depth_feature_count > 0)
     {
       if (track.max_parallax > GlobalParams::MinParallaxForSmoothingDepth() &&
           track.features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
@@ -648,7 +688,10 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
   auto predicted_nav_state = imu_integrator_.PredictNavState(*prev_nav_state, *prev_bias);
   auto pim = dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*imu_integrator_.GetPim());
   graph_manager_.AddFrame(frontend_result.frame_id, timestamp_for_values, pim, predicted_nav_state, *prev_bias);
-  imu_integrator_.ResetIntegration();
+  // We don't have the newest bias yet, but the last will do just fine
+  auto newest_bias = graph_manager_.GetBias(last_frame_id_);
+  assert(newest_bias);
+  imu_integrator_.ResetIntegrationAndSetBias(*newest_bias);
 
   std::vector<backend::Track> new_tracks;
   std::vector<backend::Track> existing_tracks;

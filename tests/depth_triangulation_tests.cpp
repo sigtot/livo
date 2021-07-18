@@ -49,7 +49,7 @@ TEST(TriangulationIsOk, ClassifiesPointsCorrectly)
     camera_2.project(ground_truth_point),
   };
 
-  ASSERT_TRUE(DepthTriangulation::TriangulationIsOk(ground_truth_point, measurements, cameras, 0.1));
-  ASSERT_FALSE(DepthTriangulation::TriangulationIsOk(ground_truth_point + gtsam::Point3(0.01, 0.02, 0.01), measurements,
-                                                     cameras, 5.0));
+  ASSERT_TRUE(DepthTriangulation::ReprojectionErrorIsOk(ground_truth_point, measurements, cameras, 0.1));
+  ASSERT_FALSE(DepthTriangulation::ReprojectionErrorIsOk(ground_truth_point + gtsam::Point3(0.01, 0.02, 0.01),
+                                                         measurements, cameras, 5.0));
 }

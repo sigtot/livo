@@ -171,6 +171,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/landmark_distance_threshold", GetInstance().landmark_distance_threshold_);
   ReadVariable(nh, "/orb_test_node/proj_landmark_init_dist_thresh", GetInstance().proj_landmark_init_dist_thresh_);
   ReadVariable(nh, "/orb_test_node/extra_isam2_update_steps", GetInstance().extra_isam2_update_steps_);
+  ReadVariable(nh, "/orb_test_node/triangulation_rank_tol", GetInstance().triangulation_rank_tol_);
 
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
@@ -764,4 +765,8 @@ std::vector<double> GlobalParams::IMUInitBiasGyro()
 std::string GlobalParams::FullPathExportFilePrefix()
 {
   return GetInstance().full_path_export_file_prefix_;
+}
+double GlobalParams::TriangulationRankTol()
+{
+  return GetInstance().triangulation_rank_tol_;
 }

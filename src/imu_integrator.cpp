@@ -41,6 +41,11 @@ void IMUIntegrator::ResetIntegration()
   pim_->resetIntegration();
 }
 
+void IMUIntegrator::ResetIntegrationAndSetBias(const gtsam::imuBias::ConstantBias& bias)
+{
+  pim_->resetIntegrationAndSetBias(bias);
+}
+
 gtsam::NavState IMUIntegrator::PredictNavState(const gtsam::NavState& prev_nav_state,
                                                const gtsam::imuBias::ConstantBias& prev_bias) const
 {

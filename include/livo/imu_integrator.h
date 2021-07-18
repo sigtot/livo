@@ -33,6 +33,7 @@ public:
                 const gtsam::imuBias::ConstantBias& init_bias);
   void WaitAndIntegrate(double timestamp1, double timestamp2);
   void ResetIntegration();
+  void ResetIntegrationAndSetBias(const gtsam::imuBias::ConstantBias& bias);
   gtsam::NavState PredictNavState(const gtsam::NavState& prev_nav_state,
                                   const gtsam::imuBias::ConstantBias& prev_bias) const;
   std::shared_ptr<gtsam::PreintegrationType> GetPim() const;

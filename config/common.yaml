@@ -78,6 +78,7 @@ dynamic_outlier_rejection_threshold: 8.0
 landmark_distance_threshold: 30.0
 proj_landmark_init_dist_thresh: 6.0
 extra_isam2_update_steps: 0
+triangulation_rank_tol: 0.1
 
 min_keyframes_for_nominal: 20
 use_fixed_lag: true
@@ -104,6 +105,6 @@ lidar_depth:
 draw_lidar_lines: false
 
 landmark_removal:
-  high_delta: true
+  high_delta: false
   high_depth_difference: false
-  max_depth_difference: 5
+  max_depth_difference: 1  # make this like 1m??
