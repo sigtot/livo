@@ -39,7 +39,13 @@ boost::optional<std::shared_ptr<LidarFrame>> LidarFrameManager::At(double timest
     auto frame_after = it->second;
     if (it == lidar_frames_.begin())
     {
-      return frame_after;
+      if (std::abs(timestamp - frame_after->timestamp) < timestamp_thresh_)
+      {
+        return frame_after;
+      }
+      else {
+        return boost::none;
+      }
     }
     --it;
     auto ts_before = it->first;
