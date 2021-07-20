@@ -102,7 +102,9 @@ lidar_depth:
   max_allowed_feature_distance: 20.
   std_dev_tol_factor: 0.1
 
-draw_lidar_lines: false
+visualization:
+  draw_only_in_smoother_landmarks: false
+  draw_lidar_lines: false
 
 landmark_removal:
   high_delta: false

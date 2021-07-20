@@ -108,6 +108,7 @@ public:
   void GetPoses(std::map<int, Pose3Stamped>& poses) const;
   void GetLandmarks(std::map<int, LandmarkResult>& landmarks) const;
   boost::optional<Pose3Stamped> GetLatestLidarPose();
+  bool IsLandmarkTracked(int lmk_id) const;
 
   bool IsInitialized() const;
 };

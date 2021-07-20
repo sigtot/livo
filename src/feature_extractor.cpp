@@ -479,6 +479,10 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   for (const auto& track : active_tracks_)
   {
+    if (GlobalParams::DrawOnlyInSmootherLandmarks() && !smoother_.IsLandmarkTracked(track->id))
+    {
+      continue;
+    }
     auto parallax = track->MedianParallax();
     double intensity = std::min(255., 255 * parallax / GlobalParams::MinParallaxForSmoothing());
     // double intensity = 255;

@@ -153,4 +153,6 @@ loam_world_frame: map
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
 
-draw_lidar_lines: false  # Adds about 15ms to image publish
+visualization:
+  draw_only_in_smoother_landmarks: false
+  draw_lidar_lines: false  # Adds about 15ms to image publish

@@ -425,7 +425,7 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
   for (const auto& track : new_tracks)
   {
     auto obs_count = 0;
-    if (false && track.depth_feature_count > 0)
+    if (track.depth_feature_count > 0)
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
       // First, we need to get frame we first observed the features from, because this will be used
@@ -464,26 +464,7 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
           // as we can only add observations that come after this frame.
           auto first_feature_pt = gtsam::Point2(first_feature->pt.x, first_feature->pt.y);
           // Careful with this. May be something weird going on with the timestamp
-          auto ts_for_init =
-              keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track.features.back().timestamp);
-          if (graph_manager_.IsFrameTracked(feature.frame_id))
-          {
-            auto triangulation_result = TriangulateTrack(track);
-            if (triangulation_result)
-            {
-              auto range_from_triangulation = graph_manager_.GetPose(feature.frame_id)->range(*triangulation_result);
-              std::cout << "Range from triangulation is " << range_from_triangulation << " while range from lidar is "
-                        << feature.depth->depth << std::endl;
-              if (std::abs(range_from_triangulation - feature.depth->depth) > 1.5) {
-                std::cout << "Rejecting because range from triangulation too off (> 1.5)!" << std::endl;
-                break;
-              }
-            }
-            else {
-              std::cout << "Triangulation of l" << track.id << " failed, but we have range, so it's fine?"
-                        << std::endl;
-            }
-          }
+          auto ts_for_init = keyframe_timestamps_.GetMostRecentKeyframeTimestamp(track.features.back().timestamp);
           graph_manager_.InitProjectionLandmark(track.id, frame_id_first_seen, ts_for_init, first_feature_pt,
                                                 init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
@@ -892,4 +873,9 @@ void NewSmoother::GetLandmarks(std::map<int, LandmarkResult>& landmarks) const
 bool NewSmoother::IsInitialized() const
 {
   return initialized_;
+}
+
+bool NewSmoother::IsLandmarkTracked(int lmk_id) const
+{
+  return graph_manager_.IsLandmarkTracked(lmk_id);
 }

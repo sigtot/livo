@@ -96,6 +96,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_keyframe_feature_inlier_ratio",
                GetInstance().min_keyframe_feature_inlier_ratio_);
   ReadVariable(nh, "/orb_test_node/min_parallax_for_smoothing", GetInstance().min_parallax_for_smoothing_);
+  ReadVariable(nh, "/orb_test_node/min_parallax_for_smoothing_depth", GetInstance().min_parallax_for_smoothing_depth_);
   ReadVariable(nh, "/orb_test_node/max_parallax_rotation_compensation",
                GetInstance().max_parallax_rotation_compensation_);
   ReadVariable(nh, "/orb_test_node/num_high_parallax_points_for_keyframe",
@@ -149,6 +150,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_track_length_for_smoothing", GetInstance().min_track_length_for_smoothing_);
   ReadVariable(nh, "/orb_test_node/min_track_length_for_smoothing_depth",
                GetInstance().min_track_length_for_smoothing_depth_);
+  ReadVariable(nh, "/orb_test_node/min_depth_measurements_for_smoothing", GetInstance().min_depth_measurements_for_smoothing_);
   ReadVariable(nh, "/orb_test_node/image_edge_padding_percent", GetInstance().image_edge_padding_percent_);
   ReadVariable(nh, "/orb_test_node/stationary_thresh", GetInstance().stationary_thresh_);
 
@@ -210,7 +212,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
   ReadVariable(nh, "/orb_test_node/loam_degeneracy_topic", GetInstance().loam_degeneracy_topic_);
 
-  ReadVariable(nh, "/orb_test_node/draw_lidar_lines", GetInstance().draw_lidar_lines_);
+  ReadVariable(nh, "/orb_test_node/visualization/draw_only_in_smoother_landmarks",
+               GetInstance().draw_only_in_smoother_landmarks_);
+  ReadVariable(nh, "/orb_test_node/visualization/draw_lidar_lines", GetInstance().draw_lidar_lines_);
 
   ReadVariable(nh, "/orb_test_node/landmark_removal/high_delta", GetInstance().landmark_removal_high_delta_);
   ReadVariable(nh, "/orb_test_node/landmark_removal/high_depth_difference",
@@ -769,4 +773,8 @@ std::string GlobalParams::FullPathExportFilePrefix()
 double GlobalParams::TriangulationRankTol()
 {
   return GetInstance().triangulation_rank_tol_;
+}
+bool GlobalParams::DrawOnlyInSmootherLandmarks()
+{
+  return GetInstance().draw_only_in_smoother_landmarks_;
 }

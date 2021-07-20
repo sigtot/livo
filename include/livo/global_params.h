@@ -74,7 +74,7 @@ private:
 
   int min_track_length_for_smoothing_ = 15;
   int min_track_length_for_smoothing_depth_ = 15.;
-  int min_depth_measurements_for_smoothing_ = 3.;  // Need more than n depth measurements to add as depth feat
+  int min_depth_measurements_for_smoothing_ = 3;  // Need more than n depth measurements to add as depth feat
   double image_edge_padding_percent_ = 0.05;
   double stationary_thresh_ = 0.5;
   int init_keyframe_interval_ = 6;
@@ -174,6 +174,7 @@ private:
   std::string loam_sensor_frame_ = "unknown";
   std::string loam_degeneracy_topic_ = "";  // Use empty string if no degeneracy topic available
 
+  bool draw_only_in_smoother_landmarks_ = false;
   // If true, will draw lidar depth lines published in landmarks image.
   // When lidar depth is not available, no landmarks image will be published.
   bool draw_lidar_lines_ = true;
@@ -337,6 +338,7 @@ public:
   static bool LandmarkRemovalHighDepthDifference();
   static double MaxDepthDifferenceBeforeRemoval();
 
+  static bool DrawOnlyInSmootherLandmarks();
   static bool DrawLidarLines();
 };
 
