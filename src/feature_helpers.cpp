@@ -25,6 +25,7 @@ double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2
   cv::Mat point1_mat = (cv::Mat_<double>(3, 1) << point1.x, point1.y, 1.);
   cv::Mat point2_mat = (cv::Mat_<double>(3, 1) << point2.x, point2.y, 1.);
   cv::Mat point2_comp = K * H_rot_only * K_inv * point1_mat;
+  //cv::Mat point1_comp = K * R12 * K_inv * point2_mat; // Fix spooky inversion! (though it is equivalent)
 
   point2_comp /= point2_comp.at<double>(2, 0);  // Normalize homogeneous coordinate
   cv::Mat point2_delta = point2_mat - point2_comp;
@@ -38,6 +39,10 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
                                  const cv::Mat& K, std::vector<double>& parallaxes,
                                  std::vector<cv::Point2f>& parallax_points, std::vector<uchar>& inlier_mask)
 {
+  if (points1.size() < 8)
+  {
+    return false;
+  }
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
   assert(inlier_mask.size() == points1.size());
   auto H = cv::findHomography(points1, points2, cv::RANSAC, 3);

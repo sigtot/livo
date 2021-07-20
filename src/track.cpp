@@ -48,11 +48,30 @@ double Track::IntegratedMedianFilteredParallaxes()
 
 double Track::MedianParallax() const
 {
-  if (parallaxes.size() < 3)
+  if (parallaxes.size() < 6)
   {
     return 0;
   }
   std::vector<double> parallaxes_copy(parallaxes);
   std::sort(parallaxes_copy.begin(), parallaxes_copy.end());
   return parallaxes_copy[static_cast<int>(parallaxes_copy.size()) / 2];
+}
+
+double Track::ParallaxNaive() const
+{
+  std::vector<double> naive_parallaxes;
+  int ival = 5;
+  if (features.size() < ival + 1)
+  {
+    return 0;
+  }
+  for (int i = ival; i < features.size(); i += ival)
+  {
+    std::cout << "calc par for " << i << " of " << features.size() << std::endl;
+    auto d_vec = features[i]->pt - features[i - ival]->pt;
+    auto d = cv::norm(d_vec);
+    naive_parallaxes.push_back(d);
+  }
+  std::sort(naive_parallaxes.begin(), naive_parallaxes.end());
+  return naive_parallaxes[static_cast<int>(naive_parallaxes.size()) / 2];
 }

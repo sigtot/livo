@@ -39,6 +39,12 @@ struct Track
    * @return
    */
   double MedianParallax() const;
+
+  /**
+   * @brief A naive, raw pixel difference parallax computation computation method
+   * @return
+   */
+  double ParallaxNaive() const;
 };
 
 #endif  // ORB_TEST_SRC_TRACK_H_
