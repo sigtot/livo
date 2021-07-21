@@ -98,6 +98,7 @@ gtsam::ISAM2Result GraphManager::Update()
   params.removeFactorIndices = *factors_to_remove_;
   params.extraReelimKeys = *extra_reelim_keys_;
   auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, params);
+  std::cout << "Graph manager done." << std::endl;
   graph_->resize(0);
   values_->clear();
   timestamps_->clear();
@@ -397,7 +398,7 @@ boost::optional<LandmarkResultGtsam> GraphManager::GetLandmark(int lmk_id) const
 
   std::lock_guard<std::mutex> lock(newest_estimate_mu_);
   auto point = newest_estimate_->at<gtsam::Point3>(L(lmk_id));
-  return LandmarkResultGtsam{ incremental_solver_->CalculateEstimatePoint3(L(lmk_id)), ProjectionFactorType, active };
+  return LandmarkResultGtsam{ point, ProjectionFactorType, active };
 }
 
 std::map<int, boost::optional<LandmarkResultGtsam>> GraphManager::GetLandmarks() const
@@ -437,6 +438,12 @@ bool GraphManager::IsLandmarkTracked(int lmk_id) const
          ((lmk_in_smoother->second.smart_factor_in_smoother &&
            ExistsInSolverOrValues(X(lmk_in_smoother->second.first_frame_id_seen))) ||
           ExistsInSolverOrValues(L(lmk_id)));
+}
+
+bool GraphManager::IsLandmarkInResult(int lmk_id) const
+{
+  std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+  return newest_estimate_->exists(L(lmk_id));
 }
 
 bool GraphManager::IsFrameTracked(int frame_id) const

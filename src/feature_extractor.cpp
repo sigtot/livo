@@ -18,7 +18,7 @@
 
 FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,
                                    const LidarFrameManager& lidar_frame_manager,
-                                   std::shared_ptr<ImageUndistorter> image_undistorter, const NewSmoother& smoother)
+                                   std::shared_ptr<ImageUndistorter> image_undistorter, NewSmoother& smoother)
   : tracks_pub_(tracks_pub)
   , high_delta_tracks_pub_(high_delta_tracks_pub)
   , lidar_frame_manager_(lidar_frame_manager)
@@ -29,6 +29,7 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const ros::
 
 backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
+  std::cout << "Frontend processing new frame" << std::endl;
   auto encoding =
       GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
 
@@ -92,7 +93,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
     int ival = 5;
-    if (new_frame->id % ival == 0)
+    if (frames.size() > ival)
     {
       std::vector<cv::Point2f> old_matches;
       std::vector<cv::Point2f> new_matches;
@@ -103,8 +104,11 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
         {
           auto old_feature = active_tracks_[i]->features[active_tracks_[i]->features.size() - 1 - ival];
           auto new_feature = active_tracks_[i]->features.back();
-          assert(old_feature->frame_id == new_frame->id - ival);
-          assert(old_feature->frame_id % 5 == 0);
+          if (old_feature->frame_id != new_frame->id - ival)
+          {
+            std::cout << "wtf old_feature->frame_id != new_frame - ival" << std::endl;
+            exit(1);
+          }
           old_matches.push_back(old_feature->pt);
           new_matches.push_back(new_feature->pt);
           track_indices.push_back(i);
@@ -113,8 +117,13 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
       std::vector<double> parallaxes;
       std::vector<cv::Point2f> parallax_proj_points;
       std::vector<uchar> new_cooler_inlier_mask;
+
+      auto time_before_parallax = std::chrono::system_clock::now();
       auto success = ComputeParallaxesAndInliers(old_matches, new_matches, image_undistorter_->GetRefinedCameraMatrix(),
                                                  parallaxes, parallax_proj_points, new_cooler_inlier_mask);
+      auto time_after_parallax = std::chrono::system_clock::now();
+      auto millis_parallax = std::chrono::duration_cast<std::chrono::milliseconds>(time_after_parallax - time_before_parallax);
+      std::cout << "Done computing parallaxes: Took " << static_cast<int>(millis_parallax.count()) << "ms" << std::endl;
       if (success)
       {
         for (int i = 0; i < parallaxes.size(); ++i)
@@ -128,7 +137,10 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
     // Discard RANSAC outliers
     std::cout << "Discarding RANSAC outliers" << std::endl;
+    // TODO: use essential matrix instead? Maybe as part of the parallax computation?
     RANSACRemoveOutlierTracks();
+
+    RejectOutliersByLandmarkProjections(new_frame->id, new_frame->timestamp);
 
     std::cout << "Discarding tracks with too high change between consecutive features" << std::endl;
     RemoveBadDepthTracks();
@@ -205,8 +217,6 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     frames.pop_front();
   }
 
-  UpdateTrackParallaxes();
-
   auto time_before_publish = std::chrono::system_clock::now();
   PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
   auto time_after_publish = std::chrono::system_clock::now();
@@ -222,8 +232,12 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .mature_tracks = GetMatureTracksForBackend() };
 }
 
-bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track)
+bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
 {
+  if (smoother_.IsLandmarkTracked(track->id))
+  {
+    return true; // If it is already in the smoother, the track must be mature
+  }
   if (track->HasDepth())
   {
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
@@ -241,6 +255,7 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
 {
   std::vector<backend::Track> tracks;
   tracks.reserve(active_tracks_.size());
+  auto time_before = std::chrono::system_clock::now();
   for (const auto& track : active_tracks_)
   {
     if (!TrackIsMature(track))
@@ -262,6 +277,9 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
                                      .depth_feature_count = track->DepthFeatureCount(),
                                      .features = std::move(features) });
   }
+  auto time_after = std::chrono::system_clock::now();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
+  std::cout << "Getting mature tracks took " << millis.count() << "ms" << std::endl;
   return tracks;
 }
 
@@ -494,9 +512,14 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       cv::line(tracks_out_img.image, track->features[i - 1]->pt, track->features[i]->pt, color, 1);
     }
     cv::circle(tracks_out_img.image, track->features.back()->pt, 5, color, 1);
-    if (track->last_parallax)
+    //if (track->last_parallax)
+    //{
+    //  cv::circle(tracks_out_img.image, *track->last_parallax, 5, cv::Scalar(0, 255, 255), 1);
+    //}
+    if (track->last_landmark_projection)
     {
-      cv::circle(tracks_out_img.image, *track->last_parallax, 5, cv::Scalar(0, 255, 255), 1);
+      cv::circle(tracks_out_img.image, *track->last_landmark_projection, GlobalParams::FeaturePredictionOutlierThresh(),
+                 cv::Scalar(0, 255, 255), 1);
     }
     cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
                 cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
@@ -534,6 +557,36 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());
   std::cout << "track count: " << active_tracks_.size() << std::endl;
+}
+
+void FeatureExtractor::RejectOutliersByLandmarkProjections(int frame_id, double timestamp)
+{
+  std::vector<int> track_ids;
+  track_ids.reserve(active_tracks_.size());
+  for (const auto& track : active_tracks_)
+  {
+    track_ids.push_back(track->id);
+  }
+
+  std::vector<boost::optional<cv::Point2f>> projections;
+  auto success = smoother_.ProjectLandmarksIntoFrame(track_ids, frame_id, timestamp, projections);
+  if (!success)
+  {
+    return;
+  }
+  // iterate backwards to not mess up vector when erasing
+  for (int i = static_cast<int>(projections.size()) - 1; i >= 0; --i)
+  {
+    active_tracks_[i]->last_landmark_projection = projections[i];
+    if (projections[i])
+    {
+      auto d = cv::norm((*projections[i] - active_tracks_[i]->features.back()->pt));
+      if (d > GlobalParams::FeaturePredictionOutlierThresh()) {
+        std::cout << "Erasing track " << i << " bc reproj error is too off: " << d << std::endl;
+        active_tracks_.erase(active_tracks_.begin() + i);
+      }
+    }
+  }
 }
 
 void FeatureExtractor::RemoveBadDepthTracks()
@@ -643,33 +696,40 @@ void FeatureExtractor::RemoveTracksByIndices(const std::vector<int>& indices)
 
 void FeatureExtractor::RANSACRemoveOutlierTracks()
 {
-  // Always do a 1-frame RANSAC to catch possible sudden track jumps
-  std::vector<int> outlier_indices;
-  auto R_H = RANSACGetOutlierTrackIndices(1, outlier_indices);
-  RemoveTracksByIndices(outlier_indices);
-
-  if (R_H < 0.45)
+  auto time_before = std::chrono::system_clock::now();
+  std::vector<std::vector<int>> outlier_indices_table;
+  std::vector<double> R_H_vec;
+  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
+  for (int i = 0; i < n_frames_vec.size(); ++i)
   {
-    return;
+    std::vector<int> outlier_indices;
+    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
+    R_H_vec.push_back(R_H);
+    outlier_indices_table.push_back(outlier_indices);
   }
 
-  // Then, find outlier indices with n/2 and n frames, and use whichever one has the best (lowest) R_H score
-  std::vector<int> outlier_indices_1;
-  std::vector<int> outlier_indices_2;
-  auto R_H_1 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames() / 2, outlier_indices_1);
-  auto R_H_2 = RANSACGetOutlierTrackIndices(GlobalParams::SecondRANSACNFrames(), outlier_indices_2);
-  if (std::min(R_H_1, R_H_2) > 0.45)
+  int min_i = 0;
+  double min_R_H = R_H_vec[0];
+  for (int i = 1; i < n_frames_vec.size(); ++i)
   {
-    return;
+    if (R_H_vec[i] > min_R_H)
+    {
+      min_R_H = R_H_vec[i];
+      min_i = i;
+    }
   }
-  if (R_H_1 < R_H_2)
+
+  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
+  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
   {
-    RemoveTracksByIndices(outlier_indices_1);
+    int idx_to_remove = outlier_indices_table[min_i][i];
+    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
+    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
   }
-  else
-  {
-    RemoveTracksByIndices(outlier_indices_2);
-  }
+
+  auto time_after = std::chrono::system_clock::now();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
+  std::cout << "RANSAC took " << millis.count() << "ms" << std::endl;
 }
 
 void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)

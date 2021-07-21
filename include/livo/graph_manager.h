@@ -152,6 +152,14 @@ public:
   gtsam::VectorValues GetDelta();
 
   bool IsLandmarkTracked(int lmk_id) const;
+  /**
+   * @brief Check if a landmark is in newest_estimate. No support for smart factors.
+   *
+   * This is basically a new, simpler and thread-safe implementation of IsLandmarkTracked
+   * @param lmk_id
+   * @return
+   */
+  bool IsLandmarkInResult(int lmk_id) const;
   bool IsFrameTracked(int frame_id) const;
   bool CanAddObservation(int lmk_id, int frame_id) const;
   bool CanAddObservationsForFrame(int frame_id, double frame_timestamp) const;

@@ -101,7 +101,7 @@ std::shared_ptr<IncrementalSolver> GetIncrementalSolver()
   return std::make_shared<ISAM2Solver>(MakeISAM2Params());
 }
 
-NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
+NewSmoother::NewSmoother(const std::shared_ptr<IMUQueue>& imu_queue,
                          std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
                          const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
                          const std::shared_ptr<BetweenTransformProvider>& between_transform_provider)
@@ -120,7 +120,8 @@ NewSmoother::NewSmoother(std::shared_ptr<IMUQueue> imu_queue,
                                           gtsam::noiseModel::Isotropic::Sigma(1, GlobalParams::NoiseRange())))
   , graph_manager_(GetIncrementalSolver(), MakeSmartFactorParams(), GlobalParams::SmootherLag(),
                                 GlobalParams::LandmarkRemovalHighDelta())
-  , imu_integrator_(std::move(imu_queue), MakeIMUParams(), gtsam::imuBias::ConstantBias())
+  , imu_integrator_for_frontend_(imu_queue, MakeIMUParams(), gtsam::imuBias::ConstantBias())
+  , imu_integrator_(imu_queue, MakeIMUParams(), gtsam::imuBias::ConstantBias())
   , lidar_time_offset_provider_(std::move(lidar_time_offset_provider))
   , between_transform_provider_(between_transform_provider)
   , body_p_cam_(gtsam::make_shared<gtsam::Pose3>(
@@ -270,6 +271,59 @@ gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& t
   std::cout << "Triangulation ok" << std::endl;
 
   return triangulation_result;
+}
+
+bool NewSmoother::ProjectLandmarksIntoFrame(const std::vector<int>& track_ids, int frame_id, double timestamp,
+                                            std::vector<boost::optional<cv::Point2f>>& projections)
+{
+  if (added_frames_.empty())
+  {
+    return false;
+  }
+  auto last_frame = added_frames_.rbegin()->second;
+  auto last_navstate = graph_manager_.GetNavState(last_frame.frame_id);
+  auto last_bias = graph_manager_.GetBias(last_frame.frame_id);
+  if (!last_navstate || !last_bias)
+  {
+    return false;
+  }
+  imu_integrator_for_frontend_.WaitAndIntegrate(last_frame.timestamp, timestamp);
+  auto pred_pose = imu_integrator_for_frontend_.PredictNavState(*last_navstate, *last_bias).pose();
+  imu_integrator_for_frontend_.ResetIntegrationAndSetBias(*last_bias);
+  gtsam::PinholeCamera<gtsam::Cal3_S2> pred_camera(pred_pose * *body_p_cam_, *K_);
+
+  projections.reserve(track_ids.size());
+  for (const auto& track_id : track_ids)
+  {
+    if (!graph_manager_.IsLandmarkInResult(track_id))
+    {
+      projections.emplace_back(boost::none);
+      continue;
+    }
+    boost::optional<LandmarkResultGtsam> lmk;
+    try
+    {
+      lmk = graph_manager_.GetLandmark(track_id);
+    }
+    catch (gtsam::ValuesKeyDoesNotExist& e)
+    {
+      // This exception likely throws because mutex is not locked between IsLandmarkTracked and GetLandmark
+      projections.emplace_back(boost::none);
+      continue;
+    }
+
+    try
+    {
+      auto proj_point = pred_camera.project(lmk->pt);
+      projections.emplace_back(ToCvPoint(proj_point));
+    }
+    catch (gtsam::CheiralityException& e)
+    {
+      projections.emplace_back(boost::none);
+    }
+  }
+
+  return true;
 }
 
 bool NewSmoother::TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
@@ -656,7 +710,11 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
   graph_manager_.AddFrame(frontend_result.frame_id, timestamp_for_values, pim, predicted_nav_state, *prev_bias);
   // We don't have the newest bias yet, but the last will do just fine
   auto newest_bias = graph_manager_.GetBias(last_frame_id_);
-  assert(newest_bias);
+  if (!newest_bias)
+  {
+    std::cout << "No newest bias??" << std::endl;
+    exit(1);
+  }
   imu_integrator_.ResetIntegrationAndSetBias(*newest_bias);
 
   std::vector<backend::Track> new_tracks;
@@ -693,6 +751,7 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
                             between_noise_keyframe_);
   }
 
+  std::cout << "Starting ISAM2 Update" << std::endl;
   auto time_before = std::chrono::system_clock::now();
   auto isam_result = graph_manager_.Update();
   auto time_after = std::chrono::system_clock::now();
@@ -701,6 +760,7 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
   DebugValuePublisher::PublishTotalCliques(static_cast<int>(isam_result.cliques));
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
+  std::cout << "ISAM2 update done! Took " << static_cast<int>(millis.count()) << "ms" << std::endl;
 
   DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
 
@@ -877,5 +937,5 @@ bool NewSmoother::IsInitialized() const
 
 bool NewSmoother::IsLandmarkTracked(int lmk_id) const
 {
-  return graph_manager_.IsLandmarkTracked(lmk_id);
+  return graph_manager_.IsLandmarkInResult(lmk_id);
 }

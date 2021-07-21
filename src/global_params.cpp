@@ -174,6 +174,8 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/proj_landmark_init_dist_thresh", GetInstance().proj_landmark_init_dist_thresh_);
   ReadVariable(nh, "/orb_test_node/extra_isam2_update_steps", GetInstance().extra_isam2_update_steps_);
   ReadVariable(nh, "/orb_test_node/triangulation_rank_tol", GetInstance().triangulation_rank_tol_);
+  ReadVariable(nh, "/orb_test_node/feature_prediction_outlier_thresh",
+               GetInstance().feature_prediction_outlier_thresh_);
 
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_quat", GetInstance().body_p_cam_quat_);
   ReadVectorVariable(nh, "/orb_test_node/body_p_cam_vec", GetInstance().body_p_cam_vec_);
@@ -777,4 +779,8 @@ double GlobalParams::TriangulationRankTol()
 bool GlobalParams::DrawOnlyInSmootherLandmarks()
 {
   return GetInstance().draw_only_in_smoother_landmarks_;
+}
+double GlobalParams::FeaturePredictionOutlierThresh()
+{
+  return GetInstance().feature_prediction_outlier_thresh_;
 }

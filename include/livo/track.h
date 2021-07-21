@@ -11,6 +11,7 @@ struct Track
   std::deque<std::shared_ptr<Feature>> features;
   std::vector<double> parallaxes;
   boost::optional<cv::Point2f> last_parallax;
+  boost::optional<cv::Point2f> last_landmark_projection;
   int id;
 
   int inlier_count = 0;

@@ -71,6 +71,7 @@ private:
   KeyframeTimestamps keyframe_timestamps_;
   GraphManager graph_manager_;
   IMUIntegrator imu_integrator_;
+  IMUIntegrator imu_integrator_for_frontend_;
   std::shared_ptr<FeatureExtractor> feature_extractor_ = nullptr;
 
   gtsam::Point3 CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const;
@@ -91,7 +92,7 @@ private:
   void PublishHighDeltaTrackImage();
 
 public:
-  NewSmoother(std::shared_ptr<IMUQueue> imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
+  NewSmoother(const std::shared_ptr<IMUQueue>& imu_queue, std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider,
               const std::shared_ptr<RefinedCameraMatrixProvider>& refined_camera_matrix_provider,
               const std::shared_ptr<BetweenTransformProvider>& between_transform_provider);
 
@@ -101,7 +102,13 @@ public:
                   const boost::optional<std::pair<double, double>>& imu_gravity_alignment_timestamps = boost::none);
   void AddKeyframe(const backend::FrontendResult& frontend_result, bool is_keyframe);
 
+  /**
+   * @deprecated
+   */
   void UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame);
+
+  bool ProjectLandmarksIntoFrame(const std::vector<int>& track_ids, int frame_id, double timestamp,
+                                 std::vector<boost::optional<cv::Point2f>>& projections);
 
   double CalculateParallax(const std::shared_ptr<Track>& track) const;
 

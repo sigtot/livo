@@ -33,7 +33,7 @@ private:
   std::deque<shared_ptr<Frame>> frames;
   int frame_count_ = 0;  // Number of frames we have added. The current number of frames in memory may be lower.
   const LidarFrameManager& lidar_frame_manager_;
-  const NewSmoother& smoother_;
+  NewSmoother& smoother_;
 
   std::vector<std::shared_ptr<Track>> active_tracks_;
   std::deque<std::shared_ptr<Track>> removed_tracks_;
@@ -111,12 +111,14 @@ private:
   void UpdateTrackParallaxes();
 
   std::vector<backend::Track> GetMatureTracksForBackend() const;
-  static bool TrackIsMature(const std::shared_ptr<Track>& track);
+  bool TrackIsMature(const std::shared_ptr<Track>& track) const;
+
+  void RejectOutliersByLandmarkProjections(int frame_id, double timestamp);
 
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,
                             const LidarFrameManager& lidar_frame_manager,
-                            std::shared_ptr<ImageUndistorter> image_undistorter, const NewSmoother& smoother);
+                            std::shared_ptr<ImageUndistorter> image_undistorter, NewSmoother& smoother);
 
   backend::FrontendResult lkCallback(const sensor_msgs::Image::ConstPtr& msg);
   void PublishSingleTrackImage(const backend::Track& track);

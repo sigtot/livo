@@ -136,6 +136,7 @@ private:
   double proj_landmark_init_dist_thresh_ = 6.;  // Triangulated proj factors are only added if closer than this dist
   int extra_isam2_update_steps_ = 0;
   double triangulation_rank_tol_ = 0.1;
+  double feature_prediction_outlier_thresh_ = 15.;  // Max distance from a feature to where isam2 predicts it to be
 
   std::vector<double> body_p_cam_quat_ = { 0., 0., 0., 1. };
   std::vector<double> body_p_cam_vec_ = { 0., 0., 0. };
@@ -296,6 +297,7 @@ public:
   static double ProjLandmarkInitDistanceThresh();
   static int ExtraISAM2UpdateSteps();
   static double TriangulationRankTol();
+  static double FeaturePredictionOutlierThresh();
 
   static std::vector<double> BodyPCamQuat();
   static std::vector<double> BodyPCamVec();

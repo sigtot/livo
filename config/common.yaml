@@ -79,6 +79,7 @@ landmark_distance_threshold: 30.0
 proj_landmark_init_dist_thresh: 6.0
 extra_isam2_update_steps: 0
 triangulation_rank_tol: 0.1
+feature_prediction_outlier_thresh: 15
 
 min_keyframes_for_nominal: 20
 use_fixed_lag: true
