@@ -266,6 +266,7 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
   std::vector<backend::Track> tracks;
   tracks.reserve(active_tracks_.size());
   auto time_before = std::chrono::system_clock::now();
+  int n_added = 0;
   for (const auto& track : active_tracks_)
   {
     if (!TrackIsMature(track))
@@ -286,6 +287,11 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
                                      .max_parallax = track->max_parallax,
                                      .depth_feature_count = track->DepthFeatureCount(),
                                      .features = std::move(features) });
+    ++n_added;
+    if (n_added >= GlobalParams::MaxFeatures())
+    {
+      break;
+    }
   }
   auto time_after = std::chrono::system_clock::now();
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);

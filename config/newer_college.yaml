@@ -60,13 +60,13 @@ isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 count_features_per_cell: true
-min_features_per_cell: 4
+min_features_per_cell: 2
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 6
-max_features: 40
-grid_cells_x: 5
-grid_cells_y: 5
+max_features_per_cell: 3
+max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
+grid_cells_x: 8
+grid_cells_y: 8
 track_count_lower_thresh: 30
 
 klt:
