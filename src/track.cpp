@@ -18,6 +18,18 @@ bool Track::HasDepth() const
          }) != features.end();
 }
 
+boost::optional<LidarDepthResult> Track::LastDepth() const
+{
+  auto feat = std::find_if(features.rbegin(), features.rend(), [](const std::shared_ptr<Feature>& feature) {
+    return feature->depth.is_initialized();
+  });
+  if (feat != features.rend())
+  {
+    return (*feat)->depth;
+  }
+  return boost::none;
+}
+
 size_t Track::DepthFeatureCount() const
 {
   return std::count_if(features.begin(), features.end(),

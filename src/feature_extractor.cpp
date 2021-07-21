@@ -118,12 +118,8 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
       std::vector<cv::Point2f> parallax_proj_points;
       std::vector<uchar> new_cooler_inlier_mask;
 
-      auto time_before_parallax = std::chrono::system_clock::now();
       auto success = ComputeParallaxesAndInliers(old_matches, new_matches, image_undistorter_->GetRefinedCameraMatrix(),
                                                  parallaxes, parallax_proj_points, new_cooler_inlier_mask);
-      auto time_after_parallax = std::chrono::system_clock::now();
-      auto millis_parallax = std::chrono::duration_cast<std::chrono::milliseconds>(time_after_parallax - time_before_parallax);
-      std::cout << "Done computing parallaxes: Took " << static_cast<int>(millis_parallax.count()) << "ms" << std::endl;
       if (success)
       {
         for (int i = 0; i < parallaxes.size(); ++i)
@@ -252,7 +248,8 @@ bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
   {
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
            track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
-           track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth();
+           track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth() &&
+           track->LastDepth()->depth < GlobalParams::MaxDepthForSmoothing();
   }
   else
   {
@@ -577,6 +574,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
 void FeatureExtractor::RejectOutliersByLandmarkProjections(int frame_id, double timestamp)
 {
+  auto time_before = std::chrono::system_clock::now();
   std::vector<int> track_ids;
   track_ids.reserve(active_tracks_.size());
   for (const auto& track : active_tracks_)
@@ -603,6 +601,9 @@ void FeatureExtractor::RejectOutliersByLandmarkProjections(int frame_id, double 
       }
     }
   }
+  auto time_after = std::chrono::system_clock::now();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
+  DebugValuePublisher::PublishReprojectionRejectionDuration(static_cast<double>(millis.count()));
 }
 
 void FeatureExtractor::RemoveBadDepthTracks()

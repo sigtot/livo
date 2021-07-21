@@ -57,7 +57,9 @@ private:
   double min_parallax_for_smoothing_depth_ = 5.;  // Depth features need higher parallax than this for smoothing
   double max_parallax_rotation_compensation_ = 30.;
   int num_high_parallax_points_for_keyframe_ = 20;
+  /// @deprecated
   bool use_angle_parallax_ = true;  // true: use angle parallax as in ORB-SLAM, false: pixel parallax as in VINS-mono
+  double max_depth_for_smoothing_ = 30; // meters
 
   bool landmark_removal_high_delta_ = true;
   bool landmark_removal_high_depth_distance_ = true;
@@ -228,7 +230,9 @@ public:
   static double MaxParallaxRotationCompensation();
   static double NumHighParallaxPointsForKeyframe();
   static int MinActiveTrackCount();
+  /// @deprecated
   static bool UseAngleParallax();
+  static double MaxDepthForSmoothing();
 
   static int SecondRANSACNFrames();
 

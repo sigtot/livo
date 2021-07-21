@@ -65,8 +65,8 @@ num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
 max_features_per_cell: 3
 max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
-grid_cells_x: 8
-grid_cells_y: 8
+grid_cells_x: 5
+grid_cells_y: 5
 track_count_lower_thresh: 30
 
 klt:
@@ -86,6 +86,7 @@ num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20
 min_track_length_for_smoothing_depth: 10
 min_depth_measurements_for_smoothing: 3
+max_depth_for_smoothing: 40
 min_active_track_count: 20
 use_angle_parallax: true
 
@@ -124,7 +125,7 @@ lidar_depth:
   search_window_width: 25
   search_window_height: 25
   min_non_zero_neighbors: 4
-  max_allowed_feature_distance: 30
+  max_allowed_feature_distance: 60
   std_dev_tol_factor: 0.3
   max_messages_retained: 100
 
@@ -156,5 +157,5 @@ loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
 
 visualization:
-  draw_only_in_smoother_landmarks: true
+  draw_only_in_smoother_landmarks: false
   draw_lidar_lines: false  # Adds about 15ms to image publish

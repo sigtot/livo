@@ -25,6 +25,8 @@ struct Track
 
   bool HasDepth() const;
 
+  boost::optional<LidarDepthResult> LastDepth() const;
+
   size_t DepthFeatureCount() const;
 
   void AddFeature(std::shared_ptr<Feature> feature);

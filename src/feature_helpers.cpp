@@ -1,10 +1,12 @@
 #include "feature_helpers.h"
 #include "Initializer.h"
+#include "debug_value_publisher.h"
 
 #include <algorithm>
 #include <opencv2/calib3d.hpp>
 #include <essential_matrix_decomposition_result.h>
 #include <homography_decomposition_result.h>
+#include <chrono>
 
 bool CompareFeatureSharedPtrsByWhetherTheyHaveDepth(const std::shared_ptr<Feature>& a,
                                                     const std::shared_ptr<Feature>& b)
@@ -39,13 +41,13 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
                                  const cv::Mat& K, std::vector<double>& parallaxes,
                                  std::vector<cv::Point2f>& parallax_points, std::vector<uchar>& inlier_mask)
 {
+  auto time_before_parallax = std::chrono::system_clock::now();
   if (points1.size() < 8)
   {
     return false;
   }
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
-  assert(inlier_mask.size() == points1.size());
-  auto H = cv::findHomography(points1, points2, cv::RANSAC, 3);
+  auto H = cv::findHomography(points1, points2, cv::RANSAC, 3); // TODO can do in own thread to speed up
 
   std::vector<bool> F_check_inliers;
   double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points1, points2);
@@ -61,77 +63,27 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
     inlier_mask[i] = inlier_mask[i] && F_check_inliers[i];
   }
 
-  // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
-  // As such, we compute it in reverse order, so that we obtain the transformation from frame1 to frame2 in frame1
-  // frame
-  auto E = cv::findEssentialMat(points2, points1, K, cv::RANSAC);
-  cv::Mat R_E;
-  std::vector<double> t_E;
-  cv::recoverPose(E, points2, points1, K, R_E, t_E);
-
-  // We compute the homography also if a fundamental matrix is a better fit, to compare normals with later frames
-  std::vector<cv::Mat> Rs, ts, normals;
-  cv::decomposeHomographyMat(H, K, Rs, ts, normals);
-  std::vector<cv::Mat> valid_Rs, valid_ts, valid_normals;
-  int least_invalids_idx = 0;
-  int least_invalids = 999999;
-  for (int i = 0; i < Rs.size(); ++i)
-  {
-    int invalids = NumPointsBehindCamera(points2, normals[i], K.inv());
-    if (invalids == 0)
-    {
-      valid_Rs.push_back(Rs[i]);
-      valid_ts.push_back(ts[i]);
-      valid_normals.push_back(normals[i]);
-      least_invalids = invalids;
-      least_invalids_idx = i;
-    }
-    else if (invalids < least_invalids)
-    {
-      least_invalids = invalids;
-      least_invalids_idx = i;
-    }
-  }
-  if (valid_Rs.empty())  //
-  {
-    std::cout << "WARN: May be using R and t decomposed from a degenerate homography!" << std::endl;
-    std::cout << "Some (" << least_invalids << "/" << points2.size() << ") points were projected to be behind camera "
-              << std::endl;
-    valid_Rs.push_back(Rs[least_invalids_idx]);
-    valid_ts.push_back(ts[least_invalids_idx]);
-    valid_normals.push_back(normals[least_invalids_idx]);
-  }
-  assert(valid_Rs.size() <= 2);
-  HomographyDecompositionResult homography_decomp_result(H, valid_Rs, valid_ts, valid_normals);
-
-  /*
-  // Find best homography
-  int best_idx = 0;
-  int best_reference_idx = 0;
-  double largest_dot_product = -1.;
-  for (int i = 0; i < homography_decomp_result.normals.size(); ++i)
-  {
-    for (int j = 0; j < prev_homography_decomp_result.normals.size(); ++j)
-    {
-      cv::Mat dot_product_mat = homography_decomp_result.normals[i].t() * prev_homography_decomp_result.normals[j];
-      double dot_product = dot_product_mat.at<double>(0);
-      if (abs(dot_product) > abs(largest_dot_product))
-      {
-        largest_dot_product = dot_product;
-        best_idx = i;
-        best_reference_idx = j;
-      }
-    }
-  }
-  homography_decomp_result.selected_index = best_idx;
-   */
-
+  std::cout << "R_H= " << R_H << "for parallax" << std::endl;
+  std::cout << "(S_H= " << S_H << ")" << std::endl;
+  std::cout << "(S_F= " << S_F << ")" << std::endl;
   if (R_H > 0.45)
   {
-    // Essential mat is no good. Let's exit here.
+    // Fundamental mat is no good. Let's exit here.
     return false;
   }
-  cv::Mat R12 = R_E;
+
+  auto E = K.t() * F * K;
+  cv::Mat R_E;
+  std::vector<double> t_E;
+  cv::recoverPose(E, points1, points2, K, R_E, t_E);
+
+  auto time_after_parallax = std::chrono::system_clock::now();
+  auto millis_parallax = std::chrono::duration_cast<std::chrono::milliseconds>(time_after_parallax - time_before_parallax);
+  DebugValuePublisher::PublishParallaxDuration(static_cast<double>(millis_parallax.count()));
+
+  // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
+  // As such, we invert R, so that we obtain the transformation from frame1 to frame2 in frame1
+  cv::Mat R12 = R_E.t();
 
   std::cout << "Computing parallax with R = \n" << R12 << std::endl;
 
@@ -168,6 +120,7 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
     }
   }
   std::cout << inlier_count << "/" << outlier_count << " inliers/outliers" << std::endl;
+  std::cout << "Done computing parallaxes: Took " << static_cast<int>(millis_parallax.count()) << "ms" << std::endl;
   return true;
 }
 

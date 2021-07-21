@@ -21,6 +21,10 @@ void DebugValuePublisher::SetPublishers(ros::NodeHandle& nh)
       nh.advertise<std_msgs::Float64>("/feature_extraction_duration", 1000);
   GetInstance().klt_duration_pub_ = nh.advertise<std_msgs::Float64>("/klt_duration", 1000);
   GetInstance().publish_image_duration_pub_ = nh.advertise<std_msgs::Float64>("/publish_image_duration", 1000);
+  GetInstance().reprojection_rejection_duration_pub_ =
+      nh.advertise<std_msgs::Float64>("/reprojection_rejection_duration", 1000);
+  GetInstance().parallax_duration_pub_ = nh.advertise<std_msgs::Float64>("/parallax_duration", 1000);
+
   GetInstance().img_queue_size_pub_ = nh.advertise<std_msgs::Int32>("/img_queue_size", 1000);
   GetInstance().abs_gt_error_pub_ = nh.advertise<std_msgs::Float64>("/abs_gt_error", 1000);
 
@@ -136,4 +140,13 @@ void DebugValuePublisher::PublishVelocityNormAverage(double velocity_norm_averag
 void DebugValuePublisher::PublishFrameId(int frame_id)
 {
   DebugValuePublisher::PublishIntValue(frame_id, GetInstance().frame_id_pub_);
+}
+void DebugValuePublisher::PublishReprojectionRejectionDuration(double duration)
+{
+  DebugValuePublisher::PublishDoubleValue(duration, GetInstance().reprojection_rejection_duration_pub_);
+}
+
+void DebugValuePublisher::PublishParallaxDuration(double duration)
+{
+  DebugValuePublisher::PublishDoubleValue(duration, GetInstance().parallax_duration_pub_);
 }
