@@ -60,10 +60,10 @@ isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 count_features_per_cell: true
-min_features_per_cell: 6
+min_features_per_cell: 4
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 7
+max_features_per_cell: 6
 max_features: 40
 grid_cells_x: 5
 grid_cells_y: 5
@@ -114,7 +114,8 @@ color_image: false
 image_edge_padding_percent: .02
 
 distortion_model:
-  coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
+  coeffs: [ 0, 0, 0, 0 ]
+  #coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
   type: radtan
 
 lidar_depth:
@@ -137,7 +138,7 @@ proj_landmark_init_dist_thresh: 25.
 extra_isam2_update_steps: 0
 
 use_fixed_lag: true
-smoother_lag: 10
+smoother_lag: 5
 enable_smart_factors: false
 isam_relin_thresh:
   x_rotation: 0.1
@@ -155,5 +156,5 @@ loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
 
 visualization:
-  draw_only_in_smoother_landmarks: false
+  draw_only_in_smoother_landmarks: true
   draw_lidar_lines: false  # Adds about 15ms to image publish

@@ -128,17 +128,26 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
       {
         for (int i = 0; i < parallaxes.size(); ++i)
         {
-          active_tracks_[track_indices[i]]->parallaxes.push_back(parallaxes[i]);
-          active_tracks_[track_indices[i]]->last_parallax = parallax_proj_points[i];
+          auto track_idx = track_indices[i];
+          if (new_cooler_inlier_mask[i])
+          {
+            active_tracks_[track_idx]->inlier_count++;
+          }
+          else
+          {
+            active_tracks_[track_idx]->outlier_count++;
+          }
+          active_tracks_[track_idx]->parallaxes.push_back(parallaxes[i]);
+          active_tracks_[track_idx]->last_parallax = parallax_proj_points[i];
         }
       }
     }
 
 
     // Discard RANSAC outliers
-    std::cout << "Discarding RANSAC outliers" << std::endl;
+    //std::cout << "Discarding RANSAC outliers" << std::endl;
     // TODO: use essential matrix instead? Maybe as part of the parallax computation?
-    RANSACRemoveOutlierTracks();
+    //RANSACRemoveOutlierTracks();
 
     RejectOutliersByLandmarkProjections(new_frame->id, new_frame->timestamp);
 
@@ -205,7 +214,8 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   {
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
-      if (active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
+      if (TrackIsMature(active_tracks_[i]) &&
+          active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
       {
         active_tracks_.erase(active_tracks_.begin() + i);
       }
