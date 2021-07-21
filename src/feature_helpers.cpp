@@ -1,6 +1,7 @@
 #include "feature_helpers.h"
 #include "Initializer.h"
 #include "debug_value_publisher.h"
+#include "lidar-depth.h"
 
 #include <algorithm>
 #include <opencv2/calib3d.hpp>
@@ -29,7 +30,7 @@ double ComputePointParallax(const cv::Point2f& point1, const cv::Point2f& point2
   cv::Mat point1_mat = (cv::Mat_<double>(3, 1) << point1.x, point1.y, 1.);
   cv::Mat point2_mat = (cv::Mat_<double>(3, 1) << point2.x, point2.y, 1.);
   cv::Mat point2_comp = K * H_rot_only * K_inv * point1_mat;
-  //cv::Mat point1_comp = K * R12 * K_inv * point2_mat; // Fix spooky inversion! (though it is equivalent)
+  // cv::Mat point1_comp = K * R12 * K_inv * point2_mat; // Fix spooky inversion! (though it is equivalent)
 
   point2_comp /= point2_comp.at<double>(2, 0);  // Normalize homogeneous coordinate
   cv::Mat point2_delta = point2_mat - point2_comp;
@@ -48,9 +49,8 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
   {
     return false;
   }
-  auto H_future = std::async(std::launch::async, [&points1, &points2]() {
-    return cv::findHomography(points1, points2, cv::RANSAC, 3);
-  });
+  auto H_future = std::async(std::launch::async,
+                             [&points1, &points2]() { return cv::findHomography(points1, points2, cv::RANSAC, 3); });
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
   auto H = H_future.get();
 
@@ -83,7 +83,8 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
   cv::recoverPose(E, points1, points2, K, R_E, t_E);
 
   auto time_after_parallax = std::chrono::system_clock::now();
-  auto millis_parallax = std::chrono::duration_cast<std::chrono::milliseconds>(time_after_parallax - time_before_parallax);
+  auto millis_parallax =
+      std::chrono::duration_cast<std::chrono::milliseconds>(time_after_parallax - time_before_parallax);
   DebugValuePublisher::PublishParallaxDuration(static_cast<double>(millis_parallax.count()));
 
   // Essential matrix and recovered R and t represent transformation from cam 2 to cam 1 in cam 2 frame
@@ -230,8 +231,8 @@ int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat&
 }
 
 void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
-                           const cv::Mat& R12, const cv::Mat& K,
-                           std::vector<double>& parallaxes, std::vector<cv::Point2f>& parallax_points)
+                            const cv::Mat& R12, const cv::Mat& K, std::vector<double>& parallaxes,
+                            std::vector<cv::Point2f>& parallax_points)
 {
   parallaxes.resize(points1.size());
   parallax_points.resize(points1.size());
@@ -243,4 +244,24 @@ void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::
     parallaxes[i] = dist;
     parallax_points[i] = proj_point;
   }
+}
+
+boost::optional<LidarDepthResult> MaybeGetDepth(const cv::Point2f& pt,
+                                                const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
+{
+  if (lidar_frame)
+  {
+    return getFeatureDirectDepth(pt, (*lidar_frame)->depth_image);
+  }
+  return boost::none;
+}
+
+boost::optional<LidarDepthResult> CheckDepthResult(const boost::optional<LidarDepthResult>& depth)
+{
+  if (depth && depth->valid)
+  {
+    return depth;
+  }
+  // We force the depth to a boost::none if it is invalid to avoid accidentally using it
+  return boost::none;
 }

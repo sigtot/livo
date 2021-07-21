@@ -17,6 +17,8 @@ struct Track
   int inlier_count = 0;
   int outlier_count = 0;
 
+  /// Depth value from neighboring LiDAR point. Not precise enough to be trusted as a measurement.
+  double depth_hint = -1;
   double max_parallax = 0.;
 
   explicit Track(std::shared_ptr<Feature> feature);

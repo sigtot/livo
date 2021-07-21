@@ -25,30 +25,13 @@ tf::Transform getLidar2CameraTF();
 void projectPCLtoImgFrame(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, const tf::Transform& lidar2cameraTF,
                           const Eigen::Matrix3d& camera_matrix, cv::Mat& dImg);
 
-/** \brief Get LiDAR depth using a Patch surrounding a camera feature
- *
- *  @param depthPatch - Patch containing depth values surrounding the feature location
- *  @param ROInonZeroLoc - Vector of non-zero depth locations in the depthPatch
- *  @param tol - Tolereance of Std.Dev of depth patch
- *  @return - Mean Patch Depth, -1 if invalid patch
- */
-boost::optional<LidarDepthResult> getDirectDepthFromPatch(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol_factor);
-
-/** \brief Get LiDAR depth using a LINE nearest to the camera feature
- *
- *  @param depthPatch - Patch containing depth values surrounding the feature location
- *  @param ROInonZeroLoc - Vector of non-zero depth locations in the depthPatch
- *  @param tol - Tolereance of Max depth difference between consective points on the line
- *  @return - Mean Line Depth, -1 if invalid
- */
-boost::optional<LidarDepthResult> getDirectDepthFromLine(const cv::Mat& depthPatch, const std::vector<cv::Point2i>& ROInonZeroLoc, float tol_factor);
-
-/** \brief Get LiDAR depth surrounding a camera feature from the depth image created by projectPCLtoImgFrame
+/** \brief Get LiDAR depth from a patch surrounding a camera feature from the depth image created by
+ * projectPCLtoImgFrame
  *
  *  @param ptf - Pixel Coordinates of camera feature
  *  @param depthImg - Depth Image for depth look-up
- *  @param tol - Tolereance of Std.Dev of depth patch
- *  @return - Mean Patch Depth, -1 if invalid patch
+ *  @return A boost::optional LidarDepthResult. Will be boost::none if no depth is available. Will be a LidarDepthResult
+ *  with valid=false if depth is available, but it doesn't pass checks on std.dev etc.
  */
 boost::optional<LidarDepthResult> getFeatureDirectDepth(const cv::Point2i& ptf, const cv::Mat& depthImg);
 

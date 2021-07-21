@@ -254,7 +254,8 @@ bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
   else
   {
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
-           track->MedianParallax() > GlobalParams::MinParallaxForSmoothing();
+           track->MedianParallax() > GlobalParams::MinParallaxForSmoothing() &&
+           track->depth_hint < GlobalParams::LandmarkDistanceThreshold();
   }
 }
 
@@ -849,10 +850,14 @@ void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_po
   for (int i = 0; i < new_points.size(); ++i)
   {
     auto new_feature = std::make_shared<Feature>(new_points[i], new_frame->id, new_frame->timestamp, active_tracks_[i]);
-    if (lidar_frame)
+    auto depth = MaybeGetDepth(new_feature->pt, lidar_frame);
+    if (depth)
     {
-      new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
+      // We set the depth hint regardless of whether it is from a valid depth result.
+      // Invalid depth information, while not reliable to use as a measurement, can be used to reject far-points.
+      active_tracks_[i]->depth_hint = depth->depth;
     }
+    new_feature->depth = CheckDepthResult(depth);
     new_frame->features[active_tracks_[i]->id] = new_feature;
     active_tracks_[i]->AddFeature(std::move(new_feature));
   }
@@ -866,10 +871,7 @@ void FeatureExtractor::InitNewExtractedFeatures(const std::vector<cv::Point2f>& 
   for (const auto& corner : corners)
   {
     auto new_feature = std::make_shared<Feature>(corner, new_frame->id, new_frame->timestamp);
-    if (lidar_frame)
-    {
-      new_feature->depth = getFeatureDirectDepth(new_feature->pt, (*lidar_frame)->depth_image);
-    }
+    new_feature->depth = CheckDepthResult(MaybeGetDepth(new_feature->pt, lidar_frame));
     features.push_back(new_feature);
   }
 }

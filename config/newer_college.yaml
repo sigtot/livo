@@ -83,7 +83,7 @@ feature_extraction:
 min_parallax_for_smoothing: 7
 min_parallax_for_smoothing_depth: -1
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 15
+min_track_length_for_smoothing: 20
 min_track_length_for_smoothing_depth: 10
 min_depth_measurements_for_smoothing: 3
 max_depth_for_smoothing: 40

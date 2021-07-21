@@ -4,6 +4,8 @@
 #include <stddef.h>
 
 struct LidarDepthResult {
+  /// Depth result passes all checks (std dev check etc.) and can be used as a measurement
+  bool valid;
   double depth;
   double std_dev;
   size_t neighbors;

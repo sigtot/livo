@@ -3,6 +3,7 @@
 
 #include "feature.h"
 #include "track.h"
+#include "lidar_frame.h"
 
 #include <vector>
 #include <map>
@@ -49,5 +50,21 @@ void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::
 bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
                                  const cv::Mat& K, std::vector<double>& parallaxes,
                                  std::vector<cv::Point2f>& parallax_points, std::vector<uchar>& inlier_mask);
+
+/**
+ * Gets depth from an optional lidar frame if it is not boost::none
+ * @param pt
+ * @param lidar_frame
+ * @return optional depth result
+ */
+boost::optional<LidarDepthResult> MaybeGetDepth(const cv::Point2f& pt,
+                                                const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
+
+/**
+ * Short circuits the depth result to a boost::none if the depth is invalid
+ * @param depth
+ * @return an optional depth result, or boost::none if depth is invalid
+ */
+boost::optional<LidarDepthResult> CheckDepthResult(const boost::optional<LidarDepthResult>& depth);
 
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_
