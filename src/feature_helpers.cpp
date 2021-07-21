@@ -7,6 +7,8 @@
 #include <essential_matrix_decomposition_result.h>
 #include <homography_decomposition_result.h>
 #include <chrono>
+#include <thread>
+#include <future>
 
 bool CompareFeatureSharedPtrsByWhetherTheyHaveDepth(const std::shared_ptr<Feature>& a,
                                                     const std::shared_ptr<Feature>& b)
@@ -46,8 +48,11 @@ bool ComputeParallaxesAndInliers(const std::vector<cv::Point2f>& points1, const 
   {
     return false;
   }
+  auto H_future = std::async(std::launch::async, [&points1, &points2]() {
+    return cv::findHomography(points1, points2, cv::RANSAC, 3);
+  });
   auto F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3., 0.99, inlier_mask);
-  auto H = cv::findHomography(points1, points2, cv::RANSAC, 3); // TODO can do in own thread to speed up
+  auto H = H_future.get();
 
   std::vector<bool> F_check_inliers;
   double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points1, points2);
