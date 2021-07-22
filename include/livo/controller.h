@@ -50,10 +50,13 @@ public:
   void ProcessWithBackend(const backend::FrontendResult& frontend_result);
 
   void PublishPoses(const std::vector<Pose3Stamped>& poses);
-  void UpdatePublishAndWriteFullTrajectory(const std::map<int, Pose3Stamped>& new_poses);
+  void UpdatePublishAndWriteFullTrajectory(const map<int, Pose3Stamped>& new_poses, const FrameMetadata& metadata);
   void PublishLatestLidarTransform(const Pose3Stamped& pose_stamped);
   void PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp);
   void LidarCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
+
+  static int CountActiveLandmarks(const std::map<int, LandmarkResult>& landmarks);
+
   virtual ~Controller();
 };
 

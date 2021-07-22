@@ -2,6 +2,7 @@
 #define ORB_TEST_SRC_FULL_TRAJECTORY_MANAGER_H_
 
 #include "pose3_stamped.h"
+#include "frame_metadata.h"
 
 #include <map>
 #include <vector>
@@ -15,6 +16,7 @@ public:
 
 private:
   std::map<int, Pose3Stamped> trajectory_;
+  std::map<int, FrameMetadata> metadata_;
   std::string export_filename_;
 
   // Bookkeeping
@@ -22,6 +24,9 @@ private:
   int oldest_pose_updated_ = -1;
 
 public:
+
+  void AddMetadataForFrame(int frame_id, const FrameMetadata& metadata);
+
   /**
    * Update existing or add new poses to the full trajectory.
    *

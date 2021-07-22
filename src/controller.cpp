@@ -2,6 +2,7 @@
 #include "frame.h"
 #include "ros_helpers.h"
 #include "debug_value_publisher.h"
+#include "frame_metadata.h"
 
 #include <geometry_msgs/PoseStamped.h>
 #include <pose3_stamped.h>
@@ -79,9 +80,10 @@ void Controller::PublishPoses(const std::vector<Pose3Stamped>& poses)
   ros_helpers::PublishPoseArray(poses, pose_arr_publisher_);
 }
 
-void Controller::UpdatePublishAndWriteFullTrajectory(const std::map<int, Pose3Stamped>& new_poses)
+void Controller::UpdatePublishAndWriteFullTrajectory(const map<int, Pose3Stamped>& new_poses, const FrameMetadata& metadata)
 {
   full_trajectory_manager_.UpdatePoses(new_poses);
+  full_trajectory_manager_.AddMetadataForFrame(metadata.frame_id, metadata);
   ros_helpers::PublishPath(full_trajectory_manager_.GetTrajectoryAsVector(), path_publisher_);
   full_trajectory_manager_.WriteToFile();
 }
@@ -118,6 +120,12 @@ void Controller::BackendSpinner()
     ProcessWithBackend(*latest_frontend_result_);
     latest_frontend_result_ = boost::none;  // Set latest frame to none since we have processed it
   }
+}
+
+int Controller::CountActiveLandmarks(const std::map<int, LandmarkResult>& landmarks)
+{
+  return static_cast<int>(std::count_if(landmarks.begin(), landmarks.end(),
+                                        [](const std::pair<int, LandmarkResult>& x) { return x.second.active; }));
 }
 
 void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_result)
@@ -174,12 +182,17 @@ void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_resu
       PublishLatestLidarTransform(*latest_lidar_pose);
     }
   }
-  UpdatePublishAndWriteFullTrajectory(pose_estimates);
-
   std::map<int, LandmarkResult> landmark_estimates;
   new_backend_.GetLandmarks(landmark_estimates);
   PublishLandmarks(landmark_estimates, frontend_result.timestamp);
   DebugValuePublisher::PublishNLandmarks(landmark_estimates.size());
+
+  FrameMetadata metadata {
+      .frame_id = frontend_result.frame_id,
+      .n_landmarks = Controller::CountActiveLandmarks(landmark_estimates),
+      .loam_degenerate = between_transform_provider_->IsDegenerate(frontend_result.timestamp),
+  };
+  UpdatePublishAndWriteFullTrajectory(pose_estimates, metadata);
 
   auto time_final = std::chrono::system_clock::now();
 

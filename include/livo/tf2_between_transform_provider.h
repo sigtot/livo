@@ -28,8 +28,6 @@ private:
   std::mutex degeneracy_buffer_mu_;
   bool force_degenerate_ = false;
 
-  bool IsDegenerate(double timestamp);
-
 public:
   TF2BetweenTransformProvider(const gtsam::Pose3& body_p_sensor, std::string world_frame, std::string sensor_frame);
 
@@ -46,6 +44,8 @@ public:
                               std::string sensor_frame);
 
   bool ForceDegeneracy(orb_test::ForceDegeneracy::Request& req, orb_test::ForceDegeneracy::Response& res);
+
+  bool IsDegenerate(double timestamp) override;
 
   boost::optional<gtsam::Pose3> GetBetweenTransform(double timestamp1, double timestamp2) override;
   bool CanTransform(double timestamp) override;
