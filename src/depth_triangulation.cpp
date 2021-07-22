@@ -6,16 +6,33 @@
 #include <gtsam/geometry/triangulation.h>
 #include <gtsam/geometry/CameraSet.h>
 
-gtsam::Point3 DepthTriangulation::PixelAndDepthToPoint3(const gtsam::Point2& pt, double depth,
-                                                        const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera)
+gtsam::Point3 DepthTriangulation::PixelAndDepthToPoint3InCamFrame(const gtsam::Point2& pt, double depth,
+                                                                  const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera)
 {
   // We use Camera::backprojectPointAtInfinity and scale the result rather than Camera::backproject.
   // This is because backproject projects points onto a plane that is {depth} away from the camera,
   // whereas we want the hypotenuse to be {depth} long, something that only holds for the center pixel with backproject.
   auto back_projected_inf = camera.backprojectPointAtInfinity(pt);
-  gtsam::Point3 d_cam_point = depth * back_projected_inf.point3();
-  gtsam::Point3 estimated_point = camera.translation() + d_cam_point;
-  return estimated_point;
+  gtsam::Point3 cam_point = depth * back_projected_inf.point3();
+  return cam_point;
+}
+
+gtsam::Point3 DepthTriangulation::PixelAndDepthToPoint3(const gtsam::Point2& pt, double depth,
+                                                        const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera)
+{
+  auto cam_point = DepthTriangulation::PixelAndDepthToPoint3InCamFrame(pt, depth, camera);
+  gtsam::Point3 world_point = camera.translation() + cam_point;
+  return world_point;
+}
+
+double DepthTriangulation::GetDepthInBodyFrame(const gtsam::Point2& pt, double cam_depth,
+                                               const gtsam::Cal3_S2& K,
+                                               const gtsam::Pose3& body_p_cam)
+{
+  // Use a camera centered at the origin, but with the body_p_cam
+  gtsam::PinholeCamera<gtsam::Cal3_S2> camera(body_p_cam, K);
+  auto cam_point = DepthTriangulation::PixelAndDepthToPoint3InCamFrame(pt, cam_depth, camera);
+  return body_p_cam.inverse().range(cam_point);
 }
 
 gtsam::TriangulationResult DepthTriangulation::Triangulate(

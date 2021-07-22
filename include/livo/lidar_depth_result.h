@@ -6,6 +6,7 @@
 struct LidarDepthResult {
   /// Depth result passes all checks (std dev check etc.) and can be used as a measurement
   bool valid;
+  /// In camera frame
   double depth;
   double std_dev;
   size_t neighbors;

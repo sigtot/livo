@@ -14,19 +14,22 @@ TEST(PixelAndDepthToPoint3, ReturnsCorrectPoint3)
 {
   // Set up scene
   gtsam::Point3 ground_truth_point(7.0, 0.0, 1.0);
-  gtsam::Pose3 body_pose(gtsam::Rot3::Ypr(0.3, 0.2, 0.1), gtsam::Point3(5.0, 0.0, 1.0));
-  gtsam::Pose3 body_p_cam(gtsam::Rot3::Ypr(-M_PI_2, 0.0, -M_PI_2), gtsam::Point3::Zero());
+  gtsam::Pose3 body_pose(gtsam::Rot3::Ypr(0.3, 0.2, 0.1), gtsam::Point3(5.0, 0.0, 1.5));
+  gtsam::Pose3 body_p_cam(gtsam::Rot3::Ypr(-M_PI_2, 0.0, -M_PI_2), gtsam::Point3(0, 0, 0));
   boost::shared_ptr<gtsam::Cal3_S2> K(new gtsam::Cal3_S2(431.38739114, 430.24961762, 0.0, 427.4407802, 238.52694868));
   gtsam::PinholeCamera<gtsam::Cal3_S2> camera(body_pose * body_p_cam, *K);
 
   // Obtain pixel and depth measurements
   gtsam::Point2 pixel = camera.project(ground_truth_point);
-  double depth = body_pose.range(ground_truth_point);
+  double c_depth = camera.pose().range(ground_truth_point);
+  double b_depth = body_pose.range(ground_truth_point);
 
   // Use measurements to estimate the 3D point
-  auto estimated_point = DepthTriangulation::PixelAndDepthToPoint3(pixel, depth, camera);
+  auto w_estimated_point = DepthTriangulation::PixelAndDepthToPoint3(pixel, c_depth, camera);
+  auto b_estimated_depth = DepthTriangulation::GetDepthInBodyFrame(pixel, c_depth, *K, body_p_cam);
 
-  ASSERT_TRUE(gtsam::assert_equal(estimated_point, ground_truth_point));
+  ASSERT_TRUE(gtsam::assert_equal(w_estimated_point, ground_truth_point));
+  ASSERT_TRUE(gtsam::assert_equal(b_estimated_depth, b_depth));
 }
 
 TEST(TriangulationIsOk, ClassifiesPointsCorrectly)

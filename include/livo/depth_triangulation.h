@@ -27,12 +27,28 @@ class PinholeCamera;
 
 class DepthTriangulation
 {
+private:
+  static gtsam::Point3 PixelAndDepthToPoint3InCamFrame(const gtsam::Point2& pt, double depth,
+                                                       const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera);
+
 public:
+  /**
+   * Get a Point3 from pixel and depth
+   * @param pt pixel point
+   * @param depth in camera frame
+   * @param camera
+   * @return The Point3 in the world frame
+   */
   static gtsam::Point3 PixelAndDepthToPoint3(const gtsam::Point2& pt, double depth,
                                              const gtsam::PinholeBaseK<gtsam::Cal3_S2>& camera);
+
+  static double GetDepthInBodyFrame(const gtsam::Point2& pt, double cam_depth, const gtsam::Cal3_S2& K,
+                                    const gtsam::Pose3& body_p_cam);
+
   static gtsam::TriangulationResult Triangulate(const std::vector<gtsam::Point2>& measurements,
                                                 const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
                                                 const gtsam::TriangulationParameters& params);
+
   static bool ReprojectionErrorIsOk(const gtsam::Point3& point, const std::vector<gtsam::Point2>& measurements,
                                     const std::vector<gtsam::PinholeCamera<gtsam::Cal3_S2>>& cameras,
                                     double mean_reproj_thresh);

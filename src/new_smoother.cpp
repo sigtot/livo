@@ -140,6 +140,13 @@ void NewSmoother::SetFrontend(std::shared_ptr<FeatureExtractor> frontend)
   feature_extractor_ = std::move(frontend);
 }
 
+/**
+ * @brief Calculate a Point3 estimate using a pose and a pixel and depth measurement observed in the pose
+ * @param pose
+ * @param pt
+ * @param depth in camera frame
+ * @return Point3 estimate in world frame
+ */
 gtsam::Point3 NewSmoother::CalculatePointEstimate(const gtsam::Pose3& pose, const gtsam::Point2& pt, double depth) const
 {
   gtsam::PinholeCamera<gtsam::Cal3_S2> camera(pose * *body_p_cam_, *K_);
@@ -522,8 +529,10 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
           graph_manager_.InitProjectionLandmark(track.id, frame_id_first_seen, ts_for_init, first_feature_pt,
                                                 init_point_estimate, K_, *body_p_cam_, feature_noise_,
                                                 feature_m_estimator_);
-          graph_manager_.AddRangeObservation(track.id, feature.frame_id, timestamp_for_values,
-                                             feature.depth->depth, MakeRangeNoise(*feature.depth));
+          auto body_depth = DepthTriangulation::GetDepthInBodyFrame(gtsam::Point2(feature.pt.x, feature.pt.y),
+                                                                    feature.depth->depth, *K_, *body_p_cam_);
+          graph_manager_.AddRangeObservation(track.id, feature.frame_id, timestamp_for_values, body_depth,
+                                             MakeRangeNoise(*feature.depth));
           frame_id_used_for_init = frame_id_first_seen;
           obs_count++;
           added_landmarks_count++;
@@ -570,8 +579,9 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
             auto init_point = CalculatePointEstimate(*pose_for_init, gtsam_pt, feature.depth->depth);
             graph_manager_.ConvertSmartFactorToProjectionFactor(track.id, timestamp_for_values, init_point);
           }
-          graph_manager_.AddRangeObservation(track.id, feature.frame_id, timestamp_for_values,
-                                             feature.depth->depth, MakeRangeNoise(*feature.depth));
+          auto body_depth = DepthTriangulation::GetDepthInBodyFrame(gtsam_pt, feature.depth->depth, *K_, *body_p_cam_);
+          graph_manager_.AddRangeObservation(track.id, feature.frame_id, timestamp_for_values, body_depth,
+                                             MakeRangeNoise(*feature.depth));
         }
         graph_manager_.AddLandmarkObservation(track.id, feature.frame_id, timestamp_for_values, gtsam_pt, K_,
                                               *body_p_cam_);
@@ -654,7 +664,8 @@ void NewSmoother::AddLandmarkObservations(const std::vector<backend::Track>& exi
         auto init_point = CalculatePointEstimate(pred_pose, gtsam_pt, feature.depth->depth);
         graph_manager_.ConvertSmartFactorToProjectionFactor(lmk_id, timestamp_for_values, init_point);
       }
-      graph_manager_.AddRangeObservation(lmk_id, frame_id, timestamp_for_values, feature.depth->depth,
+      auto body_depth = DepthTriangulation::GetDepthInBodyFrame(gtsam_pt, feature.depth->depth, *K_, *body_p_cam_);
+      graph_manager_.AddRangeObservation(lmk_id, frame_id, timestamp_for_values, body_depth,
                                          MakeRangeNoise(*feature.depth));
       {
         std::cout << "Range values for l" << lmk_id << ": ";

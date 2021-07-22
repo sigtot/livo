@@ -183,8 +183,17 @@ catkin_add_gtest(livo_tests
         src/gtsam_conversions.cpp
         src/feature_helpers.cpp
         src/keyframe_timestamps.cpp
+        src/Initializer.cpp
+        src/debug_value_publisher.cpp
+        src/lidar-depth.cpp
+        src/global_params.cpp
         )
-target_link_libraries(livo_tests gtsam gtsam_unstable ${catkin_LIBRARIES})
+target_link_libraries(livo_tests
+        gtsam
+        gtsam_unstable
+        ${catkin_LIBRARIES}
+        ${OpenCV_LIBS}
+        )
 
 #############
 ## Install ##
