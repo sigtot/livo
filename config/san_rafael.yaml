@@ -1,13 +1,48 @@
 imu_sub_topic: /vn100/imu
 cam_sub_topic: /camera/image_mono
+lidar_sub_topic: /velodyne_points
 
 resize_factor: 0.5
 ground_truth_file: ""
 init_on_ground_truth: false
 
-track_count_lower_thresh: 50
+isam_relinearize_skip: 1
 track_nms_squared_dist_thresh: 500.
+count_features_per_cell: true
+min_features_per_cell: 45
+max_features_per_cell: 50
+max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
+grid_cells_x: 1
+grid_cells_y: 1
+track_count_lower_thresh: 30
 
+klt:
+  max_iterations: 10
+  convergence_epsilon: 0.0001
+  win_size: 45
+  pyramids: 5
+
+feature_extraction:
+  quality_level: 0.001
+  min_distance: 7
+  min_eigen_value: 0.001
+
+min_parallax_for_smoothing: 5
+min_parallax_for_smoothing_depth: -1
+min_track_length_for_smoothing: 200
+min_track_length_for_smoothing_depth: 1
+min_depth_measurements_for_smoothing: 1
+max_depth_for_smoothing: 40
+min_active_track_count: 20
+
+dynamic_outlier_rejection_threshold: 20.
+triangulation_rank_tol: 50
+feature_prediction_outlier_thresh: 30
+landmark_distance_threshold: 25
+proj_landmark_init_dist_thresh: 25.
+extra_isam2_update_steps: 0
+
+temporal_keyframe_interval: 20
 init_keyframe_interval: 6
 num_good_keyframes_for_initialization: 20
 use_isam: false
@@ -21,6 +56,23 @@ imu_accel_noise_density: 0.001372
 imu_gyro_noise_density: 0.00006108
 imu_accel_random_walk: 0.00554371716
 imu_gyro_random_walk: 0.00068563008
+do_initial_gravity_alignment: true
+
+noise_params:
+  prior_X_yaw: 0.01
+  prior_X_roll_pitch: 0.5
+  prior_X_translation: 0.01
+  prior_gyro: 0.2
+  prior_accel: 0.2
+  prior_velocity: 0.01
+  between_rotation: 0.001
+  between_translation: 0.001
+  between_rotation_keyframe: 0.0001
+  between_translation_keyframe: 0.001
+  feature: 15
+  range: 2
+  robust_feature_k: 0.5
+  robust_range_k: 0.5
 
 body_p_cam_quat: [-0.541994263973, 0.538194367618, -0.457984250078, 0.454796072065]
 body_p_cam_vec: [-0.0321990644814, -0.00236694722335, 0.0596451018445]
@@ -28,7 +80,32 @@ body_p_cam_vec: [-0.0321990644814, -0.00236694722335, 0.0596451018445]
 body_p_imu_quat: [0, 0, 0, 1]
 body_p_imu_vec: [0, 0, 0]
 
+image_width: 720
+image_height: 540
 cam_fx: 593.690871957
 cam_fy: 593.74699226
 cam_u0: 388.42480338
 cam_v0: 274.84471313
+
+enable_smart_factors: false
+
+lidar_depth:
+  enabled: true
+  calc_mode: 0
+  search_window_width: 45
+  search_window_height: 45
+  min_non_zero_neighbors: 4
+  max_allowed_feature_distance: 60
+  std_dev_tol_factor: 2.0
+
+loam_between_factors_enabled: true
+loam_imu_only: false
+frame_between_factors: true
+keyframe_between_factors: false
+loam_world_frame: map
+loam_sensor_frame: aft_mapped_to_init_CORRECTED
+loam_degeneracy_topic: /laser_odom_status
+
+visualization:
+  draw_only_in_smoother_landmarks: false
+  draw_lidar_lines: false  # Adds about 15ms to image publish
