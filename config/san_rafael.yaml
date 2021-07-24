@@ -1,6 +1,7 @@
 imu_sub_topic: /vn100/imu
 cam_sub_topic: /camera/image_mono
 lidar_sub_topic: /velodyne_points
+lidar_frame_for_publish: velodyne
 
 resize_factor: 0.5
 ground_truth_file: ""
@@ -15,6 +16,7 @@ max_features: 30  # Max number of tracks we'll give to the backend, regardless o
 grid_cells_x: 1
 grid_cells_y: 1
 track_count_lower_thresh: 30
+min_keyframe_feature_inlier_ratio: 1
 
 klt:
   max_iterations: 10
@@ -25,14 +27,14 @@ klt:
 feature_extraction:
   quality_level: 0.001
   min_distance: 7
-  min_eigen_value: 0.001
+  min_eigen_value: 0.0001
 
 min_parallax_for_smoothing: 5
 min_parallax_for_smoothing_depth: -1
 min_track_length_for_smoothing: 200
 min_track_length_for_smoothing_depth: 1
 min_depth_measurements_for_smoothing: 1
-max_depth_for_smoothing: 40
+max_depth_for_smoothing: 15
 min_active_track_count: 20
 
 dynamic_outlier_rejection_threshold: 20.
@@ -65,7 +67,7 @@ noise_params:
   prior_gyro: 0.2
   prior_accel: 0.2
   prior_velocity: 0.01
-  between_rotation: 0.001
+  between_rotation: 0.0001
   between_translation: 0.001
   between_rotation_keyframe: 0.0001
   between_translation_keyframe: 0.001
@@ -109,3 +111,13 @@ loam_degeneracy_topic: /laser_odom_status
 visualization:
   draw_only_in_smoother_landmarks: false
   draw_lidar_lines: false  # Adds about 15ms to image publish
+
+landmark_removal:
+  high_delta: false
+  high_depth_difference: false
+  max_depth_difference: 0.5  # 1m perhaps?
+
+pre_processing:
+  pre_process: true
+  contrast_alpha: 2.0
+  contrast_beta: -90

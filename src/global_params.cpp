@@ -56,6 +56,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/imu_sub_topic", GetInstance().imu_sub_topic_);
   ReadVariable(nh, "/orb_test_node/cam_sub_topic", GetInstance().cam_sub_topic_);
   ReadVariable(nh, "/orb_test_node/lidar_sub_topic", GetInstance().lidar_sub_topic_);
+  ReadVariable(nh, "/orb_test_node/lidar_frame_for_publish", GetInstance().lidar_frame_for_publish_);
 
   ReadVariable(nh, "/orb_test_node/full_path_export_file_prefix", GetInstance().full_path_export_file_prefix_);
 
@@ -66,6 +67,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/grid_cells_x", GetInstance().grid_cells_x_);
   ReadVariable(nh, "/orb_test_node/grid_cells_y", GetInstance().grid_cells_y_);
   ReadVariable(nh, "/orb_test_node/resize_factor", GetInstance().resize_factor_);
+  ReadVariable(nh, "/orb_test_node/pre_processing/pre_process", GetInstance().pre_process_);
+  ReadVariable(nh, "/orb_test_node/pre_processing/contrast_alpha", GetInstance().contrast_alpha_);
+  ReadVariable(nh, "/orb_test_node/pre_processing/contrast_beta", GetInstance().contrast_beta_);
 
   ReadVariable(nh, "/orb_test_node/klt/max_iterations", GetInstance().klt_max_iterations_);
   ReadVariable(nh, "/orb_test_node/klt/convergence_epsilon", GetInstance().klt_convergence_epsilon_);
@@ -238,6 +242,10 @@ std::string GlobalParams::CameraSubTopic()
 std::string GlobalParams::LidarSubTopic()
 {
   return GetInstance().lidar_sub_topic_;
+}
+std::string GlobalParams::LidarFrameForPublish()
+{
+  return GetInstance().lidar_frame_for_publish_;
 }
 
 bool GlobalParams::CountFeaturesPerCell()
@@ -788,4 +796,16 @@ bool GlobalParams::DrawOnlyInSmootherLandmarks()
 double GlobalParams::FeaturePredictionOutlierThresh()
 {
   return GetInstance().feature_prediction_outlier_thresh_;
+}
+bool GlobalParams::PreProcess()
+{
+  return GetInstance().pre_process_;
+}
+double GlobalParams::ContrastAlpha()
+{
+  return GetInstance().contrast_alpha_;
+}
+double GlobalParams::ContrastBeta()
+{
+  return GetInstance().contrast_beta_;
 }

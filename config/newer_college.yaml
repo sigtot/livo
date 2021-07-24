@@ -1,6 +1,7 @@
 imu_sub_topic: /camera/imu
 cam_sub_topic: /camera/infra1/image_rect_raw
 lidar_sub_topic: /os1_cloud_node/points
+lidar_frame_for_publish: os1_lidar
 
 resize_factor: 1.0
 ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv

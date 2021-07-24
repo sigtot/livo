@@ -51,6 +51,11 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   cv::Mat img_undistorted;
   UndistortImage(img_resized, img_undistorted);
 
+  if (GlobalParams::PreProcess())
+  {
+    PreProcessImage(img_undistorted);
+  }
+
   shared_ptr<Frame> new_frame = make_shared<Frame>();
   new_frame->image = img_undistorted;
   new_frame->id = frame_count_++;
@@ -210,6 +215,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   {
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
+      // For san raf: just check if InlierRatio < 1 ?
       if (TrackIsMature(active_tracks_[i]) &&
           active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
       {
@@ -472,6 +478,11 @@ FeatureExtractor::GetFramesForIMUAttitudeInitialization(int stationary_frame_id)
 void FeatureExtractor::UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const
 {
   image_undistorter_->Undistort(input_image, undistorted_image);
+}
+
+void FeatureExtractor::PreProcessImage(cv::Mat& image) const
+{
+  cv::convertScaleAbs(image, image, GlobalParams::ContrastAlpha(), GlobalParams::ContrastBeta());
 }
 
 void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,

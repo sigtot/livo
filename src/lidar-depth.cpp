@@ -164,7 +164,9 @@ boost::optional<LidarDepthResult> getFeatureDirectDepth(const cv::Point2i& ptf, 
     }
   }
   meanDep /= ROInonZeroLoc.size();
-  if (!std::all_of(in_quadrant.begin(), in_quadrant.end(), [](bool x) { return x; }))
+  // The check only makes sense if we need at least 4 neighboring measurements
+  if (GlobalParams::LidarDepthMinNonZeroNeighbors() >= 4 &&
+      !std::all_of(in_quadrant.begin(), in_quadrant.end(), [](bool x) { return x; }))
   {
     // std::cout << "Not a point in every quadrant" << std::endl;
     valid = false;

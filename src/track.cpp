@@ -8,7 +8,14 @@ Track::Track(std::shared_ptr<Feature> feature) : features(std::deque<std::shared
 
 double Track::InlierRatio() const
 {
-  return static_cast<double>(inlier_count) / static_cast<double>(inlier_count + outlier_count);
+  if (inlier_count > 0 || outlier_count > 0)
+  {
+    return static_cast<double>(inlier_count) / static_cast<double>(inlier_count + outlier_count);
+  }
+  else
+  {
+    return 1;
+  }
 }
 
 bool Track::HasDepth() const

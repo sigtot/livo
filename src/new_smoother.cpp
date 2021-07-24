@@ -72,7 +72,7 @@ boost::shared_ptr<gtsam::PreintegrationCombinedParams> MakeIMUParams()
   imu_params->gyroscopeCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroNoiseDensity(), 2.0);
   imu_params->biasAccCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUAccelRandomWalk(), 2.0);
   imu_params->biasOmegaCovariance = gtsam::I_3x3 * std::pow(GlobalParams::IMUGyroRandomWalk(), 2.0);
-  imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;  // Try increasing this by factor of ~100-1000
+  imu_params->integrationCovariance = gtsam::I_3x3 * 1e-8;
   imu_params->biasAccOmegaInt = gtsam::I_6x6;  // This is the default
 
   imu_params->body_P_sensor = gtsam::Pose3(
@@ -749,22 +749,17 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
                             timestamp_for_values);
   }
 
-  auto between_noise = gtsam::noiseModel::Robust::Create(
-      gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_);
-
-  auto between_noise_kf = gtsam::noiseModel::Robust::Create(
-      gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_keyframe_);
   if (GlobalParams::FrameBetweenFactors())
   {
     TryAddBetweenConstraint(last_frame_id_, frontend_result.frame_id, added_frames_[last_frame_id_].timestamp,
                             frontend_result.timestamp,
-                            between_noise);
+                            between_noise_);
   }
   if (GlobalParams::KeyframeBetweenFactors() && is_keyframe)
   {
     TryAddBetweenConstraint(last_keyframe_id_, frontend_result.frame_id, added_frames_[last_keyframe_id_].timestamp,
                             frontend_result.timestamp,
-                            between_noise_kf);
+                            between_noise_keyframe_);
   }
 
   std::cout << "Starting ISAM2 Update" << std::endl;

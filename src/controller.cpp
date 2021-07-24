@@ -18,7 +18,6 @@
 #include <chrono>
 #include <utility>
 #include <boost/date_time.hpp>
-
 Controller::Controller(std::shared_ptr<FeatureExtractor> frontend, LidarFrameManager& lidar_frame_manager, NewSmoother& new_backend,
                        std::shared_ptr<BetweenTransformProvider> between_transform_provider,
                        std::shared_ptr<TimeOffsetProvider> lidar_time_offset_provider, ros::Publisher& path_publisher,
@@ -91,7 +90,7 @@ void Controller::UpdatePublishAndWriteFullTrajectory(const map<int, Pose3Stamped
 void Controller::PublishLatestLidarTransform(const Pose3Stamped& pose_stamped)
 {
   static tf2_ros::TransformBroadcaster br;
-  ros_helpers::PublishTransform(pose_stamped, "world", "os1_lidar", br);
+  ros_helpers::PublishTransform(pose_stamped, "world", GlobalParams::LidarFrameForPublish(), br);
 }
 
 void Controller::PublishLandmarks(const std::map<int, LandmarkResult>& landmarks, double timestamp)

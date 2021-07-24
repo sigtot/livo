@@ -111,4 +111,9 @@ visualization:
 landmark_removal:
   high_delta: false
   high_depth_difference: false
-  max_depth_difference: 1  # make this like 1m??
+  max_depth_difference: 1
+
+pre_processing:
+  pre_process: false
+  contrast_alpha: 1.0
+  contrast_beta: 0.1

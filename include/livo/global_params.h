@@ -18,6 +18,7 @@ private:
   std::string imu_sub_topic_ = "/imu";
   std::string cam_sub_topic_ = "/camera";
   std::string lidar_sub_topic_ = "/os1_cloud_node/points";
+  std::string lidar_frame_for_publish_ = "os1_lidar";
 
   std::string full_path_export_file_prefix_ = "/tmp/livo_full_path_";  // Will be concatenated with current ISO-time
 
@@ -33,6 +34,9 @@ private:
   int grid_cells_x_ = 9;
   int grid_cells_y_ = 7;
   double resize_factor_ = 1.f;
+  bool pre_process_ = false;
+  double contrast_alpha_ = 1.0; // Alpha value used for cv::convertScaleAbs
+  double contrast_beta_ = 0.0; // Beta value used for cv::convertScaleAbs
 
   int klt_max_iterations_ = 10;
   double klt_convergence_epsilon_ = 0.03;
@@ -191,6 +195,7 @@ public:
   static std::string IMUSubTopic();
   static std::string CameraSubTopic();
   static std::string LidarSubTopic();
+  static std::string LidarFrameForPublish();
 
   static std::string FullPathExportFilePrefix();
 
@@ -201,6 +206,9 @@ public:
   static int GridCellsX();
   static int GridCellsY();
   static double ResizeFactor();
+  static bool PreProcess();
+  static double ContrastAlpha();
+  static double ContrastBeta();
 
   static int KLTMaxIterations();
   static double KLTConvergenceEpsilon();

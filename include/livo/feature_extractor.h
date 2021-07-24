@@ -107,6 +107,7 @@ private:
   static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);
 
   void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const;
+  void PreProcessImage(cv::Mat& image) const;
 
   void UpdateTrackParallaxes();
 
