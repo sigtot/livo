@@ -14,7 +14,7 @@ double Track::InlierRatio() const
   }
   else
   {
-    return 1;
+    return 0;
   }
 }
 

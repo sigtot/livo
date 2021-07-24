@@ -93,7 +93,7 @@ use_angle_parallax: true
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
-temporal_keyframe_interval: 15
+temporal_keyframe_interval: 5
 frame_interval: 2
 second_ransac_n_frames: 14
 

@@ -749,17 +749,23 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
                             timestamp_for_values);
   }
 
+  auto between_noise =
+      gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_);
+
+  auto between_noise_keyframe =
+      gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_keyframe_);
+
   if (GlobalParams::FrameBetweenFactors())
   {
     TryAddBetweenConstraint(last_frame_id_, frontend_result.frame_id, added_frames_[last_frame_id_].timestamp,
                             frontend_result.timestamp,
-                            between_noise_);
+                            between_noise);
   }
   if (GlobalParams::KeyframeBetweenFactors() && is_keyframe)
   {
     TryAddBetweenConstraint(last_keyframe_id_, frontend_result.frame_id, added_frames_[last_keyframe_id_].timestamp,
                             frontend_result.timestamp,
-                            between_noise_keyframe_);
+                            between_noise_keyframe);
   }
 
   std::cout << "Starting ISAM2 Update" << std::endl;
