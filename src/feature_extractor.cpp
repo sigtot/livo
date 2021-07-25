@@ -216,7 +216,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
       // For san raf: just check if InlierRatio < 1 ?
-      if (TrackIsMature(active_tracks_[i]) &&
+      if ((active_tracks_[i]->inlier_count > 0 || active_tracks_[i]->outlier_count > 0) &&
           active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
       {
         active_tracks_.erase(active_tracks_.begin() + i);
@@ -244,6 +244,20 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .mature_tracks = GetMatureTracksForBackend() };
 }
 
+bool ParallaxOk(const std::shared_ptr<Track>& track)
+{
+  return (track->MedianParallax() / static_cast<double>(GlobalParams::MinTrackLengthForSmoothing())) *
+             static_cast<double>(track->features.size()) >
+         GlobalParams::MinParallaxForSmoothing();
+}
+
+bool NonDepthTrackIsOk(const std::shared_ptr<Track>& track)
+{
+  return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
+         ParallaxOk(track) &&
+         track->depth_hint < GlobalParams::LandmarkDistanceThreshold();
+}
+
 bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
 {
   if (smoother_.IsLandmarkTracked(track->id))
@@ -259,9 +273,7 @@ bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
   }
   else
   {
-    return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
-           track->MedianParallax() > GlobalParams::MinParallaxForSmoothing() &&
-           track->depth_hint < GlobalParams::LandmarkDistanceThreshold();
+    return NonDepthTrackIsOk(track);
   }
 }
 
@@ -866,7 +878,7 @@ void FeatureExtractor::KLTInitNewFeatures(const std::vector<cv::Point2f>& new_po
     {
       // We set the depth hint regardless of whether it is from a valid depth result.
       // Invalid depth information, while not reliable to use as a measurement, can be used to reject far-points.
-      active_tracks_[i]->depth_hint = depth->depth;
+      active_tracks_[i]->depth_hint = std::max(active_tracks_[i]->depth_hint, depth->depth);
     }
     new_feature->depth = CheckDepthResult(depth);
     new_frame->features[active_tracks_[i]->id] = new_feature;

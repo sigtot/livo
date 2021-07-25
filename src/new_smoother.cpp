@@ -217,7 +217,7 @@ gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& t
   std::vector<gtsam::Point2> measurements;
   gtsam::Point2 pt_for_first_factor;
   int n_wanted = 10;
-  int inc = static_cast<int>(track.features.size()) / n_wanted;
+  int inc = std::max(static_cast<int>(track.features.size()) / n_wanted, 1);
   auto n_collected = 0; // TODO just use measuemrenst.size()
   for (int i = 0; i < track.features.size(); i += inc)
   {
@@ -778,6 +778,8 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
   auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
   DebugValuePublisher::PublishUpdateDuration(static_cast<int>(millis.count()));
   std::cout << "ISAM2 update done! Took " << static_cast<int>(millis.count()) << "ms" << std::endl;
+
+  std::cout << "total_reeliminated: " << isam_result.variablesReeliminated << " " << isam_result.cliques << std::endl;
 
   DoExtraUpdateSteps(GlobalParams::ExtraISAM2UpdateSteps());
 

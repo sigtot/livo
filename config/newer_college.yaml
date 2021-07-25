@@ -84,12 +84,13 @@ feature_extraction:
 min_parallax_for_smoothing: 7
 min_parallax_for_smoothing_depth: -1
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 20
+min_track_length_for_smoothing: 15
 min_track_length_for_smoothing_depth: 10
 min_depth_measurements_for_smoothing: 3
-max_depth_for_smoothing: 40
+max_depth_for_smoothing: 40 # TODO try increasing to 60 again, dunno why I decreased it.
 min_active_track_count: 20
 use_angle_parallax: true
+min_keyframe_feature_inlier_ratio: 0.9
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
@@ -133,7 +134,7 @@ lidar_depth:
 lidar_frame_manager_timestamp_thresh: 0.015
 
 dynamic_outlier_rejection_threshold: 10.
-triangulation_rank_tol: 50
+triangulation_rank_tol: 20
 feature_prediction_outlier_thresh: 20
 landmark_distance_threshold: 15.
 proj_landmark_init_dist_thresh: 25.
@@ -144,7 +145,7 @@ smoother_lag: 5
 enable_smart_factors: false
 isam_relin_thresh:
   x_rotation: 0.1
-  x_translation: 0.001  # TODO CHeck for sure that this is not a problem
+  x_translation: 0.01  # TODO CHeck for sure that this is not a problem
   v: 0.1
   b: 0.1
   l: 1.0
