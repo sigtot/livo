@@ -27,6 +27,13 @@ gtsam::ISAM2Result ISAM2Solver::Update(
   return isam2_->update(graph, values, params);
 }
 
+gtsam::ISAM2Result ISAM2Solver::BootstrapSmoother(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                                                  const gtsam::ISAM2UpdateParams& params)
+{
+  isam2_->clear();
+  return isam2_->update(graph, values, params);
+}
+
 gtsam::Values ISAM2Solver::CalculateEstimate()
 {
   return isam2_->calculateEstimate();

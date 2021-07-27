@@ -30,6 +30,14 @@ gtsam::ISAM2Result IncrementalFixedLagSolver::Update(
   return fixed_lag_smoother_->getISAM2Result();
 }
 
+gtsam::ISAM2Result IncrementalFixedLagSolver::BootstrapSmoother(const gtsam::NonlinearFactorGraph& graph,
+                                                                const gtsam::Values& values,
+                                                                const gtsam::ISAM2UpdateParams& params)
+{
+  fixed_lag_smoother_->boostrap(graph, values, params);
+  return fixed_lag_smoother_->getISAM2Result();
+}
+
 gtsam::Values IncrementalFixedLagSolver::CalculateEstimate()
 {
   return fixed_lag_smoother_->calculateEstimate();

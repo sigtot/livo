@@ -95,32 +95,7 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
   gtsam::ISAM2UpdateParams new_params = params;
   new_params.constrainedKeys = constrainedKeys;
   new_params.extraReelimKeys = additionalMarkedKeys;
-  try {
-    isamResult_ = isam_.update(newFactors, newTheta, new_params);
-  }
-  catch (gtsam::IndeterminantLinearSystemException& e)
-  {
-    /* Comment this in to print factors and their jacobians
-    auto graph = isam_.getFactorsUnsafe();
-    auto lin_point = isam_.getLinearizationPoint();
-
-    for (const auto& x : graph) {
-      std::cout << "================= Factor =================" << std::endl;
-      x->printKeys();
-
-      auto jac = x->linearize(lin_point)->jacobian();
-      auto A_i = jac.first;
-      auto b_i = jac.second;
-
-      std::cout << "A_i = " << std::endl;
-      std::cout << A_i << std::endl;
-      std::cout << "b_i = " << std::endl;
-      std::cout << b_i << std::endl;
-    }
-     */
-
-    throw e;
-  }
+  isamResult_ = isam_.update(newFactors, newTheta, new_params);
 
   // Marginalize out any needed variables
   if (marginalizableKeys.size() > 0)
@@ -143,6 +118,17 @@ gtsam::FixedLagSmoother::Result IncrementalFixedLagSmootherPatched::update(
     std::cout << "IncrementalFixedLagSmoother::update() Finish" << std::endl;
 
   return result;
+}
+
+void IncrementalFixedLagSmootherPatched::boostrap(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                                                  const gtsam::ISAM2UpdateParams& params)
+{
+  auto old_isam2_params = isam_.params();
+  std::cout << "Reconstructing ISAM object" << std::endl;
+  isam_ = gtsam::ISAM2(old_isam2_params);
+  std::cout << "Have new ISAM. Performing update." << std::endl;
+  isam_.update(graph, values, params);
+  std::cout << "IFL: Bootstrap done." << std::endl;
 }
 
 bool IncrementalFixedLagSmootherPatched::valueExists(gtsam::Key key)

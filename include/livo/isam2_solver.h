@@ -24,6 +24,8 @@ public:
   gtsam::ISAM2Result Update(
       const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values, const gtsam::KeyTimestampMap& timestamps,
       const gtsam::ISAM2UpdateParams& params) override;
+  gtsam::ISAM2Result BootstrapSmoother(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                                       const gtsam::ISAM2UpdateParams& params) override;
   gtsam::Values CalculateEstimate() override;
   gtsam::NonlinearFactorGraph GetFactorsUnsafe() override;
   gtsam::VectorValues GetDelta() override;

@@ -50,6 +50,9 @@ public:
 
   virtual bool ValueExists(gtsam::Key key) = 0;
 
+  virtual gtsam::ISAM2Result BootstrapSmoother(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                                               const gtsam::ISAM2UpdateParams& params) = 0;
+
   // Pure virtual template functions not allowed in C++. Help?
   virtual gtsam::Pose3 CalculateEstimatePose3(gtsam::Key key) = 0;
   virtual gtsam::Point3 CalculateEstimatePoint3(gtsam::Key key) = 0;

@@ -9,6 +9,7 @@
 #include <gtsam/base/make_shared.h>
 #include <gtsam/nonlinear/ISAM2UpdateParams.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/navigation/NavState.h>
@@ -97,7 +98,38 @@ gtsam::ISAM2Result GraphManager::Update()
   params.newAffectedKeys = *new_affected_keys_;
   params.removeFactorIndices = *factors_to_remove_;
   params.extraReelimKeys = *extra_reelim_keys_;
-  auto result = incremental_solver_->Update(*graph_, *values_, *timestamps_, params);
+  gtsam::ISAM2Result result;
+  try {
+    result = incremental_solver_->Update(*graph_, *values_, *timestamps_, params);
+  }
+  catch (gtsam::IndeterminantLinearSystemException& e)
+  {
+    std::cout << "Caught ILS error: Trying to boostrap the system anew using factors and values from smoother" << std::endl;
+    auto graph = incremental_solver_->GetFactorsUnsafe();
+    auto values = GetValues();
+    // Insert new values because GetFactorsUnsafe includes the new factors from graph_
+    values.insert(*values_);
+    gtsam::LevenbergMarquardtOptimizer lm(graph, values);
+    auto lm_result = lm.optimize();
+    std::cout << "LM succeeded, will try bootstrapping iSAM2." << std::endl;
+    try {
+      incremental_solver_->BootstrapSmoother(graph, lm_result, params);
+    }
+    catch (gtsam::IndeterminantLinearSystemException& e)
+    {
+      std::cout << "iSAM2 still bad, waiting until next iteration." << std::endl;
+      std::lock_guard<std::mutex> lock(newest_estimate_mu_);
+      newest_estimate_ = std::make_shared<gtsam::Values>(lm_result);
+      graph_->resize(0);
+      values_->clear();
+      timestamps_->clear();
+      new_affected_keys_->clear();
+      factors_to_remove_->clear();
+      extra_reelim_keys_->clear();
+      return result;
+    }
+  }
+
   std::cout << "Graph manager done." << std::endl;
   graph_->resize(0);
   values_->clear();

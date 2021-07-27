@@ -19,6 +19,9 @@ public:
       const gtsam::NonlinearFactorGraph& newFactors, const gtsam::Values& newTheta, const KeyTimestampMap& timestamps,
       const gtsam::ISAM2UpdateParams& params = gtsam::ISAM2UpdateParams());
 
+  void boostrap(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+                const gtsam::ISAM2UpdateParams& params);
+
   bool valueExists(gtsam::Key key);
 };
 

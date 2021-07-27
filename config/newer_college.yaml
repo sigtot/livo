@@ -61,10 +61,10 @@ isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 count_features_per_cell: true
-min_features_per_cell: 5
+min_features_per_cell: 3
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 6
+max_features_per_cell: 5
 max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
 grid_cells_x: 5
 grid_cells_y: 5
@@ -84,10 +84,10 @@ feature_extraction:
 min_parallax_for_smoothing: 7
 min_parallax_for_smoothing_depth: -1
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 15
+min_track_length_for_smoothing: 20 # TODO 15 again???
 min_track_length_for_smoothing_depth: 10
 min_depth_measurements_for_smoothing: 3
-max_depth_for_smoothing: 40 # TODO try increasing to 60 again, dunno why I decreased it.
+max_depth_for_smoothing: 60
 min_active_track_count: 20
 use_angle_parallax: true
 min_keyframe_feature_inlier_ratio: 0.9
@@ -129,7 +129,7 @@ lidar_depth:
   min_non_zero_neighbors: 4
   max_allowed_feature_distance: 60
   std_dev_tol_factor: 0.3
-  max_messages_retained: 100
+  max_messages_retained: 200
 
 lidar_frame_manager_timestamp_thresh: 0.015
 
