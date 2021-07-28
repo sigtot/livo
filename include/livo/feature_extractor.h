@@ -46,15 +46,7 @@ private:
                                                   int max_initial_features_per_cell, double quality_level,
                                                   double min_distance);
 
-  static void NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features, double squared_dist_thresh,
-                                     int min_j = 1);
-
   void RemoveBadDepthTracks();
-
-  void RANSACRemoveOutlierTracks();
-  void RANSACRemoveOutlierTracks(int n_frames);
-  double RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices, bool allow_H_inliers = false);
-  void RemoveTracksByIndices(const std::vector<int>& indices);
 
   /**
    *
@@ -93,23 +85,14 @@ private:
                                        std::vector<std::shared_ptr<Feature>>& features,
                                        const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
-  void DoFeatureExtractionPerCellPopulation(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
+  void ExtractFeatures(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
                                             const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
-
-  void DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
-                                       const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame);
 
   void PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
                              const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const;
 
-  static bool PointWasSubPixRefined(const Point2f& point, double thresh = 0.0001);
-
-  static bool IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage);
-
   void UndistortImage(const cv::Mat& input_image, cv::Mat& undistorted_image) const;
   void PreProcessImage(cv::Mat& image) const;
-
-  void UpdateTrackParallaxes();
 
   std::vector<backend::Track> GetMatureTracksForBackend() const;
   bool TrackIsMature(const std::shared_ptr<Track>& track) const;
@@ -124,11 +107,6 @@ public:
   backend::FrontendResult lkCallback(const sensor_msgs::Image::ConstPtr& msg);
   void PublishSingleTrackImage(const backend::Track& track);
 
-  bool ReadyForInitialization() const;
-  vector<KeyframeTransform> GetKeyframeTransforms() const;
-  vector<shared_ptr<Track>> GetHighParallaxTracks();
-  vector<shared_ptr<Track>> GetActiveHighParallaxTracks();
-  KeyframeTransform GetNewestKeyframeTransform() const;
   boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
   GetFramesForIMUAttitudeInitialization(int stationary_frame_id);
 };

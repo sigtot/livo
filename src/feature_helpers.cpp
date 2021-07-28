@@ -265,3 +265,31 @@ boost::optional<LidarDepthResult> CheckDepthResult(const boost::optional<LidarDe
   // We force the depth to a boost::none if it is invalid to avoid accidentally using it
   return boost::none;
 }
+
+bool PointWasSubPixRefined(const cv::Point2f& point, double thresh)
+{
+  return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
+}
+
+void NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features, double squared_dist_thresh, int min_j)
+{
+  for (int i = 0; i < features.size(); ++i)
+  {
+    for (int j = static_cast<int>(features.size()) - 1; j > i && j > min_j; --j)
+    {
+      auto d_vec = (features[i]->pt - features[j]->pt);
+      double d2 = d_vec.dot(d_vec);
+      if (d2 < squared_dist_thresh)
+      {
+        features.erase(features.begin() + j);
+      }
+    }
+  }
+}
+
+bool IsCloseToImageEdge(const cv::Point2f& point, int width, int height, double padding_percentage)
+{
+  double padding_x = width * padding_percentage;
+  double padding_y = height * padding_percentage;
+  return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
+}

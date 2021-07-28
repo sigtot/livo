@@ -67,4 +67,8 @@ boost::optional<LidarDepthResult> MaybeGetDepth(const cv::Point2f& pt,
  */
 boost::optional<LidarDepthResult> CheckDepthResult(const boost::optional<LidarDepthResult>& depth);
 
+bool PointWasSubPixRefined(const cv::Point2f& point, double thresh = 0.0001);
+void NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features, double squared_dist_thresh, int min_j);
+bool IsCloseToImageEdge(const cv::Point2f& point, int width, int height, double padding_percentage);
+
 #endif  // ORB_TEST_INCLUDE_LIVO_FEATURE_HELPERS_H_

@@ -233,7 +233,6 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .n_ransac_outliers = n_ransac_outliers };
 }
 
-// TODO move to feature_helpers
 bool ParallaxOk(const std::shared_ptr<Track>& track)
 {
   return (track->MedianParallax() / static_cast<double>(GlobalParams::MinTrackLengthForSmoothing())) *
@@ -241,7 +240,6 @@ bool ParallaxOk(const std::shared_ptr<Track>& track)
          GlobalParams::MinParallaxForSmoothing();
 }
 
-// TODO move to feature_helpers
 bool NonDepthTrackIsOk(const std::shared_ptr<Track>& track)
 {
   return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
@@ -373,38 +371,6 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
   }
   std::cout << "Detected new features in " << cells_repopulated << " cells" << std::endl;
   DebugValuePublisher::PublishNCellsRepopulated(cells_repopulated);
-}
-
-// TODO move to feature_helpers
-bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh)
-{
-  return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
-}
-
-// TODO move to feature_helpers
-void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features,
-                                              double squared_dist_thresh, int min_j)
-{
-  for (int i = 0; i < features.size(); ++i)
-  {
-    for (int j = static_cast<int>(features.size()) - 1; j > i && j > min_j; --j)
-    {
-      auto d_vec = (features[i]->pt - features[j]->pt);
-      double d2 = d_vec.dot(d_vec);
-      if (d2 < squared_dist_thresh)
-      {
-        features.erase(features.begin() + j);
-      }
-    }
-  }
-}
-
-// TODO move to feature_helpers
-bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
-{
-  double padding_x = width * padding_percentage;
-  double padding_y = height * padding_percentage;
-  return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
 }
 
 boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
@@ -681,7 +647,7 @@ void FeatureExtractor::ExtractFeatures(
   // Put the new features behind the old ones so that they are prioritized less during NMS
   new_and_old_features.insert(new_and_old_features.end(), new_features.begin(), new_features.end());
 
-  FeatureExtractor::NonMaxSuppressFeatures(new_and_old_features, GlobalParams::TrackNMSSquaredDistThresh(),
+  NonMaxSuppressFeatures(new_and_old_features, GlobalParams::TrackNMSSquaredDistThresh(),
                                            static_cast<int>(active_tracks_.size()) - 1);
 
   {
