@@ -1,16 +1,13 @@
 #include "feature_extractor.h"
 
 #include <cv_bridge/cv_bridge.h>
-#include <opencv2/calib3d.hpp>
 
 #include "global_params.h"
 #include "Initializer.h"
-#include "radtan_undistorter.h"
-#include "equidistant_undistorter.h"
+#include "image_undistorter.h"
 #include "lidar-depth.h"
 #include "feature_helpers.h"
 #include "debug_value_publisher.h"
-#include "Initializer.h"
 
 #include <algorithm>
 #include <utility>
@@ -164,24 +161,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     }
   }
 
-  // 30 -> 40ms when finding new features
-
-  // TODO: ExtractFeatures
-  auto time_before_extraction = std::chrono::system_clock::now();
-  if (GlobalParams::CountFeaturesPerCell())
-  {
-    DoFeatureExtractionPerCellPopulation(img_undistorted, new_frame, lidar_frame);
-  }
-  else if (active_tracks_.size() < GlobalParams::TrackCountLowerThresh())
-  {
-    DoFeatureExtractionByTotalCount(img_undistorted, new_frame, lidar_frame);
-  }
-
-  auto time_after_extraction = std::chrono::system_clock::now();
-  auto micros_extraction =
-      std::chrono::duration_cast<std::chrono::microseconds>(time_after_extraction - time_before_extraction);
-  double millis_extraction = static_cast<double>(micros_extraction.count()) / 1000.;
-  DebugValuePublisher::PublishFeatureExtractionDuration(millis_extraction);
+  ExtractFeatures(img_undistorted, new_frame, lidar_frame);
 
   // TODO RemoveTracksCloseToEdge
   {
@@ -253,6 +233,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .n_ransac_outliers = n_ransac_outliers };
 }
 
+// TODO move to feature_helpers
 bool ParallaxOk(const std::shared_ptr<Track>& track)
 {
   return (track->MedianParallax() / static_cast<double>(GlobalParams::MinTrackLengthForSmoothing())) *
@@ -260,6 +241,7 @@ bool ParallaxOk(const std::shared_ptr<Track>& track)
          GlobalParams::MinParallaxForSmoothing();
 }
 
+// TODO move to feature_helpers
 bool NonDepthTrackIsOk(const std::shared_ptr<Track>& track)
 {
   return track->features.size() > GlobalParams::MinTrackLengthForSmoothing() &&
@@ -393,11 +375,13 @@ void FeatureExtractor::ExtractNewCornersInUnderpopulatedGridCells(const Mat& img
   DebugValuePublisher::PublishNCellsRepopulated(cells_repopulated);
 }
 
+// TODO move to feature_helpers
 bool FeatureExtractor::PointWasSubPixRefined(const cv::Point2f& point, double thresh)
 {
   return std::abs(point.x - std::round(point.x)) > thresh || std::abs(point.y - std::round(point.y)) > thresh;
 }
 
+// TODO move to feature_helpers
 void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Feature>>& features,
                                               double squared_dist_thresh, int min_j)
 {
@@ -415,52 +399,12 @@ void FeatureExtractor::NonMaxSuppressFeatures(std::vector<std::shared_ptr<Featur
   }
 }
 
+// TODO move to feature_helpers
 bool FeatureExtractor::IsCloseToImageEdge(const Point2f& point, int width, int height, double padding_percentage)
 {
   double padding_x = width * padding_percentage;
   double padding_y = height * padding_percentage;
   return !point.inside(cv::Rect2f(padding_x, padding_y, width - 2 * padding_x, height - 2 * padding_y));
-}
-
-std::vector<shared_ptr<Track>> FeatureExtractor::GetActiveHighParallaxTracks()
-{
-  std::vector<shared_ptr<Track>> tracks;
-  for (auto& track : active_tracks_)
-  {
-    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
-    {
-      tracks.push_back(track);
-    }
-  }
-  return tracks;
-}
-
-std::vector<shared_ptr<Track>> FeatureExtractor::GetHighParallaxTracks()
-{
-  std::vector<shared_ptr<Track>> tracks;
-  for (auto& track : active_tracks_)
-  {
-    if (track->max_parallax >= GlobalParams::MinParallaxForSmoothing())
-    {
-      tracks.push_back(track);
-    }
-  }
-  return tracks;
-}
-
-std::vector<KeyframeTransform> FeatureExtractor::GetKeyframeTransforms() const
-{
-  return keyframe_tracker_ ? keyframe_tracker_->GetKeyframeTransforms() : std::vector<KeyframeTransform>{};
-}
-
-bool FeatureExtractor::ReadyForInitialization() const
-{
-  return keyframe_tracker_ && keyframe_tracker_->GoodForInitialization();
-}
-
-KeyframeTransform FeatureExtractor::GetNewestKeyframeTransform() const
-{
-  return keyframe_tracker_->GetNewestKeyframeTransform();
 }
 
 boost::optional<std::pair<std::shared_ptr<Frame>, std::shared_ptr<Frame>>>
@@ -658,212 +602,6 @@ void FeatureExtractor::RemoveBadDepthTracks()
   }
 }
 
-double FeatureExtractor::RANSACGetOutlierTrackIndices(int n_frames, std::vector<int>& outlier_indices,
-                                                      bool allow_H_inliers)
-{
-  std::cout << "RANSAC run with n=" << n_frames << std::endl;
-  std::vector<int> track_indices;
-  std::vector<cv::Point2f> points_1;
-  std::vector<cv::Point2f> points_2;
-
-  // Check that all frames in RANSAC window are non-stationary
-  if (frames.size() < n_frames + 1)
-  {
-    return 1;
-  }
-  int last_frame_idx = static_cast<int>(frames.size()) - 1;
-  for (int i = last_frame_idx; i >= 0 && i > last_frame_idx - n_frames; --i)
-  {
-    if (frames[i]->stationary)
-    {
-      std::cout << "Skipping RANSAC with n_frames " << n_frames << " because of stationary frames." << std::endl;
-      return 1;
-    }
-  }
-
-  for (int i = 0; i < active_tracks_.size(); ++i)
-  {
-    int track_len = static_cast<int>(active_tracks_[i]->features.size());
-    if (track_len <= n_frames)
-    {
-      // We need features from the n_frames-th previous frame, but the track length is not long enough for it
-      continue;
-    }
-
-    track_indices.push_back(i);
-    points_1.push_back(active_tracks_[i]->features.back()->pt);
-    points_2.push_back(active_tracks_[i]->features[track_len - n_frames - 1]->pt);
-  }
-
-  if (track_indices.size() < 8)
-  {
-    return 1;
-  }
-
-  std::cout << "Have " << track_indices.size() << " points for RANSAC" << std::endl;
-
-  std::vector<uchar> inliers;
-  std::vector<uchar> F_inliers;
-  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 3, 0.99, F_inliers);
-
-  std::vector<uchar> H_inliers;
-  auto H = findHomography(points_1, points_2, cv::RANSAC, 3, H_inliers);
-
-  std::vector<bool> F_check_inliers;
-  double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points_1, points_2);
-
-  std::vector<bool> H_check_inliers;
-  double S_H = ORB_SLAM::CheckHomography(H, H.inv(), H_check_inliers, points_1, points_2);
-
-  double R_H = S_H / (S_H + S_F);
-
-  std::cout << "R_H = " << R_H << std::endl;
-
-  if (R_H > 0.45 && allow_H_inliers)
-  {
-    inliers = H_inliers;
-  }
-  else
-  {
-    inliers = F_inliers;
-  }
-
-  for (int i = 0; i < track_indices.size(); ++i)
-  {
-    if (!inliers[i])
-    {
-      outlier_indices.push_back(track_indices[i]);
-    }
-  }
-  return R_H;
-}
-
-void FeatureExtractor::RemoveTracksByIndices(const std::vector<int>& indices)
-{
-  for (int i = static_cast<int>(indices.size()) - 1; i >= 0; --i)
-  {
-    int idx_to_remove = indices[i];
-    std::cout << "Removing track " << active_tracks_[idx_to_remove]->id << std::endl;
-    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
-  }
-}
-
-void FeatureExtractor::RANSACRemoveOutlierTracks()
-{
-  auto time_before = std::chrono::system_clock::now();
-  std::vector<std::vector<int>> outlier_indices_table;
-  std::vector<double> R_H_vec;
-  std::vector<int> n_frames_vec{ 1, GlobalParams::SecondRANSACNFrames() / 2, GlobalParams::SecondRANSACNFrames() };
-  for (int i = 0; i < n_frames_vec.size(); ++i)
-  {
-    std::vector<int> outlier_indices;
-    auto R_H = RANSACGetOutlierTrackIndices(n_frames_vec[i], outlier_indices);
-    R_H_vec.push_back(R_H);
-    outlier_indices_table.push_back(outlier_indices);
-  }
-
-  int min_i = 0;
-  double min_R_H = R_H_vec[0];
-  for (int i = 1; i < n_frames_vec.size(); ++i)
-  {
-    if (R_H_vec[i] > min_R_H)
-    {
-      min_R_H = R_H_vec[i];
-      min_i = i;
-    }
-  }
-
-  // Remove outlier tracks. Go backwards through the vector to not screw up the indices of active_tracks
-  for (int i = static_cast<int>(outlier_indices_table[min_i].size()) - 1; i >= 0; --i)
-  {
-    int idx_to_remove = outlier_indices_table[min_i][i];
-    std::cout << "Removing outlier track " << active_tracks_[idx_to_remove]->id << std::endl;
-    active_tracks_.erase(active_tracks_.begin() + idx_to_remove);
-  }
-
-  auto time_after = std::chrono::system_clock::now();
-  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before);
-  std::cout << "RANSAC took " << millis.count() << "ms" << std::endl;
-}
-
-void FeatureExtractor::RANSACRemoveOutlierTracks(int n_frames)
-{
-  std::cout << "RANSAC run with n=" << n_frames << std::endl;
-  std::vector<int> track_indices;
-  std::vector<cv::Point2f> points_1;
-  std::vector<cv::Point2f> points_2;
-
-  // Check that all frames in RANSAC window are non-stationary
-  if (frames.size() < n_frames + 1)
-  {
-    return;
-  }
-  int last_frame_idx = static_cast<int>(frames.size()) - 1;
-  for (int i = last_frame_idx; i >= 0 && i > last_frame_idx - n_frames; --i)
-  {
-    if (frames[i]->stationary)
-    {
-      std::cout << "Skipping RANSAC with n_frames " << n_frames << " because of stationary frames." << std::endl;
-      return;
-    }
-  }
-
-  for (int i = 0; i < active_tracks_.size(); ++i)
-  {
-    int track_len = static_cast<int>(active_tracks_[i]->features.size());
-    if (track_len <= n_frames)
-    {
-      // We need features from the n_frames-th previous frame, but the track length is not long enough for it
-      continue;
-    }
-
-    track_indices.push_back(i);
-    points_1.push_back(active_tracks_[i]->features.back()->pt);
-    points_2.push_back(active_tracks_[i]->features[track_len - n_frames - 1]->pt);
-  }
-
-  if (track_indices.size() < 8)
-  {
-    return;
-  }
-
-  std::cout << "Have " << track_indices.size() << " points for RANSAC" << std::endl;
-
-  std::vector<uchar> F_inliers;
-  auto F = findFundamentalMat(points_1, points_2, CV_FM_RANSAC, 5, 0.99, F_inliers);
-
-  std::vector<uchar> H_inliers;
-  auto H = findHomography(points_1, points_2, cv::RANSAC, 5, H_inliers);
-
-  std::vector<bool> F_check_inliers;
-  double S_F = ORB_SLAM::CheckFundamental(F, F_check_inliers, points_1, points_2);
-
-  std::vector<bool> H_check_inliers;
-  double S_H = ORB_SLAM::CheckHomography(H, H.inv(), H_check_inliers, points_1, points_2);
-
-  double R_H = S_H / (S_H + S_F);
-
-  std::cout << "R_H = " << R_H << std::endl;
-
-  auto inliers = F_inliers;
-
-  if (R_H > 0.45)
-  {
-    std::cout << "Skipping this RANSAC because R_H < 0.45 (R_H = " << R_H << ")" << std::endl;
-    return;
-  }
-
-  // iterate backwards to not mess up vector when erasing
-  for (int i = static_cast<int>(track_indices.size()) - 1; i >= 0; --i)
-  {
-    if (!inliers[i])
-    {
-      std::cout << "Removing outlier track " << active_tracks_[track_indices[i]]->id << std::endl;
-      active_tracks_.erase(active_tracks_.begin() + track_indices[i]);
-    }
-  }
-}
-
 void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std::vector<cv::Point2f>& prev_points,
                                            std::vector<cv::Point2f>& new_points)
 
@@ -912,10 +650,11 @@ void FeatureExtractor::InitNewExtractedFeatures(const std::vector<cv::Point2f>& 
   }
 }
 
-void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
+void FeatureExtractor::ExtractFeatures(
     const cv::Mat& img, std::shared_ptr<Frame> new_frame,
     const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
 {
+  auto time_before_extraction = std::chrono::system_clock::now();
   Mat_<int> feature_counts;
   MakeFeatureCountPerCellTable(img.cols, img.rows, GlobalParams::GridCellsX(), GlobalParams::GridCellsY(),
                                frames.empty() ? std::map<int, std::weak_ptr<Feature>>{} : frames.back()->features,
@@ -964,28 +703,12 @@ void FeatureExtractor::DoFeatureExtractionPerCellPopulation(
       feature_counts.at<int>(feat_cell_idx.y, feat_cell_idx.x)++;
     }
   }
-}
 
-void FeatureExtractor::DoFeatureExtractionByTotalCount(const cv::Mat& img, std::shared_ptr<Frame> new_frame,
-                                                       const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame)
-{
-  std::cout << "Feature extraction by total count not implemented" << std::endl;
-  exit(1);
-}
-
-void FeatureExtractor::UpdateTrackParallaxes()
-{
-  int count = 0;
-  for (const auto& track : active_tracks_)
-  {
-    if (true && track->max_parallax < GlobalParams::MinParallaxForSmoothing())
-    {
-      auto parallax = smoother_.CalculateParallax(track);
-      track->max_parallax = std::max(parallax, track->max_parallax);
-      count++;
-    }
-  }
-  std::cout << "Calculated parallaxes for " << count << " tracks" << std::endl;
+  auto time_after_extraction = std::chrono::system_clock::now();
+  auto micros_extraction =
+      std::chrono::duration_cast<std::chrono::microseconds>(time_after_extraction - time_before_extraction);
+  double millis_extraction = static_cast<double>(micros_extraction.count()) / 1000.;
+  DebugValuePublisher::PublishFeatureExtractionDuration(millis_extraction);
 }
 
 void FeatureExtractor::PublishSingleTrackImage(const backend::Track& track)
