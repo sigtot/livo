@@ -14,7 +14,10 @@ struct Track
   boost::optional<cv::Point2f> last_landmark_projection;
   int id;
 
+  /// How many times this track has been labeled as an inlier
   int inlier_count = 0;
+
+  /// How many times this track has been labeled as an outlier
   int outlier_count = 0;
 
   /// Depth value from neighboring LiDAR point. Not precise enough to be trusted as a measurement.

@@ -61,22 +61,18 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
   auto lidar_frame = lidar_frame_manager_.At(new_frame->timestamp);
 
-  // 5 -> 17ms
+  // Do processing that requires existing frames
   if (!frames.empty())
   {
     // Obtain prev image and points
-    // TODO GetPrevPoints
     auto prev_img = frames.back()->image;
-    vector<cv::Point2f> prev_points;
-    for (const auto& track : active_tracks_)
-    {
-      prev_points.push_back(track->features.back()->pt);
-    }
+    std::vector<cv::Point2f> prev_points;
+    GetPrevPoints(prev_points);
 
     // Use optical flow to calculate new point predictions
-    vector<cv::Point2f> new_points;
-    vector<uchar> status;
-    vector<float> err;
+    std::vector<cv::Point2f> new_points;
+    std::vector<uchar> status;
+    std::vector<float> err;
     TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), GlobalParams::KLTMaxIterations(),
                                          GlobalParams::KLTConvergenceEpsilon());
 
@@ -92,66 +88,12 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
     KLTDiscardBadTracks(status, prev_points, new_points);
 
-    // Initialize features. We will remove outliers after.
     KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
-    // TODO RANSACComputeParallaxForTracks
-    int ival = 5;
-    if (frames.size() > ival)
-    {
-      std::vector<cv::Point2f> old_matches;
-      std::vector<cv::Point2f> new_matches;
-      std::vector<int> track_indices;
-      for (int i = 0; i < active_tracks_.size(); ++i)
-      {
-        if (active_tracks_[i]->features.size() > ival)
-        {
-          auto old_feature = active_tracks_[i]->features[active_tracks_[i]->features.size() - 1 - ival];
-          auto new_feature = active_tracks_[i]->features.back();
-          if (old_feature->frame_id != new_frame->id - ival)
-          {
-            std::cout << "wtf old_feature->frame_id != new_frame - ival" << std::endl;
-            exit(1);
-          }
-          old_matches.push_back(old_feature->pt);
-          new_matches.push_back(new_feature->pt);
-          track_indices.push_back(i);
-        }
-      }
-      std::vector<double> parallaxes;
-      std::vector<cv::Point2f> parallax_proj_points;
-      std::vector<uchar> new_cooler_inlier_mask;
-
-      auto success = ComputeParallaxesAndInliers(old_matches, new_matches, image_undistorter_->GetRefinedCameraMatrix(),
-                                                 parallaxes, parallax_proj_points, new_cooler_inlier_mask);
-      if (success)
-      {
-        for (int i = 0; i < parallaxes.size(); ++i)
-        {
-          auto track_idx = track_indices[i];
-          if (new_cooler_inlier_mask[i])
-          {
-            active_tracks_[track_idx]->inlier_count++;
-          }
-          else
-          {
-            active_tracks_[track_idx]->outlier_count++;
-          }
-          active_tracks_[track_idx]->parallaxes.push_back(parallaxes[i]);
-          active_tracks_[track_idx]->last_parallax = parallax_proj_points[i];
-        }
-      }
-    }
-
-
-    // Discard RANSAC outliers
-    //std::cout << "Discarding RANSAC outliers" << std::endl;
-    // TODO: use essential matrix instead? Maybe as part of the parallax computation?
-    //RANSACRemoveOutlierTracks();
+    RANSACComputeParallaxesForTracks();
 
     RejectOutliersByLandmarkProjections(new_frame->id, new_frame->timestamp);
 
-    std::cout << "Discarding tracks with too high change between consecutive features" << std::endl;
     RemoveBadDepthTracks();
 
     if (!IsStationary(prev_points, new_points, GlobalParams::StationaryThresh()))
@@ -163,66 +105,24 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
   ExtractFeatures(img_undistorted, new_frame, lidar_frame);
 
-  // TODO RemoveTracksCloseToEdge
-  {
-    for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
-    {
-      if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, img_undistorted.cols, img_undistorted.rows,
-                             GlobalParams::ImageEdgePaddingPercent()))
-      {
-        active_tracks_.erase(active_tracks_.begin() + i);
-      }
-    }
-  }
+  RemoveTracksCloseToEdge(img_undistorted.cols, img_undistorted.rows);
 
-  // TODO if (id % ival == 0) kf = true
-  if (!GlobalParams::UseParallaxKeyframes() && new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
+  if (new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
   {
     new_frame->is_keyframe = true;
   }
 
-  {
-    frames.push_back(new_frame);
-  }
-  // TODO remove
-  if (GlobalParams::UseParallaxKeyframes())
-  {
-    if (keyframe_tracker_)
-    {
-      keyframe_tracker_->TryAddFrameSafe(new_frame, active_tracks_);
-    }
-    else
-    {
-      keyframe_tracker_ = std::make_shared<KeyframeTracker>(new_frame);
-    }
-  }
+  frames.push_back(new_frame);
 
-  // TODO RemoveTracksByInlierRatio
-  int n_ransac_outliers = 0;
-  {
-    for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
-    {
-      // For san raf: just check if InlierRatio < 1 ?
-      if ((active_tracks_[i]->inlier_count > 0 || active_tracks_[i]->outlier_count > 0) &&
-          active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
-      {
-        active_tracks_.erase(active_tracks_.begin() + i);
-        n_ransac_outliers++;
-      }
-    }
-  }
+  int n_ransac_outliers = RemoveTracksByInlierRatio(GlobalParams::MinKeyframeFeatureInlierRatio());
 
+  // Keep a constant maximum number of frames in memory
   if (frames.front()->timestamp < new_frame->timestamp - GlobalParams::SmootherLag() - 10.)
   {
     frames.pop_front();
   }
 
-  auto time_before_publish = std::chrono::system_clock::now();
   PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
-  auto time_after_publish = std::chrono::system_clock::now();
-  auto micros_publish = std::chrono::duration_cast<std::chrono::microseconds>(time_after_publish - time_before_publish);
-  double millis_publish = static_cast<double>(micros_publish.count()) / 1000.;
-  DebugValuePublisher::PublishImagePublishDuration(millis_publish);
 
   return backend::FrontendResult{ .frame_id = new_frame->id,
                                   .timestamp = new_frame->timestamp,
@@ -419,6 +319,7 @@ void FeatureExtractor::PreProcessImage(cv::Mat& image) const
 void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
                                              const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const
 {
+  auto time_before_publish = std::chrono::system_clock::now();
   if (!GlobalParams::VisualizationEnabled())
   {
     return;
@@ -517,6 +418,11 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());
   std::cout << "track count: " << active_tracks_.size() << std::endl;
+
+  auto time_after_publish = std::chrono::system_clock::now();
+  auto micros_publish = std::chrono::duration_cast<std::chrono::microseconds>(time_after_publish - time_before_publish);
+  double millis_publish = static_cast<double>(micros_publish.count()) / 1000.;
+  DebugValuePublisher::PublishImagePublishDuration(millis_publish);
 }
 
 void FeatureExtractor::RejectOutliersByLandmarkProjections(int frame_id, double timestamp)
@@ -698,4 +604,94 @@ void FeatureExtractor::PublishSingleTrackImage(const backend::Track& track)
   }
   cv::circle(out_img.image, track.features.back().pt, 5, color, 1);
   high_delta_tracks_pub_.publish(out_img.toImageMsg());
+}
+
+void FeatureExtractor::RANSACComputeParallaxesForTracks(int ransac_interval)
+{
+  /// What interval we want between the frames we perform RANSAC on
+  if (frames.size() <= ransac_interval)
+  {
+    // Nothing to do yet. Wait until we have enough frames.
+    return;
+  }
+
+  // Obtain feature correspondences
+  std::vector<cv::Point2f> old_matches;
+  std::vector<cv::Point2f> new_matches;
+  std::vector<int> track_indices; // Also keep track of track indices for later outlier removal
+  for (int i = 0; i < active_tracks_.size(); ++i)
+  {
+    if (active_tracks_[i]->features.size() > ransac_interval)
+    {
+      auto old_feature = active_tracks_[i]->features[active_tracks_[i]->features.size() - 1 - ransac_interval];
+      auto new_feature = active_tracks_[i]->features.back();
+      old_matches.push_back(old_feature->pt);
+      new_matches.push_back(new_feature->pt);
+      track_indices.push_back(i);
+    }
+  }
+
+  // Compute parallaxes
+  std::vector<double> parallaxes;
+  std::vector<cv::Point2f> parallax_proj_points;
+  std::vector<uchar> inliers;
+  bool success = ComputeParallaxesAndInliers(old_matches, new_matches, image_undistorter_->GetRefinedCameraMatrix(),
+                                             parallaxes, parallax_proj_points, inliers);
+
+  // If parallax computation failed, we do not want to use the result for either parallax or outliers
+  if(!success)
+  {
+    return;
+  }
+
+  // Parallax computation succeeded. Update parallaxes and inlier/outlier counts
+  for (int i = 0; i < parallaxes.size(); ++i)
+  {
+    auto track_idx = track_indices[i];
+    if (inliers[i])
+    {
+      active_tracks_[track_idx]->inlier_count++;
+    }
+    else
+    {
+      active_tracks_[track_idx]->outlier_count++;
+    }
+    active_tracks_[track_idx]->parallaxes.push_back(parallaxes[i]);
+    active_tracks_[track_idx]->last_parallax = parallax_proj_points[i];
+  }
+}
+
+int FeatureExtractor::RemoveTracksByInlierRatio(double inlier_ratio)
+{
+  int outliers_removed = 0;
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
+  {
+    if ((active_tracks_[i]->inlier_count > 0 || active_tracks_[i]->outlier_count > 0) &&
+        active_tracks_[i]->InlierRatio() < inlier_ratio)
+    {
+      active_tracks_.erase(active_tracks_.begin() + i);
+      outliers_removed++;
+    }
+  }
+  return outliers_removed;
+}
+
+void FeatureExtractor::RemoveTracksCloseToEdge(int width, int height)
+{
+  for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
+  {
+    if (IsCloseToImageEdge(active_tracks_[i]->features.back()->pt, width, height,
+                           GlobalParams::ImageEdgePaddingPercent()))
+    {
+      active_tracks_.erase(active_tracks_.begin() + i);
+    }
+  }
+}
+
+void FeatureExtractor::GetPrevPoints(std::vector<cv::Point2f>& prev_points) const
+{
+  for (const auto& track : active_tracks_)
+  {
+    prev_points.push_back(track->features.back()->pt);
+  }
 }

@@ -22,6 +22,7 @@
 #include <mutex>
 #include <deque>
 
+// TODO remove
 using namespace std;
 using namespace cv;
 
@@ -98,6 +99,39 @@ private:
   bool TrackIsMature(const std::shared_ptr<Track>& track) const;
 
   void RejectOutliersByLandmarkProjections(int frame_id, double timestamp);
+
+  void GetPrevPoints(std::vector<cv::Point2f>& prev_points) const;
+
+  /**
+   * @brief Compute and update active tracks with parallaxes and increment their inlier/outlier counts
+   * according to the result.
+   *
+   * The computation may fail if the scene does not have enough parallax.
+   * In that case, we neither update inlier/outlier counts nor parallaxes.
+   *
+   * Additionally, if there are not more than ransac_interval frames processed, no computation is done.
+   *
+   * @param ransac_interval the interval between the frames to perform RANSAC on (default 5)
+   */
+  void RANSACComputeParallaxesForTracks(int ransac_interval = 5);
+
+  /**
+   * @brief Remove tracks close to the image edges.
+   *
+   * @param width image width
+   * @param height image height
+   */
+  void RemoveTracksCloseToEdge(int width, int height);
+
+  /**
+   * @brief Remove tracks with inlier ratio larger than inlier_ratio
+   *
+   * The inlier ratio is here defined as inlier_count / (inlier_count + outlier_count)
+   *
+   * @param inlier_ratio
+   * @return the number of outlier tracks removed
+   */
+  int RemoveTracksByInlierRatio(double inlier_ratio);
 
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,
