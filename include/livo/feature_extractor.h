@@ -3,8 +3,6 @@
 
 #include "frame.h"
 #include "track.h"
-#include "keyframe_transform.h"
-#include "keyframe_tracker.h"
 #include "lidar_frame_manager.h"
 #include "image_undistorter.h"
 #include "new_smoother.h"
@@ -39,7 +37,6 @@ private:
   std::vector<std::shared_ptr<Track>> active_tracks_;
   std::deque<std::shared_ptr<Track>> removed_tracks_;
 
-  shared_ptr<KeyframeTracker> keyframe_tracker_ = nullptr;
   std::shared_ptr<ImageUndistorter> image_undistorter_;
 
   void ExtractNewCornersInUnderpopulatedGridCells(const Mat& img, vector<cv::Point2f>& corners, int cell_count_x,
@@ -49,9 +46,23 @@ private:
 
   void RemoveBadDepthTracks();
 
+
+  /**
+   * @brief Predict new feature locations with the Lucas-Kanade optical flow tracker
+   * @param prev_img the previous image
+   * @param new_img the new image
+   * @param prev_points points in the previous image
+   * @param new_points vector of points in the new image as predicted by LK
+   * @param status vector of uchars that denote whether the track was lost
+   */
+  static void KLTPredictFeatureLocations(const cv::Mat& prev_img, const cv::Mat& new_img,
+                                         const std::vector<cv::Point2f>& prev_points,
+                                         std::vector<cv::Point2f>& new_points, std::vector<uchar>& status);
+
   /**
    *
-   * Discard tracks labeled by the KLT tracker as bad.
+   * @brief Discard tracks labeled by the KLT tracker as bad.
+   *
    * Discards both tracks in active_tracks_ and the corresponding features in prev_points and new_points.
    *
    * All inputs should be ordered 1-1 according to active_tracks_. The modified prev_points and new_points vectors are
@@ -132,6 +143,13 @@ private:
    * @return the number of outlier tracks removed
    */
   int RemoveTracksByInlierRatio(double inlier_ratio);
+
+  /**
+   * @brief Prepare image for use, applying grayscale conversion, resizing and undistortion
+   *
+   * @param img_msg ros image message
+   */
+  void PrepareImage(const sensor_msgs::Image::ConstPtr& img_msg, cv::Mat& img) const;
 
 public:
   explicit FeatureExtractor(const ros::Publisher& tracks_pub, const ros::Publisher& high_delta_tracks_pub,

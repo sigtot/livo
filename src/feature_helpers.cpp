@@ -5,8 +5,6 @@
 
 #include <algorithm>
 #include <opencv2/calib3d.hpp>
-#include <essential_matrix_decomposition_result.h>
-#include <homography_decomposition_result.h>
 #include <chrono>
 #include <thread>
 #include <future>
@@ -160,28 +158,6 @@ void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int ce
   }
 }
 
-/**
- * Compute maximum difference in a track's lidar depth measurements.
- * @param track
- * @return max difference in depth or -1 in case the track has no depth.
- */
-double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track)
-{
-  double min_depth = 999.;
-  double max_depth = 0.;
-  bool have_depth = false;  // We need to check that we don't have a track without any depth
-  for (const auto& feature : track->features)
-  {
-    if (feature->depth)
-    {
-      max_depth = std::max(max_depth, feature->depth->depth);
-      min_depth = std::min(min_depth, feature->depth->depth);
-      have_depth = true;
-    }
-  }
-  return have_depth ? max_depth - min_depth : -1.;
-}
-
 double ComputeMaxTrackDepthChange(const std::shared_ptr<Track>& track)
 {
   double max_change = -1.;
@@ -212,22 +188,6 @@ bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector
   }
   double average_dist = total_dist / static_cast<double>(new_points.size());
   return average_dist < thresh;
-}
-
-int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv)
-{
-  int num_invalid = 0;
-  for (const auto& point : points)
-  {
-    cv::Mat p = (cv::Mat_<double>(3, 1) << point.x, point.y, 1.);
-    cv::Mat m = K_inv * p;
-    cv::Mat res = m.t() * n;
-    if (res.at<double>(0) <= 0)
-    {
-      num_invalid++;
-    }
-  }
-  return num_invalid;
 }
 
 void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,

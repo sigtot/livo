@@ -1,7 +1,6 @@
 #ifndef ORB_TEST_FEATUREEXTRACTOR_CPP_FRAME_H_
 #define ORB_TEST_FEATUREEXTRACTOR_CPP_FRAME_H_
 
-#include "homography_decomposition_result.h"
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <opencv2/core/core.hpp>
@@ -24,7 +23,6 @@ struct Frame
   double timestamp;
   bool stationary;
   bool is_keyframe = false;
-  boost::optional<HomographyDecompositionResult> homography_decomposition_result;
 
   std::vector<FeatureMatch> GetFeatureMatches(const std::shared_ptr<Frame>& target);
   bool HasDepth();

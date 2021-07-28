@@ -36,12 +36,8 @@ void MakeFeatureCountPerCellTable(int img_w, int img_h, int cell_count_x, int ce
  */
 double ComputeMaxTrackDepthChange(const std::shared_ptr<Track>& track);
 
-double ComputeMaxTrackDepthDifference(const std::shared_ptr<Track>& track);
-
 bool IsStationary(const std::vector<cv::Point2f>& prev_points, const std::vector<cv::Point2f>& new_points,
                   double thresh);
-
-int NumPointsBehindCamera(const std::vector<cv::Point2f>& points, const cv::Mat& n, const cv::Mat& K_inv);
 
 void ComputePointParallaxes(const std::vector<cv::Point2f>& points1, const std::vector<cv::Point2f>& points2,
                             const cv::Mat& R12, const cv::Mat& K, std::vector<double>& parallaxes,
