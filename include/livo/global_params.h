@@ -180,7 +180,9 @@ private:
   std::string loam_world_frame_ = "unknown";
   std::string loam_sensor_frame_ = "unknown";
   std::string loam_degeneracy_topic_ = "";  // Use empty string if no degeneracy topic available
+  int loam_between_factor_interval_ = 5;
 
+  bool visualization_enabled_ = true;
   bool draw_only_in_smoother_landmarks_ = false;
   // If true, will draw lidar depth lines published in landmarks image.
   // When lidar depth is not available, no landmarks image will be published.
@@ -347,11 +349,13 @@ public:
   static bool LoamIMUOnly();
   static bool FrameBetweenFactors();
   static bool KeyframeBetweenFactors();
+  static int LoamBetweenFactorInterval();
 
   static bool LandmarkRemovalHighDelta();
   static bool LandmarkRemovalHighDepthDifference();
   static double MaxDepthDifferenceBeforeRemoval();
 
+  static bool VisualizationEnabled();
   static bool DrawOnlyInSmootherLandmarks();
   static bool DrawLidarLines();
 };

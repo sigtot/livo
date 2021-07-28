@@ -33,7 +33,8 @@ void AppendPosesToFileTUM(const std::vector<Pose3Stamped>& poses, const std::vec
     if (frame_metadata[i])
     {
       file << frame_metadata[i]->n_landmarks << delimiter;
-      file << frame_metadata[i]->loam_degenerate << std::endl;
+      file << frame_metadata[i]->loam_degenerate << delimiter;
+      file << frame_metadata[i]->n_ransac_outliers << std::endl;
     }
   }
 }

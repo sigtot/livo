@@ -107,8 +107,10 @@ keyframe_between_factors: false
 loam_world_frame: map
 loam_sensor_frame: aft_mapped_to_init_CORRECTED
 loam_degeneracy_topic: /laser_odom_status
+loam_between_factor_interval: 5
 
 visualization:
+  enabled: true
   draw_only_in_smoother_landmarks: false
   draw_lidar_lines: false  # Adds about 15ms to image publish
 

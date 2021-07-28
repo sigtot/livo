@@ -218,7 +218,9 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/loam_world_frame", GetInstance().loam_world_frame_);
   ReadVariable(nh, "/orb_test_node/loam_sensor_frame", GetInstance().loam_sensor_frame_);
   ReadVariable(nh, "/orb_test_node/loam_degeneracy_topic", GetInstance().loam_degeneracy_topic_);
+  ReadVariable(nh, "/orb_test_node/loam_between_factor_interval", GetInstance().loam_between_factor_interval_);
 
+  ReadVariable(nh, "/orb_test_node/visualization/enabled", GetInstance().visualization_enabled_);
   ReadVariable(nh, "/orb_test_node/visualization/draw_only_in_smoother_landmarks",
                GetInstance().draw_only_in_smoother_landmarks_);
   ReadVariable(nh, "/orb_test_node/visualization/draw_lidar_lines", GetInstance().draw_lidar_lines_);
@@ -755,6 +757,10 @@ std::string GlobalParams::LoamDegeneracySubTopic()
 {
   return GetInstance().loam_degeneracy_topic_;
 }
+int GlobalParams::LoamBetweenFactorInterval()
+{
+  return GetInstance().loam_between_factor_interval_;
+}
 
 bool GlobalParams::DrawLidarLines()
 {
@@ -788,6 +794,10 @@ std::string GlobalParams::FullPathExportFilePrefix()
 double GlobalParams::TriangulationRankTol()
 {
   return GetInstance().triangulation_rank_tol_;
+}
+bool GlobalParams::VisualizationEnabled()
+{
+  return GetInstance().visualization_enabled_;
 }
 bool GlobalParams::DrawOnlyInSmootherLandmarks()
 {

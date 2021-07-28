@@ -190,6 +190,7 @@ void Controller::ProcessWithBackend(const backend::FrontendResult& frontend_resu
       .frame_id = frontend_result.frame_id,
       .n_landmarks = Controller::CountActiveLandmarks(landmark_estimates),
       .loam_degenerate = between_transform_provider_->IsDegenerate(frontend_result.timestamp),
+      .n_ransac_outliers = frontend_result.n_ransac_outliers,
   };
   UpdatePublishAndWriteFullTrajectory(pose_estimates, metadata);
 

@@ -56,6 +56,7 @@ private:
   boost::shared_ptr<gtsam::Cal3_S2> K_;
   int last_frame_id_ = -1;
   int last_keyframe_id_ = -1;
+  int last_loam_frame_id_ = -1;
   std::map<int, backend::FrontendResult> added_frames_;
 
   boost::shared_ptr<gtsam::noiseModel::Diagonal> between_noise_;
@@ -80,7 +81,7 @@ private:
   bool TryInitializeProjLandmarkByTriangulation(int lmk_id, int frame_id, double timestamp,
                                                 const backend::Track& track);
   void InitializeStructurelessLandmark(int lmk_id, int frame_id, double timestamp, const gtsam::Point2& pt);
-  void TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
+  bool TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
                                const boost::shared_ptr<gtsam::noiseModel::Base>& noise);
   void DoExtraUpdateSteps(int steps);
   void RemoveUntrackedFramesFromBookkeeping();

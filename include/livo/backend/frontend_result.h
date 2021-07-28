@@ -17,6 +17,7 @@ struct FrontendResult
    * All tracks were observed in this frame, and the last feature in every track will be that observation.
    */
   std::vector<backend::Track> mature_tracks;
+  int n_ransac_outliers;
 };
 }  // namespace backend
 

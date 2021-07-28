@@ -380,12 +380,12 @@ void NewSmoother::InitializeStructurelessLandmark(int lmk_id, int frame_id, doub
                                            feature_m_estimator_);
 }
 
-void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
+bool NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double timestamp_1, double timestamp_2,
                                           const boost::shared_ptr<gtsam::noiseModel::Base>& noise)
 {
   if (!GlobalParams::LoamBetweenFactorsEnabled())
   {
-    return;
+    return false;
   }
   double offset_1 = lidar_time_offset_provider_->GetOffset(timestamp_1);
   double offset_2 = lidar_time_offset_provider_->GetOffset(timestamp_2);
@@ -394,7 +394,9 @@ void NewSmoother::TryAddBetweenConstraint(int frame_id_1, int frame_id_2, double
   if (between_tf)
   {
     graph_manager_.AddBetweenFactor(frame_id_1, frame_id_2, *between_tf, noise);
+    return true;
   }
+  return false;
 }
 
 void NewSmoother::Initialize(const backend::FrontendResult& frame,
@@ -449,6 +451,7 @@ void NewSmoother::Initialize(const backend::FrontendResult& frame,
   added_frames_[frame.frame_id] = frame;
   last_frame_id_ = frame.frame_id;
   last_keyframe_id_ = frame.frame_id;
+  last_loam_frame_id_ = frame.frame_id;
   initialized_ = true;
 }
 
@@ -752,20 +755,13 @@ void NewSmoother::AddKeyframe(const backend::FrontendResult& frontend_result, bo
   auto between_noise =
       gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_);
 
-  auto between_noise_keyframe =
-      gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(3.), between_noise_keyframe_);
-
-  if (GlobalParams::FrameBetweenFactors())
+  if (frontend_result.frame_id % GlobalParams::LoamBetweenFactorInterval() == 0)
   {
-    TryAddBetweenConstraint(last_frame_id_, frontend_result.frame_id, added_frames_[last_frame_id_].timestamp,
-                            frontend_result.timestamp,
-                            between_noise);
-  }
-  if (GlobalParams::KeyframeBetweenFactors() && is_keyframe)
-  {
-    TryAddBetweenConstraint(last_keyframe_id_, frontend_result.frame_id, added_frames_[last_keyframe_id_].timestamp,
-                            frontend_result.timestamp,
-                            between_noise_keyframe);
+    TryAddBetweenConstraint(last_loam_frame_id_, frontend_result.frame_id, added_frames_[last_loam_frame_id_].timestamp,
+                            frontend_result.timestamp, between_noise);
+    // Set the last loam frame id regardless of whether the between factor was added or not
+    // If not, after a period of degeneracy, we would add one really long between factor spanning the entire period
+    last_loam_frame_id_ = frontend_result.frame_id;
   }
 
   std::cout << "Starting ISAM2 Update" << std::endl;

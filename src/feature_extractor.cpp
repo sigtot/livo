@@ -68,6 +68,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   if (!frames.empty())
   {
     // Obtain prev image and points
+    // TODO GetPrevPoints
     auto prev_img = frames.back()->image;
     vector<cv::Point2f> prev_points;
     for (const auto& track : active_tracks_)
@@ -97,6 +98,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     // Initialize features. We will remove outliers after.
     KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
+    // TODO RANSACComputeParallaxForTracks
     int ival = 5;
     if (frames.size() > ival)
     {
@@ -164,6 +166,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
 
   // 30 -> 40ms when finding new features
 
+  // TODO: ExtractFeatures
   auto time_before_extraction = std::chrono::system_clock::now();
   if (GlobalParams::CountFeaturesPerCell())
   {
@@ -180,6 +183,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   double millis_extraction = static_cast<double>(micros_extraction.count()) / 1000.;
   DebugValuePublisher::PublishFeatureExtractionDuration(millis_extraction);
 
+  // TODO RemoveTracksCloseToEdge
   {
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
@@ -191,6 +195,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     }
   }
 
+  // TODO if (id % ival == 0) kf = true
   if (!GlobalParams::UseParallaxKeyframes() && new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
   {
     new_frame->is_keyframe = true;
@@ -199,7 +204,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
   {
     frames.push_back(new_frame);
   }
-
+  // TODO remove
   if (GlobalParams::UseParallaxKeyframes())
   {
     if (keyframe_tracker_)
@@ -212,6 +217,8 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     }
   }
 
+  // TODO RemoveTracksByInlierRatio
+  int n_ransac_outliers = 0;
   {
     for (int i = static_cast<int>(active_tracks_.size()) - 1; i >= 0; --i)
     {
@@ -220,6 +227,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
           active_tracks_[i]->InlierRatio() < GlobalParams::MinKeyframeFeatureInlierRatio())
       {
         active_tracks_.erase(active_tracks_.begin() + i);
+        n_ransac_outliers++;
       }
     }
   }
@@ -241,7 +249,8 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .stationary = new_frame->stationary,
                                   .is_keyframe = new_frame->is_keyframe,
                                   .has_depth = new_frame->HasDepth(),
-                                  .mature_tracks = GetMatureTracksForBackend() };
+                                  .mature_tracks = GetMatureTracksForBackend(),
+                                  .n_ransac_outliers = n_ransac_outliers };
 }
 
 bool ParallaxOk(const std::shared_ptr<Track>& track)
@@ -500,6 +509,10 @@ void FeatureExtractor::PreProcessImage(cv::Mat& image) const
 void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame, const cv::Mat& img,
                                              const boost::optional<std::shared_ptr<LidarFrame>>& lidar_frame) const
 {
+  if (!GlobalParams::VisualizationEnabled())
+  {
+    return;
+  }
   cv_bridge::CvImage tracks_out_img;
   tracks_out_img.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
   tracks_out_img.header.stamp = ros::Time(frames.back()->timestamp);
