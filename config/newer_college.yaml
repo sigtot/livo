@@ -45,7 +45,7 @@ noise_params:
   prior_gyro: 0.2
   prior_accel: 0.2
   prior_velocity: 0.01
-  between_rotation: 0.001
+  between_rotation: 0.0001
   between_translation: 0.001
   between_rotation_keyframe: 0.0001
   between_translation_keyframe: 0.001
@@ -61,10 +61,10 @@ isam_relinearize_skip: 1
 init_range_factor_length: 1.0
 
 count_features_per_cell: true
-min_features_per_cell: 3
+min_features_per_cell: 5
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
-max_features_per_cell: 5
+max_features_per_cell: 6
 max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
 grid_cells_x: 5
 grid_cells_y: 5
@@ -87,14 +87,14 @@ num_high_parallax_points_for_keyframe: 15
 min_track_length_for_smoothing: 20 # TODO 15 again???
 min_track_length_for_smoothing_depth: 10
 min_depth_measurements_for_smoothing: 3
-max_depth_for_smoothing: 60
+max_depth_for_smoothing: 60 # Drifts more when LOAM is on if 60 rather than 40!
 min_active_track_count: 20
 use_angle_parallax: true
 min_keyframe_feature_inlier_ratio: 0.9
 
 use_parallax_keyframes: false
 min_parallax_for_keyframe: 20
-temporal_keyframe_interval: 5
+temporal_keyframe_interval: 30
 frame_interval: 2
 second_ransac_n_frames: 14
 
@@ -144,8 +144,8 @@ use_fixed_lag: true
 smoother_lag: 5
 enable_smart_factors: false
 isam_relin_thresh:
-  x_rotation: 0.1
-  x_translation: 0.01  # TODO CHeck for sure that this is not a problem
+  x_rotation: 0.01
+  x_translation: 0.05  # 0.01 has a lot more relinearizations than 0.1. 0.05 is a good middle ground
   v: 0.1
   b: 0.1
   l: 1.0

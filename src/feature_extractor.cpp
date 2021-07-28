@@ -27,34 +27,11 @@ FeatureExtractor::FeatureExtractor(const ros::Publisher& tracks_pub, const ros::
 backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   std::cout << "Frontend processing new frame" << std::endl;
-  auto encoding =
-      GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
-
-  auto cvPtr = cv_bridge::toCvShare(msg, encoding);
-
-  Mat img_bw;
-  if (GlobalParams::ColorImage())
-  {
-    cvtColor(cvPtr->image, img_bw, CV_BGR2GRAY);
-  }
-  else
-  {
-    img_bw = cvPtr->image;
-  }
-
-  Mat img_resized;
-  resize(img_bw, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
-
-  cv::Mat img_undistorted;
-  UndistortImage(img_resized, img_undistorted);
-
-  if (GlobalParams::PreProcess())
-  {
-    PreProcessImage(img_undistorted);
-  }
+  cv::Mat img;
+  PrepareImage(msg, img);
 
   shared_ptr<Frame> new_frame = make_shared<Frame>();
-  new_frame->image = img_undistorted;
+  new_frame->image = img;
   new_frame->id = frame_count_++;
   new_frame->timestamp = msg->header.stamp.toSec();
   new_frame->stationary = true;  // Assume stationary at first
@@ -72,28 +49,15 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     // Use optical flow to calculate new point predictions
     std::vector<cv::Point2f> new_points;
     std::vector<uchar> status;
-    std::vector<float> err;
-    TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), GlobalParams::KLTMaxIterations(),
-                                         GlobalParams::KLTConvergenceEpsilon());
-
-    auto time_before_klt = std::chrono::system_clock::now();
-    cv::calcOpticalFlowPyrLK(prev_img, img_undistorted, prev_points, new_points, status, err,
-                             Size(GlobalParams::KLTWinSize(), GlobalParams::KLTWinSize()), GlobalParams::KLTPyramids(),
-                             criteria);
-
-    auto time_after_klt = std::chrono::system_clock::now();
-    auto micros_klt = std::chrono::duration_cast<std::chrono::microseconds>(time_after_klt - time_before_klt);
-    double millis_klt = static_cast<double>(micros_klt.count()) / 1000.;
-    DebugValuePublisher::PublishKLTDuration(millis_klt);
-
+    KLTPredictFeatureLocations(prev_img, img, prev_points, new_points, status);
     KLTDiscardBadTracks(status, prev_points, new_points);
-
     KLTInitNewFeatures(new_points, new_frame, lidar_frame);
 
+    // Compute parallaxes and increment inlier/outlier counts. Will reject outliers later.
     RANSACComputeParallaxesForTracks();
 
+    // Reject tracks based on reprojection and depth
     RejectOutliersByLandmarkProjections(new_frame->id, new_frame->timestamp);
-
     RemoveBadDepthTracks();
 
     if (!IsStationary(prev_points, new_points, GlobalParams::StationaryThresh()))
@@ -103,9 +67,9 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     }
   }
 
-  ExtractFeatures(img_undistorted, new_frame, lidar_frame);
+  ExtractFeatures(img, new_frame, lidar_frame);
 
-  RemoveTracksCloseToEdge(img_undistorted.cols, img_undistorted.rows);
+  RemoveTracksCloseToEdge(img.cols, img.rows);
 
   if (new_frame->id % GlobalParams::TemporalKeyframeInterval() == 0)
   {
@@ -122,7 +86,7 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
     frames.pop_front();
   }
 
-  PublishLandmarksImage(new_frame, img_undistorted, lidar_frame);
+  PublishLandmarksImage(new_frame, img, lidar_frame);
 
   return backend::FrontendResult{ .frame_id = new_frame->id,
                                   .timestamp = new_frame->timestamp,
@@ -131,6 +95,34 @@ backend::FrontendResult FeatureExtractor::lkCallback(const sensor_msgs::Image::C
                                   .has_depth = new_frame->HasDepth(),
                                   .mature_tracks = GetMatureTracksForBackend(),
                                   .n_ransac_outliers = n_ransac_outliers };
+}
+
+void FeatureExtractor::PrepareImage(const sensor_msgs::Image::ConstPtr& img_msg, cv::Mat& img) const
+{
+  auto encoding =
+      GlobalParams::ColorImage() ? sensor_msgs::image_encodings::TYPE_8UC3 : sensor_msgs::image_encodings::TYPE_8UC1;
+
+  auto cvPtr = cv_bridge::toCvShare(img_msg, encoding);
+
+  Mat img_bw;
+  if (GlobalParams::ColorImage())
+  {
+    cvtColor(cvPtr->image, img_bw, CV_BGR2GRAY);
+  }
+  else
+  {
+    img_bw = cvPtr->image;
+  }
+
+  Mat img_resized;
+  resize(img_bw, img_resized, Size(), GlobalParams::ResizeFactor(), GlobalParams::ResizeFactor(), INTER_LINEAR);
+
+  UndistortImage(img_resized, img);
+
+  if (GlobalParams::PreProcess())
+  {
+    PreProcessImage(img);
+  }
 }
 
 bool ParallaxOk(const std::shared_ptr<Track>& track)
@@ -472,6 +464,26 @@ void FeatureExtractor::RemoveBadDepthTracks()
       active_tracks_.erase(active_tracks_.begin() + i);
     }
   }
+}
+
+void FeatureExtractor::KLTPredictFeatureLocations(const cv::Mat& prev_img, const cv::Mat& new_img,
+                                                  const std::vector<cv::Point2f>& prev_points,
+                                                  std::vector<cv::Point2f>& new_points,
+                                                  std::vector<uchar>& status)
+{
+  std::vector<float> err;
+  TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), GlobalParams::KLTMaxIterations(),
+                                       GlobalParams::KLTConvergenceEpsilon());
+
+  auto time_before_klt = std::chrono::system_clock::now();
+  cv::calcOpticalFlowPyrLK(prev_img, new_img, prev_points, new_points, status, err,
+                           Size(GlobalParams::KLTWinSize(), GlobalParams::KLTWinSize()), GlobalParams::KLTPyramids(),
+                           criteria);
+
+  auto time_after_klt = std::chrono::system_clock::now();
+  auto micros_klt = std::chrono::duration_cast<std::chrono::microseconds>(time_after_klt - time_before_klt);
+  double millis_klt = static_cast<double>(micros_klt.count()) / 1000.;
+  DebugValuePublisher::PublishKLTDuration(millis_klt);
 }
 
 void FeatureExtractor::KLTDiscardBadTracks(const std::vector<uchar>& status, std::vector<cv::Point2f>& prev_points,
