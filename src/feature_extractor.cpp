@@ -150,6 +150,7 @@ bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
     return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
            track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
            track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth() &&
+           track->LastDepth()->depth > 7 && // Without this, we sometimes get landmarks behind camera
            track->LastDepth()->depth < GlobalParams::MaxDepthForSmoothing();
   }
   else

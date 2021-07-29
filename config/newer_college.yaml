@@ -65,7 +65,7 @@ min_features_per_cell: 5
 num_good_keyframes_for_initialization: 2
 track_nms_squared_dist_thresh: 600.
 max_features_per_cell: 6
-max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
+max_features: 40  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
 grid_cells_x: 5
 grid_cells_y: 5
 track_count_lower_thresh: 30
@@ -84,8 +84,8 @@ feature_extraction:
 min_parallax_for_smoothing: 7
 min_parallax_for_smoothing_depth: -1
 num_high_parallax_points_for_keyframe: 15
-min_track_length_for_smoothing: 20 # TODO 15 again???
-min_track_length_for_smoothing_depth: 10
+min_track_length_for_smoothing: 30 # TODO 15 again???
+min_track_length_for_smoothing_depth: 15
 min_depth_measurements_for_smoothing: 3
 max_depth_for_smoothing: 60 # Drifts more when LOAM is on if 60 rather than 40!
 min_active_track_count: 20
@@ -145,7 +145,7 @@ smoother_lag: 5
 enable_smart_factors: false
 isam_relin_thresh:
   x_rotation: 0.01
-  x_translation: 0.05  # 0.01 has a lot more relinearizations than 0.1. 0.05 is a good middle ground
+  x_translation: 0.01  # 0.01 has a lot more relinearizations than 0.1. 0.05 is a good middle ground
   v: 0.1
   b: 0.1
   l: 1.0

@@ -105,6 +105,7 @@ gtsam::ISAM2Result GraphManager::Update()
   catch (gtsam::IndeterminantLinearSystemException& e)
   {
     std::cout << "Caught ILS error: Trying to boostrap the system anew using factors and values from smoother" << std::endl;
+    std::cout << e.what() << std::endl;
     auto graph = incremental_solver_->GetFactorsUnsafe();
     auto values = GetValues();
     // Insert new values because GetFactorsUnsafe includes the new factors from graph_

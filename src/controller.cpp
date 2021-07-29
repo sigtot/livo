@@ -57,14 +57,15 @@ void Controller::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 {
   static int i = 0;
 
+  auto time_before = std::chrono::system_clock::now();
+  auto frontend_result = frontend_->lkCallback(msg);
+  auto time_after = std::chrono::system_clock::now();
+
   if (i++ % GlobalParams::FrameInterval() != 0)
   {
     // Skip every other frontend frame also!
     return;  // Return before feeding into backend. I.e. frontend has twice the rate of the backend
   }
-  auto time_before = std::chrono::system_clock::now();
-  auto frontend_result = frontend_->lkCallback(msg);
-  auto time_after = std::chrono::system_clock::now();
 
   auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
   double millis = static_cast<double>(micros.count()) / 1000.;
