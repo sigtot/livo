@@ -11,7 +11,7 @@ struct Track
 {
   int id;
   double max_parallax;
-  size_t depth_feature_count;
+  bool have_depth;
   std::vector<backend::Feature> features;
 };
 }  // namespace backend

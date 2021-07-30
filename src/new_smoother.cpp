@@ -489,7 +489,7 @@ void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_
   for (const auto& track : new_tracks)
   {
     auto obs_count = 0;
-    if (track.depth_feature_count > 0)
+    if (track.have_depth)
     {
       // If we have depth, find the first feature with depth, and use it to initialize the landmark
       // First, we need to get frame we first observed the features from, because this will be used

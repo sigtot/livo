@@ -139,24 +139,19 @@ bool NonDepthTrackIsOk(const std::shared_ptr<Track>& track)
          track->depth_hint < GlobalParams::LandmarkDistanceThreshold();
 }
 
+bool IsMatureDepthTrack(const std::shared_ptr<Track>& track)
+{
+  return track->HasDepth() && track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
+         track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
+         track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth() &&
+         track->LastDepth()->depth > 7 &&  // Without this, we sometimes get landmarks behind camera
+         track->LastDepth()->depth < GlobalParams::MaxDepthForSmoothing();
+}
+
 bool FeatureExtractor::TrackIsMature(const std::shared_ptr<Track>& track) const
 {
-  if (smoother_.IsLandmarkTracked(track->id))
-  {
-    return true; // If it is already in the smoother, the track must be mature
-  }
-  if (track->HasDepth())
-  {
-    return track->features.size() > GlobalParams::MinTrackLengthForSmoothingDepth() &&
-           track->DepthFeatureCount() > GlobalParams::MinDepthMeasurementsForSmoothing() &&
-           track->MedianParallax() > GlobalParams::MinParallaxForSmoothingDepth() &&
-           track->LastDepth()->depth > 7 && // Without this, we sometimes get landmarks behind camera
-           track->LastDepth()->depth < GlobalParams::MaxDepthForSmoothing();
-  }
-  else
-  {
-    return NonDepthTrackIsOk(track);
-  }
+  // If it is already in the smoother, the track must be mature
+  return smoother_.IsLandmarkTracked(track->id) || IsMatureDepthTrack(track) || NonDepthTrackIsOk(track);
 }
 
 std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
@@ -171,6 +166,7 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
     {
       continue;
     }
+    bool is_mature_depth_track = IsMatureDepthTrack(track);
     std::vector<backend::Feature> features;
     features.reserve(track->features.size());
     for (const auto& feature : track->features)
@@ -179,11 +175,11 @@ std::vector<backend::Track> FeatureExtractor::GetMatureTracksForBackend() const
                                            .frame_id = feature->frame_id,
                                            .timestamp = feature->timestamp,
                                            .pt = feature->pt,
-                                           .depth = feature->depth });
+                                           .depth = is_mature_depth_track ? feature->depth : boost::none });
     }
     tracks.push_back(backend::Track{ .id = track->id,
                                      .max_parallax = track->max_parallax,
-                                     .depth_feature_count = track->DepthFeatureCount(),
+                                     .have_depth = is_mature_depth_track,
                                      .features = std::move(features) });
     ++n_added;
     if (n_added >= GlobalParams::MaxFeatures())
