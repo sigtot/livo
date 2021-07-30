@@ -64,6 +64,7 @@ private:
   /// @deprecated
   bool use_angle_parallax_ = true;  // true: use angle parallax as in ORB-SLAM, false: pixel parallax as in VINS-mono
   double max_depth_for_smoothing_ = 30; // meters
+  double min_depth_for_smoothing_ = 7; // meters
 
   bool landmark_removal_high_delta_ = true;
   bool landmark_removal_high_depth_distance_ = true;
@@ -243,6 +244,7 @@ public:
   /// @deprecated
   static bool UseAngleParallax();
   static double MaxDepthForSmoothing();
+  static double MinDepthForSmoothing();
 
   static int SecondRANSACNFrames();
 

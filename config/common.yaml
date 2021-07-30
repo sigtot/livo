@@ -20,6 +20,7 @@ max_parallax_rotation_compensation: 200
 num_high_parallax_points_for_keyframe: 15
 min_active_track_count: 20
 max_depth_for_smoothing: 30
+min_depth_for_smoothing: 7
 use_angle_parallax: true
 
 use_parallax_keyframes: false

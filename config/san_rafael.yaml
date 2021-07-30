@@ -16,7 +16,7 @@ max_features: 30  # Max number of tracks we'll give to the backend, regardless o
 grid_cells_x: 1
 grid_cells_y: 1
 track_count_lower_thresh: 30
-min_keyframe_feature_inlier_ratio: 1
+min_keyframe_feature_inlier_ratio: 0.8
 
 klt:
   max_iterations: 10
@@ -27,7 +27,7 @@ klt:
 feature_extraction:
   quality_level: 0.001
   min_distance: 7
-  min_eigen_value: 0.0001
+  min_eigen_value: 0.001 # 0.001
 
 min_parallax_for_smoothing: 5
 min_parallax_for_smoothing_depth: -1
@@ -35,6 +35,7 @@ min_track_length_for_smoothing: 200
 min_track_length_for_smoothing_depth: 1
 min_depth_measurements_for_smoothing: 1
 max_depth_for_smoothing: 15
+min_depth_for_smoothing: 3
 min_active_track_count: 20
 
 dynamic_outlier_rejection_threshold: 20.
@@ -54,8 +55,10 @@ imu_g: 9.91
 imu_n_gravity_x: 0
 imu_n_gravity_y: 0
 imu_n_gravity_z: 0
-imu_accel_noise_density: 0.001372
-imu_gyro_noise_density: 0.00006108
+#imu_accel_noise_density: 0.001372
+#imu_gyro_noise_density: 0.00006108
+imu_accel_noise_density: 0.0000001372
+imu_gyro_noise_density: 0.00000006108
 imu_accel_random_walk: 0.00554371716
 imu_gyro_random_walk: 0.00068563008
 do_initial_gravity_alignment: true
@@ -71,8 +74,8 @@ noise_params:
   between_translation: 0.001
   between_rotation_keyframe: 0.0001
   between_translation_keyframe: 0.001
-  feature: 15
-  range: 2
+  feature: 2
+  range: 0.4
   robust_feature_k: 0.5
   robust_range_k: 0.5
 
@@ -121,5 +124,5 @@ landmark_removal:
 
 pre_processing:
   pre_process: true
-  contrast_alpha: 2.0
-  contrast_beta: -90
+  contrast_alpha: 1.5
+  contrast_beta: -45

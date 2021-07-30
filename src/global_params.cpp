@@ -108,6 +108,7 @@ void GlobalParams::LoadParams(const ros::NodeHandle& nh)
   ReadVariable(nh, "/orb_test_node/min_active_track_count", GetInstance().min_active_track_count_);
   ReadVariable(nh, "/orb_test_node/use_angle_parallax", GetInstance().use_angle_parallax_);
   ReadVariable(nh, "/orb_test_node/max_depth_for_smoothing", GetInstance().max_depth_for_smoothing_);
+  ReadVariable(nh, "/orb_test_node/min_depth_for_smoothing", GetInstance().min_depth_for_smoothing_);
 
   ReadVariable(nh, "/orb_test_node/use_parallax_keyframes", GetInstance().use_parallax_keyframes_);
   ReadVariable(nh, "/orb_test_node/min_parallax_for_keyframe", GetInstance().min_parallax_for_keyframe_);
@@ -554,6 +555,10 @@ bool GlobalParams::UseAngleParallax()
 double GlobalParams::MaxDepthForSmoothing()
 {
   return GetInstance().max_depth_for_smoothing_;
+}
+double GlobalParams::MinDepthForSmoothing()
+{
+  return GetInstance().min_depth_for_smoothing_;
 }
 
 bool GlobalParams::UseIsam()

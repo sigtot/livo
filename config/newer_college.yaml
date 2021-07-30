@@ -88,6 +88,7 @@ min_track_length_for_smoothing: 30 # TODO 15 again???
 min_track_length_for_smoothing_depth: 15
 min_depth_measurements_for_smoothing: 3
 max_depth_for_smoothing: 60 # Drifts more when LOAM is on if 60 rather than 40!
+min_depth_for_smoothing: 7
 min_active_track_count: 20
 use_angle_parallax: true
 min_keyframe_feature_inlier_ratio: 0.9
