@@ -130,10 +130,14 @@ int main(int argc, char** argv)
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>> lidar_messages_processor(
       std::bind(&Controller::LidarCallback, &controller, std::placeholders::_1), 1);
-  auto lidar_sub =
-      nh.subscribe(GlobalParams::LidarSubTopic(), 1000,
-                   &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>>::addMeasurement,
-                   &lidar_messages_processor);
+
+  if (GlobalParams::LidarDepthEnabled())
+  {
+    auto lidar_sub =
+        nh.subscribe(GlobalParams::LidarSubTopic(), 1000,
+                     &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>>::addMeasurement,
+                     &lidar_messages_processor);
+  }
 
   ROS_INFO("Starting up");
   if (!GlobalParams::GroundTruthFile().empty())
