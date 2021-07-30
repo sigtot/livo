@@ -221,13 +221,17 @@ gtsam::TriangulationResult NewSmoother::TriangulateTrack(const backend::Track& t
   auto n_collected = 0; // TODO just use measuemrenst.size()
   for (int i = 0; i < track.features.size(); i += inc)
   {
-    auto pose = graph_manager_.GetPose(track.features[i].frame_id);
-    if (pose)
+    for (int j = i; j < i + inc && j < track.features.size(); ++j)
     {
-      cameras.emplace_back(*pose * *body_p_cam_, *K_);
-      measurements.emplace_back(track.features[i].pt.x, track.features[i].pt.y);
+      auto pose = graph_manager_.GetPose(track.features[j].frame_id);
+      if (pose)
+      {
+        cameras.emplace_back(*pose * *body_p_cam_, *K_);
+        measurements.emplace_back(track.features[j].pt.x, track.features[j].pt.y);
+        ++n_collected;
+        break;
+      }
     }
-    ++n_collected;
   }
   std::cout << "Wanted " << n_wanted << " measurements for triangulation, got " << n_collected << std::endl;
 
