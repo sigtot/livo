@@ -123,7 +123,7 @@ int main(int argc, char** argv)
                         between_transform_provider, lidar_time_offset_provider, path_pub, posearr_pub, landmarks_pub);
 
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>> image_messages_processor(
-      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 60);
+      std::bind(&Controller::imageCallback, &controller, std::placeholders::_1), 5);
   auto img_sub = nh.subscribe(GlobalParams::CameraSubTopic(), 1000,
                               &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::Image>>::addMeasurement,
                               &image_messages_processor);
@@ -131,12 +131,12 @@ int main(int argc, char** argv)
   QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>> lidar_messages_processor(
       std::bind(&Controller::LidarCallback, &controller, std::placeholders::_1), 1);
 
+  ros::Subscriber lidar_sub;
   if (GlobalParams::LidarDepthEnabled())
   {
-    auto lidar_sub =
-        nh.subscribe(GlobalParams::LidarSubTopic(), 1000,
-                     &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>>::addMeasurement,
-                     &lidar_messages_processor);
+    lidar_sub = nh.subscribe(GlobalParams::LidarSubTopic(), 1000,
+                             &QueuedMeasurementProcessor<boost::shared_ptr<sensor_msgs::PointCloud2>>::addMeasurement,
+                             &lidar_messages_processor);
   }
 
   ROS_INFO("Starting up");

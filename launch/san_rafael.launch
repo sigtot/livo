@@ -1,4 +1,6 @@
 <launch>
+  <param name="use_sim_time" value="true"/>
+
   <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
     <rosparam file="$(find orb_test)/config/common.yaml"/>
     <rosparam file="$(find orb_test)/config/san_rafael.yaml"/>

@@ -1,9 +1,14 @@
 <launch>
-    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen" launch-prefix="taskset -c 2-7">
+    <param name="use_sim_time" value="true"/>
+
+    <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen" launch-prefix="">
         <rosparam file="$(find orb_test)/config/common.yaml"/>
         <rosparam file="$(find orb_test)/config/newer_college.yaml"/>
     </node>
 
+    <node pkg="tf" type="static_transform_publisher" name="world_link_broadcaster"
+          args="-0.0550308 0.00226642 0.0657462 0.0122215786 -0.00410931992 0.923332909 0.383784 world_link map 100"/>
+
     <node pkg="tf" type="static_transform_publisher" name="world_broadcaster"
-          args="-0.0550308 0.00226642 0.0657462 0.0122215786 -0.00410931992 0.923332909 0.383784 world map 100"/>
+          args="-3.35559 8.2542 0.145701 0.0039575 0.00400042 -0.605941 0.79549 world world_link 100"/>
 </launch>

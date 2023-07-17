@@ -33,12 +33,12 @@
 
   <!-- LOAM Nodelet Manager -->
   <node pkg="nodelet" type="nodelet" name="loam_nodelet_manager" args="manager" output="screen" clear_params="true"
-        launch-prefix="taskset -c 0-1"/>
+        launch-prefix=""/>
 
   <!-- Laser Multiscan Registration Nodelet -->
   <node pkg="nodelet" type="nodelet" name="laser_multiscan_registration_nodelet"
         args="load laser_multiscan_registration_nodelet loam_nodelet_manager" output="screen"
-        launch-prefix="taskset -c 0-1">
+        launch-prefix="">
     <rosparam file="$(find orb_test)/config/loam/loam_params_velodyne.yaml" command="load"/>
     <remap from="/multi_scan_points" to="$(arg pointcloud_topic_name)"/>
     <remap from="/imu" to="$(arg imu_topic_name)"/>
@@ -46,13 +46,13 @@
 
   <!-- Laser Odometry Nodelet -->
   <node pkg="nodelet" type="nodelet" name="laser_odometry_nodelet"
-        args="load laser_odometry_nodelet loam_nodelet_manager" output="screen" launch-prefix="taskset -c 0-1">
+        args="load laser_odometry_nodelet loam_nodelet_manager" output="screen" launch-prefix="">
     <rosparam file="$(find orb_test)/config/loam/loam_params_velodyne.yaml" command="load"/>
   </node>
 
   <!-- Laser Mapping Nodelet -->
   <node pkg="nodelet" type="nodelet" name="laser_mapping_nodelet"
-        args="load laser_mapping_nodelet loam_nodelet_manager" output="screen" launch-prefix="taskset -c 0-1">
+        args="load laser_mapping_nodelet loam_nodelet_manager" output="screen" launch-prefix="">
     <rosparam file="$(find orb_test)/config/loam/loam_params_velodyne.yaml" command="load"/>
     <param name="saved_submaps_filepath" value="$(find loam)"/>
   </node>
@@ -60,15 +60,11 @@
   <!-- Laser Transform Maintenance Nodelet -->
   <node pkg="nodelet" type="nodelet" name="laser_transform_maintenance_nodelet"
         args="load laser_transform_maintenance_nodelet loam_nodelet_manager" output="screen"
-        launch-prefix="taskset -c 0-1">
+        launch-prefix="">
     <rosparam file="$(find orb_test)/config/loam/loam_params_velodyne.yaml" command="load"/>
   </node>
   <!-- End LOAM stuff -->
 
-  <node name="orb_test_node" pkg="orb_test" type="orb_test_node" output="screen">
-    <rosparam file="$(find orb_test)/config/common.yaml"/>
-    <rosparam file="$(find orb_test)/config/alpha.yaml"/>
-  </node>
   <node pkg="tf" type="static_transform_publisher" name="map_vio_tf" respawn="true"
         args="0 0 0 0 0 0 1 world map 10 "/>
 </launch>

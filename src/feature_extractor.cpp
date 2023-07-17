@@ -374,6 +374,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
     cv::putText(tracks_out_img.image, std::to_string(track->id), track->features.back()->pt + cv::Point2f(7., 7.),
                 cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
 
+    /*
     // Draw parallax string
     std::stringstream stream1;
     stream1 << std::fixed << std::setprecision(2) << parallax;
@@ -403,6 +404,7 @@ void FeatureExtractor::PublishLandmarksImage(const std::shared_ptr<Frame>& frame
       cv::putText(tracks_out_img.image, depth_str + "m", track->features.back()->pt + cv::Point2f(7., 52.),
                   cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0, 0, 200));
     }
+     */
   }
 
   tracks_pub_.publish(tracks_out_img.toImageMsg());

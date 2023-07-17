@@ -34,7 +34,7 @@ min_parallax_for_smoothing_depth: -1
 min_track_length_for_smoothing: 200
 min_track_length_for_smoothing_depth: 1
 min_depth_measurements_for_smoothing: 1
-max_depth_for_smoothing: 15
+max_depth_for_smoothing: 60
 min_depth_for_smoothing: 3
 min_active_track_count: 20
 
@@ -97,9 +97,9 @@ enable_smart_factors: false
 lidar_depth:
   enabled: true
   calc_mode: 0
-  search_window_width: 45
-  search_window_height: 45
-  min_non_zero_neighbors: 4
+  search_window_width: 15
+  search_window_height: 15
+  min_non_zero_neighbors: 2
   max_allowed_feature_distance: 60
   std_dev_tol_factor: 2.0
 

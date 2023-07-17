@@ -459,33 +459,6 @@ void NewSmoother::Initialize(const backend::FrontendResult& frame,
   initialized_ = true;
 }
 
-void NewSmoother::UpdateTrackParallaxes(const std::shared_ptr<Frame>& frame)
-{
-  if (added_frames_.size() > GlobalParams::MinKeyframesForNominal())
-  {
-    int count = 0;
-    auto time_before = std::chrono::system_clock::now();
-    for (auto& feature_pair : frame->features)
-    {
-      auto feature = feature_pair.second.lock();
-      if (feature)
-      {
-        auto track = feature->track.lock();
-        if (track && track->max_parallax < GlobalParams::MinParallaxForSmoothing())
-        {
-          auto parallax = CalculateParallax(track);
-          track->max_parallax = std::max(parallax, track->max_parallax);
-          count++;
-        }
-      }
-    }
-    auto time_after = std::chrono::system_clock::now();
-    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(time_after - time_before);
-    double millis = static_cast<double>(micros.count()) / 1000.;
-    std::cout << "Computed parallaxes for " << count << " tracks (took " << millis << "ms)" << std::endl;
-  }
-}
-
 void NewSmoother::InitializeNewLandmarks(const std::vector<backend::Track>& new_tracks, int frame_id,
                                          const gtsam::Pose3& pred_pose, double timestamp_for_values)
 {

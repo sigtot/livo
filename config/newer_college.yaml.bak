@@ -1,0 +1,162 @@
+imu_sub_topic: /camera/imu
+cam_sub_topic: /camera/infra1/image_rect_raw
+lidar_sub_topic: /os1_cloud_node/points
+lidar_frame_for_publish: os1_lidar
+
+resize_factor: 1.0
+ground_truth_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/ground_truth/registered_poses.csv
+lidar_time_offset_file: /home/sigtot/Downloads/data/newer_college/01_short_experiment/time_offsets.csv
+ground_truth_provider: newer_college
+lidar_time_offset_type: newer_college
+init_on_ground_truth: true
+
+timeshift_cam_imu: 0.01379378638037798
+imu_max_messages_retained: 10000
+imu_g: 9.81
+imu_n_gravity_x: 0
+imu_n_gravity_y: 0
+imu_n_gravity_z: -1
+do_initial_gravity_alignment: false
+#imu_accel_noise_density: 0.0014715 # m / (s^2 sqrt(Hz))
+#imu_gyro_noise_density: 0.00174528 # rad / s
+#imu_accel_random_walk: 0.000208 # Couldn't find in datasheet
+#imu_gyro_random_walk: 0.000004 # Couldn't find in datasheet
+
+imu_accel_noise_density: 0.0013 # m / (s^2 sqrt(Hz))
+imu_gyro_noise_density: 0.00005398 # rad / s
+imu_accel_random_walk: 0.0001 # Couldn't find in datasheet
+imu_gyro_random_walk: 0.00000933 # Couldn't find in datasheet
+
+imu_init_bias_accel: [ -0.1, 0.015, 0.14 ]
+imu_init_bias_gyro: [ 0., 0., 0. ]
+
+# Nikhil's params
+#accNoiseDensity: 1.3e-03
+#gyrNoiseDensity: 5.398e-05
+#accBiasRandomWalk: 1.0e-04
+#gyrBiasRandomWalk: 9.33e-06
+#accBiasPrior: 0.0
+#gyrBiasPrior: 0.0
+
+noise_params:
+  prior_X_yaw: 0.01
+  prior_X_roll_pitch: 0.5
+  prior_X_translation: 0.01
+  prior_gyro: 0.2
+  prior_accel: 0.2
+  prior_velocity: 0.01
+  between_rotation: 0.0001
+  between_translation: 0.001
+  between_rotation_keyframe: 0.0001
+  between_translation_keyframe: 0.001
+  feature: 15
+  range: 2
+  robust_feature_k: 0.5
+  robust_range_k: 0.5
+
+use_isam: true
+use_dogleg: false
+isam_relinearize_thresh: 0.1
+isam_relinearize_skip: 1
+init_range_factor_length: 1.0
+
+count_features_per_cell: true
+min_features_per_cell: 2
+num_good_keyframes_for_initialization: 2
+track_nms_squared_dist_thresh: 600.
+max_features_per_cell: 3
+max_features: 30  # Max number of tracks we'll give to the backend, regardless of how many the frontend has
+grid_cells_x: 7
+grid_cells_y: 7
+track_count_lower_thresh: 30
+
+klt:
+  max_iterations: 10
+  convergence_epsilon: 0.03
+  win_size: 15
+  pyramids: 2
+
+feature_extraction:
+  quality_level: 0.1
+  min_distance: 7
+  min_eigen_value: 0.001
+
+min_parallax_for_smoothing: 7
+min_parallax_for_smoothing_depth: -1
+num_high_parallax_points_for_keyframe: 15
+min_track_length_for_smoothing: 20
+min_track_length_for_smoothing_depth: 10
+min_depth_measurements_for_smoothing: 3
+max_depth_for_smoothing: 40
+min_active_track_count: 20
+use_angle_parallax: true
+
+use_parallax_keyframes: false
+min_parallax_for_keyframe: 20
+temporal_keyframe_interval: 15
+frame_interval: 2
+second_ransac_n_frames: 14
+
+body_p_cam_quat: [ -0.499321, 0.499958, -0.499171, 0.501547 ]
+body_p_cam_vec: [ 0.0159205, 0.00583189, 0.0174204 ]
+
+body_p_imu_quat: [ -0.5, 0.5, -0.5, 0.5 ]
+body_p_imu_vec: [ 0, 0, 0 ]
+
+body_p_lidar_quat: [ 0.0122215786, -0.00410931992, 0.923332909, 0.383784 ]
+body_p_lidar_vec: [ -0.0550308, 0.00226642, 0.0657462 ]
+
+image_width: 848
+image_height: 480
+cam_fx: 431.38739114
+cam_fy: 430.24961762
+cam_u0: 427.4407802
+cam_v0: 238.52694868
+color_image: false
+image_edge_padding_percent: .02
+
+distortion_model:
+  coeffs: [ 0, 0, 0, 0 ]
+  #coeffs: [ 0.007925673974579087, -0.0036215088874331737, -0.001422629239660213, 0.0002909310193082525 ]
+  type: radtan
+
+lidar_depth:
+  enabled: true
+  calc_mode: 0
+  search_window_width: 25
+  search_window_height: 25
+  min_non_zero_neighbors: 4
+  max_allowed_feature_distance: 60
+  std_dev_tol_factor: 0.3
+  max_messages_retained: 100
+
+lidar_frame_manager_timestamp_thresh: 0.015
+
+dynamic_outlier_rejection_threshold: 10.
+triangulation_rank_tol: 50
+feature_prediction_outlier_thresh: 20
+landmark_distance_threshold: 15.
+proj_landmark_init_dist_thresh: 25.
+extra_isam2_update_steps: 0
+
+use_fixed_lag: true
+smoother_lag: 5
+enable_smart_factors: false
+isam_relin_thresh:
+  x_rotation: 0.1
+  x_translation: 0.001  # TODO CHeck for sure that this is not a problem
+  v: 0.1
+  b: 0.1
+  l: 1.0
+
+loam_between_factors_enabled: true
+loam_imu_only: false
+frame_between_factors: true
+keyframe_between_factors: false
+loam_world_frame: map
+loam_sensor_frame: aft_mapped_to_init_CORRECTED
+loam_degeneracy_topic: /laser_odom_status
+
+visualization:
+  draw_only_in_smoother_landmarks: false
+  draw_lidar_lines: false  # Adds about 15ms to image publish
